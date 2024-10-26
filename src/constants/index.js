@@ -57,16 +57,34 @@ export const nav_links = [
     name: "Projects",
     icon: faProjectDiagram
   },
-  // {
-  //   path: "store",
-  //   name: "Store",
-  //   icon: faStore
-  // },
   {
     path: "archive",
     name: "Archive",
     icon: faBoxArchive
   },
+]
+
+export const video_links = [
+  {
+    path: "",
+    name: "Home",
+    icon: ''
+  },
+  {
+    path: "movies",
+    name: "Movies",
+    icon: ''
+  },
+  {
+    path: "anime",
+    name: "Anime",
+    icon: ''
+  },
+  {
+    path: "hanime",
+    name: "Uncategorized",
+    icon: ''
+  }
 ]
 
 export const user_navLinks = [

@@ -3,7 +3,7 @@ import { FaEnvelope, FaLock } from "react-icons/fa";
 
 import { useNavigate  } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { signin } from "../actions/auth";
+import { login } from "../actions/auth";
 
 function LoginForm({ path, setUser }) {
   const navigate  = useNavigate()
@@ -28,7 +28,7 @@ function LoginForm({ path, setUser }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(signin(form))
+    dispatch(login(form))
   };
 
   return (

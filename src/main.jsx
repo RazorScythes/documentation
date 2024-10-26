@@ -11,11 +11,11 @@ import { Provider } from 'react-redux'
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <Provider store={store}>
-    <HttpsRedirect>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </HttpsRedirect>
-  </Provider>,
+    <Provider store={store}>
+        <HttpsRedirect>
+            <QueryClientProvider client={queryClient}>
+                <App />
+            </QueryClientProvider>
+        </HttpsRedirect>
+    </Provider>
 )

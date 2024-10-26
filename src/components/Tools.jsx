@@ -44,4 +44,58 @@ export const millisToTimeString = (millis) => {
                   seconds.toString().padStart(2, '0');
     
     return timeString;
-  }
+}
+
+const importKey = async () => {
+    const secretKey = import.meta.env.VITE_APP_SECRET_KEY;
+
+    if (!secretKey) {
+      return '';
+    }
+
+    const rawKey = Uint8Array.from(atob(secretKey), char => char.charCodeAt(0));
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      rawKey,
+      { name: "AES-GCM" },
+      false,
+      ["encrypt", "decrypt"]
+    );
+
+    return key;
+};
+
+export const generateIV = () => window.crypto.getRandomValues(new Uint8Array(12));
+export const fixIV = () => new Uint8Array(24);
+
+export const encryptData = async (data) => {
+    const cryptoKey = await importKey()
+    if (!cryptoKey) throw new Error("CryptoKey not available");
+
+    const iv = fixIV();
+    const encodedData = new TextEncoder().encode(data);
+
+    const encryptedData = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        cryptoKey,
+        encodedData
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+};
+
+export const decryptData = async (encryptedText) => {
+    const cryptoKey = await importKey()
+    if (!cryptoKey) throw new Error("CryptoKey not available");
+
+    const iv = fixIV();
+    const encryptedArrayBuffer = Uint8Array.from(atob(encryptedText), c => c.charCodeAt(0));
+
+    const decryptedData = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        cryptoKey,
+        encryptedArrayBuffer
+    );
+
+    return new TextDecoder().decode(decryptedData);
+  };
