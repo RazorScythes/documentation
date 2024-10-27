@@ -1,6 +1,6 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faCog, faHamburger, faSearch } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faCog, faHamburger, faSearch, faStarAndCrescent, faSun } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { video_links, user_navLinks } from "../../constants";
@@ -8,14 +8,17 @@ import { faUser, faGear, faRightFromBracket, faFolder , faEnvelope} from "@forta
 import { logout } from "../../actions/auth";
 import { convertDriveImageLink } from '../Tools'
 import { useDispatch, useSelector } from 'react-redux'
+import { Menu } from "lucide-react";
+import { main, dark, light } from "../../style";
 
 import Logo from '../../assets/logo.png'
 import Avatar from '../../assets/avatar.png'
-import { Menu } from "lucide-react";
+import { faMoon } from "@fortawesome/free-regular-svg-icons";
+import { FaRegSun } from "react-icons/fa";
 
 const capitalizeFirstLetter = (str) => `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 
-const Navbar = ({  }) => {
+const Navbar = ({ theme, setTheme }) => {
     const dispatch = useDispatch()
     const navigate  = useNavigate()
 
@@ -64,28 +67,40 @@ const Navbar = ({  }) => {
         e.preventDefault()
 
         if(firstPath.includes('videos')) {
-        window.location.href = `/videos/search/${searchKey}`
+            window.location.href = `/videos/search/${searchKey}`
         }
         else if(firstPath.includes('games')) {
-        window.location.href = `/games/search/${searchKey}`
+            window.location.href = `/games/search/${searchKey}`
         }
         else if(firstPath.includes('blogs')) {
-        window.location.href = `/blogs/search/${searchKey}`
+            window.location.href = `/blogs/search/${searchKey}`
         }
         else if(firstPath.includes('projects')) {
-        window.location.href = `/projects/search/${searchKey}`
+            window.location.href = `/projects/search/${searchKey}`
         }
     }
+
+    const changeTheme = () => {
+        if(!theme || theme === 'dark') {
+            setTheme('light')
+            localStorage.setItem('theme', 'light')
+        }
+        else {
+            setTheme('dark')
+            localStorage.setItem('theme', 'dark')
+        }
+    }
+
     return (
-        <header className='font-poppins w-full border-[#0e0e0e] border-b border-solid shadow-lg transition-all relative'>
+        <header className={`${main.font} w-full border-b border-solid ${theme === 'light' ? light.border : dark.border} shadow-lg transition-all relative`}>
             {
                 isActive ?
-                <div className={`xs:px-6 absolute left-0 z-40 top-10 py-6 text-sm lg:flex-grow text-left lg:hidden block tranisition-all bg-[#0e0e0e] w-full`}>
-                    <div className="container mx-auto">
+                <div className={`xs:px-6 absolute left-0 z-40 top-10 py-6  lg:flex-grow text-left lg:hidden block tranisition-all ${theme === 'light' ? light.background : dark.background} w-full`}>
+                    <div className={`${main.container}`}>
                     {
                         video_links.map((link, i) => {
                             return (
-                                <a href={`/${link.path}`} className="block mt-4 lg:inline-block lg:mt-0 hover:text-blue-400 mr-4 transition-all" onClick={() => setIsActive(!isActive)}>
+                                <a href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link}`} onClick={() => setIsActive(!isActive)}>
                                     <FontAwesomeIcon icon={link.icon} className="mr-2" />
                                     {link.name}
                                 </a>
@@ -96,20 +111,20 @@ const Navbar = ({  }) => {
                 </div> : null
             }
 
-            <div className={`xs:px-6 ${!open.search ? "hidden" : "block"} absolute left-0 z-40 top-10 py-6 text-sm lg:flex-grow text-left lg:hidden block tranisition-all bg-[#0e0e0e] w-full`}>
-                <div className="container mx-auto">
+            <div className={`xs:px-6 ${!open.search ? "hidden" : "block"} absolute left-0 z-40 top-10 py-6  lg:flex-grow text-left lg:hidden block tranisition-all ${theme === 'light' ? light.background : dark.background} w-full`}>
+                <div className={`${main.container}`}>
                     <form onSubmit={handleSearch}>
-                        <div className="relative lg:mt-0 mt-4 font-poppins">
-                            <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className="text-gray-300"/> </span>
-                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className="block w-full bg-[#1C1C1C] text-sm text-gray-300 rounded-full py-2 px-8 pr-10 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none" type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
+                        <div className="relative lg:mt-0 mt-4">
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`}/> </span>
+                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
                         </div>
                     </form>
                 </div>
             </div>
 
-            <nav className="container mx-auto lg:h-14 lg:py-0 sm:px-0 px-2 py-3 relative flex items-center justify-between flex-wrap z-50">
+            <nav className={`${main.container} lg:h-14 lg:py-0 sm:px-0 px-2 py-3 relative flex items-center justify-between flex-wrap z-50`}>
                 <div className="flex items-center lg:gap-10 gap-3">
-                    <button className="lg:hidden flex items-center px-3 py-2 text-white transition-all hover:text-blue-600" onClick={() => {
+                    <button className={`lg:hidden flex items-center px-3 py-2 ${theme === 'light' ? light.icon : dark.icon}`} onClick={() => {
                         setOpen({...open, search: false, notification: false})
                         setIsActive(!isActive)
                         setToggle(false)
@@ -120,15 +135,15 @@ const Navbar = ({  }) => {
                     <Link to={``}>
                         <div className="flex items-center flex-shrink-0  mr-6">
                             <img className="h-8 w-8 rounded-full mr-2" src={Logo} alt="Profile" />
-                            <span className="font-roboto font-semibold text-xl">RazorScythe</span>
+                            <span className={`${main.font_secondary} font-semibold text-xl xs:block hidden`}>RazorScythe</span>
                         </div>
                     </Link>
 
-                    <div className="text-sm lg:flex-grow text-center lg:block hidden">
+                    <div className=" lg:flex-grow text-center lg:block hidden">
                         {
                             video_links.map((link, i) => {
                                 return (
-                                    <a id={i} href={`/${link.path}`} className="block mt-4 lg:inline-block lg:mt-0 hover:text-blue-400 mr-4 transition-all" onClick={() => setIsActive(!isActive)}>
+                                    <a id={i} href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link} mr-4`} onClick={() => setIsActive(!isActive)}>
                                         <FontAwesomeIcon icon={link.icon} className="mr-2" />
                                         {link.name}
                                     </a>
@@ -140,18 +155,19 @@ const Navbar = ({  }) => {
 
                 <div className="flex lg:hidden items-center">
                     <div className="flex gap-2">
-                        <button className="p-[0.35rem] px-3 hover:text-blue-600 rounded-md transition-all" onClick={() => {
+                        <button className={`p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`} onClick={() => {
                             setOpen({...open, search: !open.search, notification: false})
                             setIsActive(false)
                             setToggle(false)
                         }}><FontAwesomeIcon icon={faSearch} /></button>
-                        { user && <button className="p-[0.35rem] px-3 hover:text-blue-600 rounded-md transition-all"><FontAwesomeIcon icon={faBell} /></button> }
+                        { user && <button className={`p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}><FontAwesomeIcon icon={faBell} /></button> }
+                        <button onClick={() => changeTheme()} className={`lg:hidden block p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}> { theme === 'light' ? <FontAwesomeIcon icon={faSun} /> : <FontAwesomeIcon icon={faStarAndCrescent} /> } </button>
                     </div>
 
                     {
                         user ?
                             <div>
-                                <img className="h-8 w-8 rounded-full ml-4 cursor-pointer object-cover border border-gray-500 bg-white" src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile" onClick={() => {
+                                <img className={`h-8 w-8 rounded-full ml-4 cursor-pointer object-cover border border-gray-500 bg-white`} src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile" onClick={() => {
                                     setToggle(!toggle)
                                     setIsActive(false)
                                     setOpen({...open, search: false, notification: false})
@@ -159,18 +175,18 @@ const Navbar = ({  }) => {
                                 <div
                                     className={`${
                                     !toggle ? "hidden" : "flex"
-                                    } p-6 bg-[#0e0e0e] absolute z-60 top-16 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar text-sm border border-solid border-[#1C1C1C] shadow-md`}
+                                    } p-6 ${theme === 'light' ? light.background : dark.background} absolute z-60 top-16 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar border border-solid ${theme === 'light' ? light.border : dark.semiborder} shadow-md`}
                                 >
                                     <ul className="list-none flex justify-end items-start flex-1 flex-col">
-                                        <li className={`cursor-pointer hover:text-blue-400 mb-4 transition-all`}>
+                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-4`}>
                                             <FontAwesomeIcon icon={faUser} className="mr-2" />
                                             <a href={`/account`}>My Account</a>
                                         </li>
-                                        <li className={`cursor-pointer hover:text-blue-400 mb-4 transition-all`}>
+                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-4`}>
                                             <FontAwesomeIcon icon={faGear} className="mr-2" />
                                             <a href={`/account/settings`}>Settings</a>
                                         </li>
-                                        <li className={`cursor-pointer hover:text-blue-400 mb-0 transition-all`}>
+                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-0`}>
                                             <FontAwesomeIcon icon={faRightFromBracket} className="mr-2" />
                                             <button onClick={() => sign_out()}>Logout</button>
                                         </li>
@@ -179,7 +195,7 @@ const Navbar = ({  }) => {
                             </div>
                             :
                             <a href={`/login`}>
-                                <button className="bg-white hover:bg-blue-600 hover:border-blue-600 hover:text-white text-[#0e0e0e] font-medium ml-2 text-sm py-1.5 px-4 border border-white rounded-full transition-colors duration-300 ease-in-out">
+                                <button className={`${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
                                     Login
                                 </button>
                             </a>
@@ -189,12 +205,14 @@ const Navbar = ({  }) => {
                 <div className={`w-full block flex-grow lg:flex lg:items-center m-auto lg:w-auto ${isActive ? "block" : "hidden"} justify-end`}>
                     <form onSubmit={handleSearch} className="lg:block hidden">
                         <div className="relative lg:mt-0 mt-4 font-poppins">
-                            <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className="text-gray-300" /> </span>
-                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className="block w-full bg-[#1C1C1C] text-sm text-gray-300 rounded-full py-2 px-8 pr-10 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none" type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`} /> </span>
+                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
                         </div>
                     </form>
 
-                    <div className="hidden lg:block text-sm">
+                    <button onClick={() => changeTheme()} className={`lg:block hidden p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}> { theme === 'light' ? <FontAwesomeIcon icon={faSun} /> : <FontAwesomeIcon icon={faStarAndCrescent} /> } </button>
+
+                    <div className="hidden lg:block ">
                     {
                         user ?
                             <div className="flex">  
@@ -209,22 +227,18 @@ const Navbar = ({  }) => {
                                 </button>
 
                                 <div
-                                    className={`${!toggle ? "hidden" : "flex"} flex-col p-6 bg-white absolute z-60 top-14 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar text-sm border border-solid border-gray-300 shadow-md`}
+                                    className={`${!toggle ? "hidden" : "flex"} flex-col p-6 ${theme === 'light' ? light.background : dark.background} absolute z-60 top-14 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar  border border-solid ${theme === 'light' ? light.border : dark.semiborder} shadow-md`}
                                 >
                                     <ul className="list-none flex justify-end items-start flex-1 flex-col">
-                                        <li className={`cursor-pointer hover:text-blue-700 mb-4`}>
+                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-4`}>
                                             <FontAwesomeIcon icon={faUser} className="mr-2" />
                                             <a href={`/account`}>My Account</a>
                                         </li>
-                                        <li className={`cursor-pointer hover:text-blue-700 mb-4`}>
-                                            <FontAwesomeIcon icon={faFolder} className="mr-2" />
-                                            <a href={`/${user.username}/portfolio`}>Portfolio</a>
-                                        </li>
-                                        <li className={`cursor-pointer hover:text-blue-700 mb-4`}>
+                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-4`}>
                                             <FontAwesomeIcon icon={faGear} className="mr-2" />
                                             <a href={`/account/settings`}>Settings</a>
                                         </li>
-                                        <li className={`cursor-pointer hover:text-blue-700 mb-0`}>
+                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-0`}>
                                             <FontAwesomeIcon icon={faRightFromBracket} className="mr-2" />
                                             <button onClick={() => sign_out()}>Logout</button>
                                         </li>
@@ -234,7 +248,7 @@ const Navbar = ({  }) => {
                             :
                             <div className="flex justify-end">  
                                 <a href={`/login`}>
-                                    <button className="bg-white hover:bg-blue-600 hover:border-blue-600 hover:text-white text-[#0e0e0e] font-medium ml-2 text-sm py-1.5 px-4 border border-white rounded-full transition-colors duration-300 ease-in-out">
+                                    <button className={`${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
                                         Login
                                     </button>
                                 </a>

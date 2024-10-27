@@ -7,6 +7,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { ProjectSingle } from './components/Portfolio Section/index';
 import { getProfile, userToken } from './actions/settings';
 import { v4 as uuidv4 } from 'uuid';
+import { main, dark, light } from "./style";
+
 import Cookies from 'universal-cookie';
 
 import Navbar from './components/Custom/Navbar';
@@ -22,6 +24,7 @@ const App = () => {
   const settings = useSelector((state) => state.settings.data)
   const userData = JSON.parse(localStorage.getItem('profile'))
   const [user, setUser] = useState(userData? userData : null)
+  const [theme, setTheme] = useState(localStorage.getItem('theme'))
   
   useEffect(() => {
     if(!cookies.get("uid")) {
@@ -46,14 +49,14 @@ const App = () => {
   }, [settings])
 
   return (
-    <div className="w-full bg-[#0e0e0e] text-white">
+    <div className={`w-full ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} text-sm`}>
         <BrowserRouter>
             <Routes>
                 <Route path="custom" element={<Custom user={user} path={URI_PATH_HOME}/>} />
 
-                <Route path='/' element={<><Navbar path={URI_PATH_HOME} /> <Outlet/></>}>
-                    <Route index element={<Home user={user} ath={URI_PATH_HOME}/>} />
-                    <Route path={`*`} element={<> <NotFound/> <Footer /></>} />
+                <Route path='/' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
+                    <Route index element={<><Home user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
 
                 <Route path="account_verify" element={<><Verify /></>} />
