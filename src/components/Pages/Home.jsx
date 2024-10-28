@@ -8,6 +8,7 @@ import Footer from '../Custom/Footer';
 import Loading from './Loading';
 import SideAlert from '../SideAlert';
 import heroImage from '../../assets/hero-image.jpg';
+import Poster from '../Custom/Poster';
 import { main, dark, light } from '../../style';
 import Cookies from 'universal-cookie';
 // Static Services Component 
@@ -41,63 +42,29 @@ const Home = ({ user, theme }) => {
                                 <h1 className="text-2xl font-medium mb-4">Recently Added</h1>
 
                                 <div className='grid lg:grid-cols-4 xs:grid-cols-3 grid-cols-2 gap-4 place-content-start mt-8'>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                        }}
+                                        theme={theme}
+                                    />
 
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
-                                    <div className='w-full'>
-                                        <img 
-                                            className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                                            src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
-                                        />
-                                        <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
-                                    </div>
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                        }}
+                                        theme={theme}
+                                    />
                                 </div>
                             </div>
 
