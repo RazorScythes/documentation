@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -12,28 +12,225 @@ const initialState = {
     blog                : {}
 }
 
-export const getUserVideo                                           = await requestAPI('uploads/getUserVideo', api.getUserVideo)
-export const getUserGame                                            = await requestAPI('uploads/getUserGame', api.getUserGame)
-export const uploadVideo                                            = await requestAPI('uploads/uploadVideo', api.uploadVideo)
-export const editVideo                                              = await requestAPI('uploads/editVideo', api.editVideo)
-export const editGame                                               = await requestAPI('uploads/editGame', api.editGame)
-export const editBlog                                               = await requestAPI('uploads/editBlog', api.editBlog)
-export const removeVideo                                            = await requestAPI('uploads/removeVideo', api.removeVideo)
-export const bulkRemoveVideo                                        = await requestAPI('uploads/bulkRemoveVideo', api.bulkRemoveVideo)
-export const changePrivacyById                                      = await requestAPI('uploads/changePrivacyById', api.changePrivacyById)
-export const changeStrictById                                       = await requestAPI('uploads/changeStrictById', api.changeStrictById)
-export const changeGamePrivacyById                                  = await requestAPI('uploads/changeGamePrivacyById', api.changeGamePrivacyById)
-export const changeGameStrictById                                   = await requestAPI('uploads/changeGameStrictById', api.changeGameStrictById)
-export const changeDownloadById                                     = await requestAPI('uploads/changeDownloadById', api.changeDownloadById)
-export const uploadGame                                             = await requestAPI('uploads/uploadGame', api.uploadGame)
-export const removeGame                                             = await requestAPI('uploads/removeGame', api.removeGame)
-export const bulkRemoveGame                                         = await requestAPI('uploads/bulkRemoveGame', api.bulkRemoveGame)
-export const uploadBlog                                             = await requestAPI('uploads/uploadBlog', api.uploadBlog)
-export const getUserBlog                                            = await requestAPI('uploads/getUserBlog', api.getUserBlog)
-export const changeBlogPrivacyById                                  = await requestAPI('uploads/changeBlogPrivacyById', api.changeBlogPrivacyById)
-export const changeBlogStrictById                                   = await requestAPI('uploads/changeBlogStrictById', api.changeBlogStrictById)
-export const removeBlog                                             = await requestAPI('uploads/removeBlog', api.removeBlog)
-export const bulkRemoveBlog                                         = await requestAPI('uploads/bulkRemoveBlog', api.bulkRemoveBlog)
+export const getUserVideo = createAsyncThunk('uploads/getUserVideo', async (form, thunkAPI) => {
+    try {
+        const response = await api.getUserVideo(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getUserGame = createAsyncThunk('uploads/getUserGame', async (form, thunkAPI) => {
+    try {
+        const response = await api.getUserGame(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const uploadVideo = createAsyncThunk('uploads/uploadVideo', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadVideo(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const editVideo = createAsyncThunk('uploads/editVideo', async (form, thunkAPI) => {
+    try {
+        const response = await api.editVideo(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const editGame = createAsyncThunk('uploads/editGame', async (form, thunkAPI) => {
+    try {
+        const response = await api.editGame(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const editBlog = createAsyncThunk('uploads/editBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.editBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const removeVideo = createAsyncThunk('uploads/removeVideo', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeVideo(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const bulkRemoveVideo = createAsyncThunk('uploads/bulkRemoveVideo', async (form, thunkAPI) => {
+    try {
+        const response = await api.bulkRemoveVideo(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changePrivacyById = createAsyncThunk('uploads/changePrivacyById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changePrivacyById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeStrictById = createAsyncThunk('uploads/changeStrictById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeStrictById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeGamePrivacyById = createAsyncThunk('uploads/changeGamePrivacyById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeGamePrivacyById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeGameStrictById = createAsyncThunk('uploads/changeGameStrictById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeGameStrictById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeDownloadById = createAsyncThunk('uploads/changeDownloadById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeDownloadById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const uploadGame = createAsyncThunk('uploads/uploadGame', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadGame(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const removeGame = createAsyncThunk('uploads/removeGame', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeGame(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const bulkRemoveGame = createAsyncThunk('uploads/bulkRemoveGame', async (form, thunkAPI) => {
+    try {
+        const response = await api.bulkRemoveGame(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const uploadBlog = createAsyncThunk('uploads/uploadBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getUserBlog = createAsyncThunk('uploads/getUserBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.getUserBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeBlogPrivacyById = createAsyncThunk('uploads/changeBlogPrivacyById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeBlogPrivacyById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const changeBlogStrictById = createAsyncThunk('uploads/changeBlogStrictById', async (form, thunkAPI) => {
+    try {
+        const response = await api.changeBlogStrictById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const removeBlog = createAsyncThunk('uploads/removeBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const bulkRemoveBlog = createAsyncThunk('uploads/bulkRemoveBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.bulkRemoveBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
 
 export const uploadsSlice = createSlice({
     name: 'uploads',

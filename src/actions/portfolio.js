@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -14,23 +14,193 @@ const initialState = {
     mailStatus          : ''
 }
 
-export const uploadHero                                 = await requestAPI('portfolio/uploadHero', api.uploadPortfolioHero)
-export const uploadSkills                               = await requestAPI('portfolio/uploadSkills', api.uploadPortfolioSkills)
-export const uploadServices                             = await requestAPI('portfolio/uploadServices', api.uploadPortfolioServices)
-export const addExperience                              = await requestAPI('portfolio/addExperience', api.addPortfolioExperience)
-export const updateExperience                           = await requestAPI('portfolio/updateExperience', api.updatePortfolioExperience)
-export const addProject                                 = await requestAPI('portfolio/addProject', api.addPortfolioProject)
-export const updateProject                              = await requestAPI('portfolio/updateProject', api.updatePortfolioProject)
-export const deleteProject                              = await requestAPI('portfolio/deleteProject', api.deletePortfolioProject)
-export const sendTestEmail                              = await requestAPI('portfolio/sendTestEmail', api.sendTestEmail)
-export const sendEmail                                  = await requestAPI('portfolio/sendEmail', api.sendEmail)
-export const sendContactUs                              = await requestAPI('portfolio/sendContactUs', api.sendContactUs)
-export const uploadContacts                             = await requestAPI('portfolio/uploadContacts', api.uploadPortfolioContacts)
-export const getPortfolio                               = await requestAPI('portfolio/getPortfolio', api.getPortfolio)
-export const publishPortfolio                           = await requestAPI('portfolio/publishPortfolio', api.publishPortfolio)
-export const unpublishPortfolio                         = await requestAPI('portfolio/unpublishPortfolio', api.unpublishPortfolio)
-export const getPortfolioByUsername                     = await requestAPI('portfolio/getPortfolioByUsername', api.getPortfolioByUsername)
-export const getProject                                 = await requestAPI('portfolio/getProject', api.getProject)
+export const uploadHero = createAsyncThunk('portfolio/uploadHero', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioHero(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const uploadSkills = createAsyncThunk('portfolio/uploadSkills', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioSkills(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const uploadServices = createAsyncThunk('portfolio/uploadServices', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioServices(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const addExperience = createAsyncThunk('portfolio/addExperience', async (form, thunkAPI) => {
+  try {
+      const response = await api.addPortfolioExperience(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const updateExperience = createAsyncThunk('portfolio/updateExperience', async (form, thunkAPI) => {
+  try {
+      const response = await api.updatePortfolioExperience(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const addProject = createAsyncThunk('portfolio/addProject', async (form, thunkAPI) => {
+  try {
+      const response = await api.addPortfolioProject(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const updateProject = createAsyncThunk('portfolio/updateProject', async (form, thunkAPI) => {
+  try {
+      const response = await api.updatePortfolioProject(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const deleteProject = createAsyncThunk('portfolio/deleteProject', async (form, thunkAPI) => {
+  try {
+      const response = await api.deletePortfolioProject(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const sendTestEmail = createAsyncThunk('portfolio/sendTestEmail', async (form, thunkAPI) => {
+  try {
+      const response = await api.sendTestEmail(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const sendEmail = createAsyncThunk('portfolio/sendEmail', async (form, thunkAPI) => {
+  try {
+      const response = await api.sendEmail(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const sendContactUs = createAsyncThunk('portfolio/sendContactUs', async (form, thunkAPI) => {
+  try {
+      const response = await api.sendContactUs(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const uploadContacts = createAsyncThunk('portfolio/uploadContacts', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioContacts(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const getPortfolio = createAsyncThunk('portfolio/getPortfolio', async (form, thunkAPI) => {
+  try {
+      const response = await api.getPortfolio(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const publishPortfolio = createAsyncThunk('portfolio/publishPortfolio', async (form, thunkAPI) => {
+  try {
+      const response = await api.publishPortfolio(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const unpublishPortfolio = createAsyncThunk('portfolio/unpublishPortfolio', async (form, thunkAPI) => {
+  try {
+      const response = await api.unpublishPortfolio(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const getPortfolioByUsername = createAsyncThunk('portfolio/getPortfolioByUsername', async (form, thunkAPI) => {
+  try {
+      const response = await api.getPortfolioByUsername(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const getProject = createAsyncThunk('portfolio/getProject', async (form, thunkAPI) => {
+  try {
+      const response = await api.getProject(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
 
 export const portfolioSlice = createSlice({
     name: 'portfolio',

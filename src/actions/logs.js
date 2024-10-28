@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -10,7 +10,21 @@ const initialState = {
     data            : {},
 }
 
-export const getLogs                        = await requestAPI('logs/getLogs', api.getLogs)
+export const getLogs = createAsyncThunk('logs/getLogs', async (form, thunkAPI) => {
+  try {
+      const response = await api.getLogs(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+      return { 
+          variant: 'danger',
+          message: "409: there was a problem with the server."
+      };
+  }
+});
+
 
 export const logsSlice = createSlice({
     name: 'logs',

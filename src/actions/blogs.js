@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -21,20 +21,216 @@ const initialState = {
     latestBlogs         : []
 }
 
-export const getBlogByID                        = await requestAPI('blog/getBlogByID', api.getBlogByID)
-export const getBlogs                           = await requestAPI('blog/getBlogs', api.getBlogs)
-export const getBlogComments                    = await requestAPI('blog/getBlogComments', api.getBlogComments)
-export const uploadBlogComment                  = await requestAPI('blog/uploadBlogComment', api.uploadBlogComment)
-export const removeBlogComment                  = await requestAPI('blog/removeBlogComment', api.removeBlogComment)
-export const addOneBlogViews                    = await requestAPI('blog/addOneBlogViews', api.addOneBlogViews)
-export const countBlogCategories                = await requestAPI('blog/countBlogCategories', api.countBlogCategories)
-export const addOneBlogLikes                    = await requestAPI('blog/addOneBlogLikes', api.addOneBlogLikes)
-export const addLatestBlogLikes                 = await requestAPI('blog/addLatestBlogLikes', api.addLatestBlogLikes)
-export const getLatestBlogs                     = await requestAPI('blog/getLatestBlogs', api.getLatestBlogs)
-export const getBlogsBySearchKey                = await requestAPI('blog/getBlogsBySearchKey', api.getBlogsBySearchKey)
-export const countBlogCategoriesBySearchKey     = await requestAPI('blog/countBlogCategoriesBySearchKey', api.countBlogCategoriesBySearchKey)
-export const addOneBlogLikesBySearchKey         = await requestAPI('blog/addOneBlogLikesBySearchKey', api.addOneBlogLikesBySearchKey)
-export const blogsCountTags                     = await requestAPI('blog/blogsCountTags', api.blogsCountTags)
+export const getBlogByID = createAsyncThunk('blog/getBlogByID', async (form, thunkAPI) => {
+    try {
+        const response = await api.getBlogByID(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getBlogs = createAsyncThunk('blog/getBlogs', async (form, thunkAPI) => {
+    try {
+        const response = await api.getBlogs(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getBlogComments = createAsyncThunk('blog/getBlogComments', async (form, thunkAPI) => {
+    try {
+        const response = await api.getBlogComments(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const uploadBlogComment = createAsyncThunk('blog/uploadBlogComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadBlogComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const removeBlogComment = createAsyncThunk('blog/removeBlogComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeBlogComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addOneBlogViews = createAsyncThunk('blog/addOneBlogViews', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneBlogViews(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const countBlogCategories = createAsyncThunk('blog/countBlogCategories', async (form, thunkAPI) => {
+    try {
+        const response = await api.countBlogCategories(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addOneBlogLikes = createAsyncThunk('blog/addOneBlogLikes', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneBlogLikes(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addLatestBlogLikes = createAsyncThunk('blog/addLatestBlogLikes', async (form, thunkAPI) => {
+    try {
+        const response = await api.addLatestBlogLikes(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getLatestBlogs = createAsyncThunk('blog/getLatestBlogs', async (form, thunkAPI) => {
+    try {
+        const response = await api.getLatestBlogs(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getBlogsBySearchKey = createAsyncThunk('blog/getBlogsBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.getBlogsBySearchKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const countBlogCategoriesBySearchKey = createAsyncThunk('blog/countBlogCategoriesBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.countBlogCategoriesBySearchKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addOneBlogLikesBySearchKey = createAsyncThunk('blog/addOneBlogLikesBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneBlogLikesBySearchKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const blogsCountTags = createAsyncThunk('blog/blogsCountTags', async (form, thunkAPI) => {
+    try {
+        const response = await api.blogsCountTags(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
 
 export const blogsSlice = createSlice({
     name: 'blogs',

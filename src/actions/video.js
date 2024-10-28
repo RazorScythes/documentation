@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -23,26 +23,194 @@ const initialState = {
     groups              : {}
 }
 
-export const getVideos                  = await requestAPI('video/getVideos', api.getVideos)
-export const getVideoByID               = await requestAPI('video/getVideoByID', api.getVideoByID)
-export const getComments                = await requestAPI('video/getComments', api.getComments)
-export const getRelatedVideos           = await requestAPI('video/getRelatedVideos', api.getRelatedVideos)
-export const addOneViews                = await requestAPI('video/addOneViews', api.addOneViews)
-export const addOneLikes                = await requestAPI('video/addOneLikes', api.addOneLikes)
-export const addOneDislikes             = await requestAPI('video/addOneViews', api.addOneDislikes)
-export const uploadComment              = await requestAPI('video/addOneViews', api.uploadComment)
-export const removeComment              = await requestAPI('video/removeComment', api.removeComment)
-export const getVideoByTag              = await requestAPI('video/getVideoByTag', api.getVideoByTag)
-export const getVideoByArtist           = await requestAPI('video/getVideoByArtist', api.getVideoByArtist)
-export const getVideoBySearchKey        = await requestAPI('video/getVideoBySearchKey', api.getVideoBySearchKey)
-export const addToWatchLater            = await requestAPI('video/addToWatchLater', api.addToWatchLater)
-export const uploadReport               = await requestAPI('video/uploadReport', api.uploadReport)
-export const newGroupList               = await requestAPI('video/newGroupList', api.newGroupList)
-export const removeGroup                = await requestAPI('video/removeGroup', api.removeGroup)
-export const editGroupList              = await requestAPI('video/editGroupList', api.editGroupList)
-export const countVideoTags             = await requestAPI('video/countVideoTags', api.countVideoTags)
-export const uploadLists                = await requestAPI('video/uploadLists', api.uploadLists)
-export const getGroupList               = await requestAPI('video/getGroupList', api.getGroupList)
+export const getVideos = createAsyncThunk('video/getVideos', async (form, thunkAPI) => {
+    try {
+        const response = await api.getVideos(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getVideoByID = createAsyncThunk('video/getVideoByID', async (form, thunkAPI) => {
+    try {
+        const response = await api.getVideoByID(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getComments = createAsyncThunk('video/getComments', async (form, thunkAPI) => {
+    try {
+        const response = await api.getComments(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getRelatedVideos = createAsyncThunk('video/getRelatedVideos', async (form, thunkAPI) => {
+    try {
+        const response = await api.getRelatedVideos(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const addOneViews = createAsyncThunk('video/addOneViews', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneViews(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const addOneLikes = createAsyncThunk('video/addOneLikes', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneLikes(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const addOneDislikes = createAsyncThunk('video/addOneDislikes', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneDislikes(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const uploadComment = createAsyncThunk('video/uploadComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadComment(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const removeComment = createAsyncThunk('video/removeComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeComment(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getVideoByTag = createAsyncThunk('video/getVideoByTag', async (form, thunkAPI) => {
+    try {
+        const response = await api.getVideoByTag(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getVideoByArtist = createAsyncThunk('video/getVideoByArtist', async (form, thunkAPI) => {
+    try {
+        const response = await api.getVideoByArtist(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getVideoBySearchKey = createAsyncThunk('video/getVideoBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.getVideoBySearchKey(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const addToWatchLater = createAsyncThunk('video/addToWatchLater', async (form, thunkAPI) => {
+    try {
+        const response = await api.addToWatchLater(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const uploadReport = createAsyncThunk('video/uploadReport', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadReport(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const newGroupList = createAsyncThunk('video/newGroupList', async (form, thunkAPI) => {
+    try {
+        const response = await api.newGroupList(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const removeGroup = createAsyncThunk('video/removeGroup', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeGroup(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const editGroupList = createAsyncThunk('video/editGroupList', async (form, thunkAPI) => {
+    try {
+        const response = await api.editGroupList(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const countVideoTags = createAsyncThunk('video/countVideoTags', async (form, thunkAPI) => {
+    try {
+        const response = await api.countVideoTags(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const uploadLists = createAsyncThunk('video/uploadLists', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadLists(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+export const getGroupList = createAsyncThunk('video/getGroupList', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGroupList(form);
+        return response;
+    } catch (err) {
+        return handleApiError(err, thunkAPI);
+    }
+});
+
+// Helper function to handle errors
+const handleApiError = (err, thunkAPI) => {
+    if (err.response && err.response.data) {
+        return thunkAPI.rejectWithValue(err.response.data);
+    }
+    return { variant: 'danger', message: "409: there was a problem with the server." };
+};
+
 
 export const videoSlice = createSlice({
     name: 'video',

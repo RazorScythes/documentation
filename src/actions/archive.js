@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -17,10 +17,66 @@ const initialState = {
     sideAlert           : {},
 }
 
-export const getArchiveNameById                 = await requestAPI('archive/getArchiveNameById', api.getArchiveNameById)
-export const getArchiveDataById                 = await requestAPI('archive/getArchiveDataById', api.getArchiveDataById)
-export const newArchiveList                     = await requestAPI('archive/newArchiveList', api.newArchiveList)
-export const removeArchiveList                  = await requestAPI('archive/removeArchiveList', api.removeArchiveList)
+export const getArchiveNameById = createAsyncThunk('archive/getArchiveNameById', async (form, thunkAPI) => {
+    try {
+        const response = await api.getArchiveNameById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getArchiveDataById = createAsyncThunk('archive/getArchiveDataById', async (form, thunkAPI) => {
+    try {
+        const response = await api.getArchiveDataById(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const newArchiveList = createAsyncThunk('archive/newArchiveList', async (form, thunkAPI) => {
+    try {
+        const response = await api.newArchiveList(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const removeArchiveList = createAsyncThunk('archive/removeArchiveList', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeArchiveList(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
 
 export const archiveSlice = createSlice({
     name: 'archive',

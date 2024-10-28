@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -21,23 +21,261 @@ const initialState = {
     recentGameBlog      : []
 }
 
-export const getGameByID                                = await requestAPI('game/getGameByID', api.getGameByID)
-export const getGames                                   = await requestAPI('game/getGames', api.getGames)
-export const getRelatedGames                            = await requestAPI('game/getRelatedGames', api.getRelatedGames)
-export const addRatings                                 = await requestAPI('game/addRatings', api.addRatings)
-export const addRatingsRelated                          = await requestAPI('game/addRatingsRelated', api.addRatings)
-export const addOneDownload                             = await requestAPI('game/addOneDownload', api.addOneDownload)
-export const updateGameAccessKey                        = await requestAPI('game/updateGameAccessKey', api.updateGameAccessKey)
-export const countTags                                  = await requestAPI('game/countTags', api.countTags)
-export const categoriesCount                            = await requestAPI('game/categoriesCount', api.categoriesCount)
-export const getGameByTag                               = await requestAPI('game/getGameByTag', api.getGameByTag)
-export const getGameByDeveloper                         = await requestAPI('game/getGameByDeveloper', api.getGameByDeveloper)
-export const getGameBySearchKey                         = await requestAPI('game/getGameBySearchKey', api.getGameBySearchKey)
-export const getRecentGameBlog                          = await requestAPI('game/getRecentGameBlog', api.getRecentGameBlog)
-export const addRecentGamingBlogLikes                   = await requestAPI('game/addRecentGamingBlogLikes', api.addRecentGamingBlogLikes)
-export const getGameComments                            = await requestAPI('game/getGameComments', api.getGameComments)
-export const uploadGameComment                          = await requestAPI('game/uploadGameComment', api.uploadGameComment)
-export const removeGameComment                          = await requestAPI('game/removeGameComment', api.removeGameComment)
+export const getGameByID = createAsyncThunk('game/getGameByID', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGameByID(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getGames = createAsyncThunk('game/getGames', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGames(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getRelatedGames = createAsyncThunk('game/getRelatedGames', async (form, thunkAPI) => {
+    try {
+        const response = await api.getRelatedGames(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addRatings = createAsyncThunk('game/addRatings', async (form, thunkAPI) => {
+    try {
+        const response = await api.addRatings(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addRatingsRelated = createAsyncThunk('game/addRatingsRelated', async (form, thunkAPI) => {
+    try {
+        const response = await api.addRatings(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addOneDownload = createAsyncThunk('game/addOneDownload', async (form, thunkAPI) => {
+    try {
+        const response = await api.addOneDownload(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const updateGameAccessKey = createAsyncThunk('game/updateGameAccessKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.updateGameAccessKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const countTags = createAsyncThunk('game/countTags', async (form, thunkAPI) => {
+    try {
+        const response = await api.countTags(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const categoriesCount = createAsyncThunk('game/categoriesCount', async (form, thunkAPI) => {
+    try {
+        const response = await api.categoriesCount(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getGameByTag = createAsyncThunk('game/getGameByTag', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGameByTag(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getGameByDeveloper = createAsyncThunk('game/getGameByDeveloper', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGameByDeveloper(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getGameBySearchKey = createAsyncThunk('game/getGameBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGameBySearchKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getRecentGameBlog = createAsyncThunk('game/getRecentGameBlog', async (form, thunkAPI) => {
+    try {
+        const response = await api.getRecentGameBlog(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const addRecentGamingBlogLikes = createAsyncThunk('game/addRecentGamingBlogLikes', async (form, thunkAPI) => {
+    try {
+        const response = await api.addRecentGamingBlogLikes(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const getGameComments = createAsyncThunk('game/getGameComments', async (form, thunkAPI) => {
+    try {
+        const response = await api.getGameComments(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const uploadGameComment = createAsyncThunk('game/uploadGameComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadGameComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
+export const removeGameComment = createAsyncThunk('game/removeGameComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeGameComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data)
+            return thunkAPI.rejectWithValue(err.response.data);
+
+        return { 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        };
+    }
+});
+
 
 export const gameSlice = createSlice({
     name: 'game',

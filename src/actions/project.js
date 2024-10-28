@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -21,21 +21,156 @@ const initialState = {
     latestProjects      : []
 }
 
-export const getProjectByID                                     = await requestAPI('project/getProjectByID', api.getProjectByID)
-export const uploadProject                                      = await requestAPI('project/uploadProject', api.uploadProject)
-export const getCategory                                        = await requestAPI('project/getCategory', api.getCategory)
-export const getUserProject                                     = await requestAPI('project/getUserProject', api.getUserProject)
-export const getAdminCategory                                   = await requestAPI('project/getAdminCategory', api.getAdminCategory)
-export const getProjects                                        = await requestAPI('project/getProjects', api.getProjects)
-export const getProjectsByCategories                            = await requestAPI('project/getProjectsByCategories', api.getProjectsByCategories)
-export const getProjectsBySearchKey                             = await requestAPI('project/getProjectsBySearchKey', api.getProjectsBySearchKey)
-export const editUserProject                                    = await requestAPI('project/editUserProject', api.editUserProject)
-export const removeUserProject                                  = await requestAPI('project/removeUserProject', api.removeUserProject)
-export const projectCountTags                                   = await requestAPI('project/projectCountTags', api.projectCountTags)
-export const getProjectComments                                 = await requestAPI('project/getProjectComments', api.getProjectComments)
-export const uploadProjectComment                               = await requestAPI('project/uploadProjectComment', api.uploadProjectComment)
-export const removeProjectComment                               = await requestAPI('project/removeProjectComment', api.removeProjectComment)
-export const getLatestProjects                                  = await requestAPI('project/getLatestProjects', api.getLatestProjects)
+export const getProjectByID = createAsyncThunk('project/getProjectByID', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProjectByID(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const uploadProject = createAsyncThunk('project/uploadProject', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadProject(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getCategory = createAsyncThunk('project/getCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.getCategory(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getUserProject = createAsyncThunk('project/getUserProject', async (form, thunkAPI) => {
+    try {
+        const response = await api.getUserProject(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getAdminCategory = createAsyncThunk('project/getAdminCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.getAdminCategory(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getProjects = createAsyncThunk('project/getProjects', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProjects(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getProjectsByCategories = createAsyncThunk('project/getProjectsByCategories', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProjectsByCategories(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getProjectsBySearchKey = createAsyncThunk('project/getProjectsBySearchKey', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProjectsBySearchKey(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const editUserProject = createAsyncThunk('project/editUserProject', async (form, thunkAPI) => {
+    try {
+        const response = await api.editUserProject(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const removeUserProject = createAsyncThunk('project/removeUserProject', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeUserProject(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const projectCountTags = createAsyncThunk('project/projectCountTags', async (form, thunkAPI) => {
+    try {
+        const response = await api.projectCountTags(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getProjectComments = createAsyncThunk('project/getProjectComments', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProjectComments(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const uploadProjectComment = createAsyncThunk('project/uploadProjectComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.uploadProjectComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const removeProjectComment = createAsyncThunk('project/removeProjectComment', async (form, thunkAPI) => {
+    try {
+        const response = await api.removeProjectComment(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getLatestProjects = createAsyncThunk('project/getLatestProjects', async (form, thunkAPI) => {
+    try {
+        const response = await api.getLatestProjects(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
 
 export const projectSlice = createSlice({
     name: 'project',

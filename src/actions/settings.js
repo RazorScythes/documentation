@@ -1,5 +1,5 @@
 import * as api from '../api'
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
 const initialState = {
@@ -18,14 +18,86 @@ const initialState = {
     users               : []
 }
 
-export const userToken                                          = await requestAPI('settings/userToken', api.userToken)
-export const getProfile                                         = await requestAPI('settings/getProfile', api.getProfile)
-export const updateProfile                                      = await requestAPI('settings/updateProfile', api.updateProfile)
-export const updatePassword                                     = await requestAPI('settings/updatePassword', api.updatePassword)
-export const updateOptions                                      = await requestAPI('settings/updateOptions', api.updateOptions)
-export const sendVerificationEmail                              = await requestAPI('settings/sendVerificationEmail', api.sendVerificationEmail)
-export const verifyEmail                                        = await requestAPI('settings/verifyEmail', api.verifyEmail)
-export const getAllUsers                                        = await requestAPI('settings/getAllUsers', api.getAllUsers)
+export const userToken = createAsyncThunk('settings/userToken', async (form, thunkAPI) => {
+    try {
+        const response = await api.userToken(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getProfile = createAsyncThunk('settings/getProfile', async (form, thunkAPI) => {
+    try {
+        const response = await api.getProfile(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const updateProfile = createAsyncThunk('settings/updateProfile', async (form, thunkAPI) => {
+    try {
+        const response = await api.updateProfile(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const updatePassword = createAsyncThunk('settings/updatePassword', async (form, thunkAPI) => {
+    try {
+        const response = await api.updatePassword(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const updateOptions = createAsyncThunk('settings/updateOptions', async (form, thunkAPI) => {
+    try {
+        const response = await api.updateOptions(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const sendVerificationEmail = createAsyncThunk('settings/sendVerificationEmail', async (form, thunkAPI) => {
+    try {
+        const response = await api.sendVerificationEmail(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const verifyEmail = createAsyncThunk('settings/verifyEmail', async (form, thunkAPI) => {
+    try {
+        const response = await api.verifyEmail(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
+export const getAllUsers = createAsyncThunk('settings/getAllUsers', async (form, thunkAPI) => {
+    try {
+        const response = await api.getAllUsers(form);
+        return response;
+    } catch (err) {
+        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
+        return { variant: 'danger', message: "409: there was a problem with the server." };
+    }
+});
+
 
 export const settingsSlice = createSlice({
     name: 'settings',

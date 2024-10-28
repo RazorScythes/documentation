@@ -8,7 +8,21 @@ const initialState = {
     data: {}
 }
 
-export const getOverviewData = await requestAPI('admin/getOverviewData', api.getOverviewData)
+export const getOverviewData = createAsyncThunk('admin/getOverviewData', async (form, thunkAPI) => {
+  try {
+      const response = await api.getOverviewData(form);
+      return response;
+  }
+  catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+      return { 
+          variant: 'danger',
+          message: "409: there was a problem with the server."
+      };
+  }
+});
 
 export const adminSlice = createSlice({
     name: 'admin',
