@@ -36,10 +36,11 @@ export const dark = {
     border              : "border-[#0e0e0e]",
     semiborder          : "border-[#1C1C1C]",
     heading             : "text-white",
-    text                : "",
+    text                : "text-gray-400",
     link                : "hover:text-blue-400 transition-all",
     icon                : "text-white hover:text-blue-600 transition-all",
     button              : "bg-white hover:bg-blue-600 border border-white hover:border-blue-600 text-[#0e0e0e] hover:text-white font-medium py-1.5 px-4 transition-colors duration-300 ease-in-out",
+    button_transparent  : "text-white hover:text-blue-400 font-medium hover:underline transition-all",
     input               : "bg-[#1C1C1C] border border-solid border-[#1C1C1C] text-gray-300 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none",
     input_icon          : "text-gray-300"
 }
@@ -53,10 +54,11 @@ export const light = {
     border              : "border-[#e0e6eb]",
     semiborder          : "border-[#1C1C1C]",
     heading             : "text-blue-700",
-    text                : "",
+    text                : "text-[#1C1C1C]",
     link                : "hover:text-blue-700 transition-all",
     icon                : "text-[#0e0e0e] hover:text-blue-700 transition-all",
     button              : "bg-blue-600 hover:bg-white border border-blue-600 hover:border-[#0e0e0e] text-white hover:text-[#0e0e0e] font-medium py-1.5 px-4 transition-colors duration-300 ease-in-out",
+    button_transparent  : "text-[#0e0e0e] hover:text-blue-700 font-medium hover:underline",
     input               : "bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight focus:outline-none focus:bg-[#e0e6eb] transition-all outline-none",
     input_icon          : "text-[#59636E]"
 }

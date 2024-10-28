@@ -46,6 +46,7 @@ const Home = ({ user, theme }) => {
                                         data={{
                                             thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
                                             title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Movie'
                                         }}
                                         theme={theme}
                                     />
@@ -54,6 +55,16 @@ const Home = ({ user, theme }) => {
                                         data={{
                                             thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
                                             title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Anime'
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Anime'
                                         }}
                                         theme={theme}
                                     />
@@ -62,14 +73,92 @@ const Home = ({ user, theme }) => {
                                         data={{
                                             thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
                                             title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Movie'
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Movie'
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Anime'
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Anime'
+                                        }}
+                                        theme={theme}
+                                    />
+
+                                    <Poster 
+                                        data={{
+                                            thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg',
+                                            title: 'Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season',
+                                            type: 'Movie'
                                         }}
                                         theme={theme}
                                     />
                                 </div>
                             </div>
 
-                            <div className='border border-white border-solid'>
-                                Grid 2
+                            <div className=''>
+                                <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border-b border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                    <div className='flex justify-between items-center mb-6'>
+                                        <h1 className="text-2xl font-medium">Recent Anime</h1>
+                                        <button className={`${theme === 'light' ? light.button_transparent : dark.button_transparent} rounded-md px-2`}>
+                                            View All
+                                        </button>
+                                    </div>
+                                    
+                                    <div className='flex flex-col gap-4'>
+                                        <div className='w-full flex items-start cursor-pointer transition-all'>
+                                            <div className="w-16 flex-shrink-0 mr-4">
+                                                <img 
+                                                    className={`max-h-64 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
+                                                    src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
+                                                    alt='Shangri-La Frontier'
+                                                />
+                                            </div>
+                                            <div className='flex-1 overflow-hidden'>
+                                                <p className='truncate w-full mt-2'>
+                                                    Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season
+                                                </p>
+                                                <p className={`truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}>2024 • 12 Episodes</p>
+                                            </div>
+                                        </div>
+
+                                        <div className='w-full flex items-start cursor-pointer transition-all'>
+                                            <div className="w-16 flex-shrink-0 mr-4">
+                                                <img 
+                                                    className={`max-h-64 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
+                                                    src='https://img.bunnyccdn.co/_r/300x400/100/0f/c6/0fc66f9879a3a4a15408c325e1677e17/0fc66f9879a3a4a15408c325e1677e17.jpg'
+                                                    alt='Shangri-La Frontier'
+                                                />
+                                            </div>
+                                            <div className='flex-1 overflow-hidden'>
+                                                <p className='truncate w-full mt-2'>
+                                                    Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season
+                                                </p>
+                                                <p className={`truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}>2024 • 12 Episodes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

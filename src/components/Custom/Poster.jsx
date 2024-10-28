@@ -7,7 +7,8 @@ const Poster = ({ data, theme }) => {
     const [hover, setHover] = useState(false);
 
     return (
-        <div className='w-full cursor-pointer transition-all' onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+        <div className='w-full relative cursor-pointer transition-all' onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+            { data?.type && <div className="absolute top-0 right-1 z-50 text-white bg-blue-700 px-2 rounded-tr-md">{ data.type }</div> }
             <div className="relative">
                 <img 
                     className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
