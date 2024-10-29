@@ -37,11 +37,11 @@ const Home = ({ user, theme }) => {
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidth}`}>
                     <div className={`${main.container} file:lg:px-8 relative px-0 my-12`}>
-                        <div className='grid sm:grid-cols-3 grid-cols-1 gap-5 place-content-start mt-8'>
+                        <div className='grid md:grid-cols-3 grid-cols-1 gap-5 place-content-start mt-8'>
                             <div className='col-span-2'>
                                 <h1 className="text-2xl font-medium mb-4">Recently Added</h1>
 
-                                <div className='grid lg:grid-cols-4 xs:grid-cols-3 grid-cols-2 gap-4 place-content-start mt-8'>
+                                <div className='grid sm:grid-cols-4 xs:grid-cols-3 grid-cols-2 gap-4 place-content-start mt-8'>
                                     <Poster 
                                         data={{
                                             thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
@@ -125,7 +125,7 @@ const Home = ({ user, theme }) => {
                                         </button>
                                     </div>
                                     
-                                    <div className='flex flex-col gap-4'>
+                                    <div className='md:flex md:flex-col sm:grid sm:grid-cols-2 flex flex-col gap-4'>
                                         <div className='w-full flex items-start cursor-pointer transition-all'>
                                             <div className="w-16 flex-shrink-0 mr-4">
                                                 <img 

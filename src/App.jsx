@@ -11,6 +11,7 @@ import { main, dark, light } from "./style";
 
 import Cookies from 'universal-cookie';
 
+import Anime from './components/Pages/Anime';
 import Navbar from './components/Custom/Navbar';
 import Footer from './components/Custom/Footer';
 
@@ -56,6 +57,7 @@ const App = () => {
 
                 <Route path='/' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
                     <Route index element={<><Home user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/anime' element={<><Anime user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
 
