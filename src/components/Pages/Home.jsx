@@ -117,7 +117,7 @@ const Home = ({ user, theme }) => {
                             </div>
 
                             <div className=''>
-                                <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border-b border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <div className='flex justify-between items-center mb-6'>
                                         <h1 className="text-2xl font-medium">Recent Anime</h1>
                                         <button className={`${theme === 'light' ? light.button_transparent : dark.button_transparent} rounded-md px-2`}>
