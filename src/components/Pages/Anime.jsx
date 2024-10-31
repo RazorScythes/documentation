@@ -5,6 +5,7 @@ import styles from "../../style";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faFilter } from '@fortawesome/free-solid-svg-icons';
 import Poster from '../Custom/Poster';
+import Pagination from '../Custom/Pagination';
 
 const Anime = ({ user, theme }) => {
 
@@ -127,6 +128,12 @@ const Anime = ({ user, theme }) => {
                                         theme={theme}
                                     />
                                 </div>
+
+                                <Pagination 
+                                    data={[1,2,3,4,5,5]}
+                                    theme={theme}
+                                    limit={2}
+                                />
                             </div>
                             <div>
                                 <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
