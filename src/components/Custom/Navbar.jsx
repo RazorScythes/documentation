@@ -1,10 +1,10 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faCog, faHamburger, faSearch, faStarAndCrescent, faSun } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faSearch, faStarAndCrescent, faSun } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { video_links, user_navLinks } from "../../constants";
-import { faUser, faGear, faRightFromBracket, faFolder , faEnvelope} from "@fortawesome/free-solid-svg-icons";
+import { video_links } from "../../constants";
+import { faUser, faGear, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
 import { logout } from "../../actions/auth";
 import { convertDriveImageLink } from '../Tools'
 import { useDispatch, useSelector } from 'react-redux'
@@ -13,8 +13,6 @@ import { main, dark, light } from "../../style";
 
 import Logo from '../../assets/logo.png'
 import Avatar from '../../assets/avatar.png'
-import { faMoon } from "@fortawesome/free-regular-svg-icons";
-import { FaRegSun } from "react-icons/fa";
 
 const capitalizeFirstLetter = (str) => `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 
@@ -116,7 +114,7 @@ const Navbar = ({ theme, setTheme }) => {
                     <form onSubmit={handleSearch}>
                         <div className="relative lg:mt-0 mt-4">
                             <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`}/> </span>
-                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
+                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search`} />
                         </div>
                     </form>
                 </div>
@@ -206,7 +204,7 @@ const Navbar = ({ theme, setTheme }) => {
                     <form onSubmit={handleSearch} className="lg:block hidden">
                         <div className="relative lg:mt-0 mt-4 font-poppins">
                             <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`} /> </span>
-                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search ${capitalizeFirstLetter(firstPath)}`} />
+                            <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search`} />
                         </div>
                     </form>
 

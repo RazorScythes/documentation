@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { main, dark, light } from "../../style";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 
-const Pagination = ({ data, theme, limit }) => {
+const Pagination = ({ data, theme, limit, setPagination }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const navigate          = useNavigate()
     const pageIndex         = searchParams.get('page') ? parseInt(searchParams.get('page')) : 1
     const itemsPerPage      = limit ?? 55; 
     const totalPages        = Math.ceil(data?.length / itemsPerPage);
@@ -57,6 +59,23 @@ const Pagination = ({ data, theme, limit }) => {
     
         calculateDisplayedPages();
     }, [currentPage, totalPages, pageIndex]);
+
+    const handlePageChange = (pageNumber) => {
+        setCurrentPage(pageNumber);
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const start        = (pageNumber - 1) * itemsPerPage;
+        const end          = start + itemsPerPage;
+
+        searchParams.set('page', pageNumber);
+        
+        setPagination({
+            start   : start,
+            end     : end
+        })
+        
+        navigate(`${window.location.pathname}?${searchParams.toString()}`);
+    };
 
     return (
         <div className='flex flex-wrap items-center justify-center mt-6 gap-2'>

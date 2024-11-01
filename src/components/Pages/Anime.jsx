@@ -1,15 +1,52 @@
 import React, { useEffect, useState } from 'react'
 import { main, dark, light } from '../../style';
-
-import styles from "../../style";
+import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faFilter } from '@fortawesome/free-solid-svg-icons';
+
 import Poster from '../Custom/Poster';
 import Pagination from '../Custom/Pagination';
+import styles from "../../style";
 
 const Anime = ({ user, theme }) => {
+    const navigate          = useNavigate()
 
     const [toggle, setToggle] = useState(false)
+    const [pagination, setPagination] = useState(null)
+    const [selectedGenres, setSelectedGenres] = useState([]);
+    const [search, setSearch] = useState('')
+
+    useEffect(() => {
+        console.log(pagination)
+    }, [pagination])
+
+    const handleGenreChange = (event) => {
+        const { id, checked } = event.target;
+        setSelectedGenres(prevGenres => (
+            checked 
+                ? [...prevGenres, id]
+                : prevGenres.filter(genre => genre !== id)
+        ));
+    };
+
+    const filter = () => {
+        const genreQuery = selectedGenres.join('|');
+        const searchParams = new URLSearchParams(window.location.search);
+
+        if (genreQuery) {
+            searchParams.set('genre', genreQuery);
+        } else {
+            searchParams.delete('genre');
+        }
+
+        if (search) {
+            searchParams.set('search', search);
+        } else {
+            searchParams.delete('search');
+        }
+
+        navigate(`${window.location.pathname}?${searchParams.toString()}`);
+    };
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
@@ -22,6 +59,8 @@ const Anime = ({ user, theme }) => {
                                     <div className="grid sm:grid-cols-3 grid-cols-1 gap-4">
                                         <input 
                                             className={`block w-full rounded-sm py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} 
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
                                             type="text" 
                                             placeholder='Search Anime' 
                                         />
@@ -36,19 +75,24 @@ const Anime = ({ user, theme }) => {
                                                 toggle ?
                                                     <div className={`sm:w-72 w-full top-12 absolute z-40 rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                                         <div className={`grid sm:grid-cols-2 grid-cols-1 ${theme === 'light' ? light.text : dark.text} gap-1`}>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre1" /> <label for="genre1">Action</label></div>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre2" /> <label for="genre2">Adventure</label></div>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre3" /> <label for="genre3">Cars</label></div>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre4" /> <label for="genre4">Comedy</label></div>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre5" /> <label for="genre5">Dementia</label></div>
-                                                            <div className='flex gap-2'><input type="checkbox" id="genre6" /> <label for="genre6">Demons</label></div>
+                                                            {['Action', 'Adventure', 'Cars', 'Comedy', 'Dementia', 'Demons'].map((genre, index) => (
+                                                                <div key={genre} className='flex gap-2'>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id={genre}
+                                                                        checked={selectedGenres.includes(genre)}
+                                                                        onChange={handleGenreChange}
+                                                                    />
+                                                                    <label htmlFor={genre}>{genre}</label>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 : null
                                             }   
                                         </div>
 
-                                        <button className={`text-center cursor-pointers rounded-sm py-2 px-8 ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>
+                                        <button onClick={() => filter()} className={`text-center cursor-pointers rounded-sm py-2 px-8 ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>
                                             <FontAwesomeIcon icon={faFilter} className='mr-2'/>
                                             Filter
                                         </button>
@@ -133,6 +177,7 @@ const Anime = ({ user, theme }) => {
                                     data={[1,2,3,4,5,5]}
                                     theme={theme}
                                     limit={2}
+                                    setPagination={setPagination}
                                 />
                             </div>
                             <div>
