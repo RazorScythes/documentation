@@ -1,3 +1,23 @@
+const breakpoints = {
+    xs: 480,
+    ss: 620,
+    sm: 768,
+    md: 1060,
+    lg: 1200,
+    xl: 1700,
+};
+
+export const useScreenSize = () => {
+    const width = window.innerWidth;
+  
+    if (width < breakpoints.xs) return "xs";
+    else if (width < breakpoints.sm) return "sm";
+    else if (width < breakpoints.md) return "md";
+    else if (width < breakpoints.lg) return "lg";
+    else return "xl";
+};
+  
+
 const getLinkId = (url) => {
     let id;
     const youtubeMatch = /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=))([\w-]{11})(?:\S+)?$/;
@@ -27,15 +47,12 @@ export const convertDriveImageLink = (url) => {
 }
 
 export const millisToTimeString = (millis) => {
-    // Convert milliseconds to seconds
     var seconds = Math.floor(millis / 1000);
-    // Calculate hours, minutes, and seconds
     var hours = Math.floor(seconds / 3600);
     seconds %= 3600;
     var minutes = Math.floor(seconds / 60);
     seconds %= 60;
 
-    // Format the time string
     var timeString = "";
     if (hours > 0) {
         timeString += hours.toString().padStart(2, '0') + ":";

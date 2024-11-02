@@ -5,9 +5,22 @@ import { Link } from 'react-router-dom';
 import styles from "../../style";
 import { faEye, faFilm } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useScreenSize } from '../Tools';
 import Poster from '../Custom/Poster';
 
 const Watch = ({ user, theme }) => {
+
+    const [toggle, setToggle] = useState({
+        description: false
+    })
+
+    const expandDescription = () => {
+        const screensize = useScreenSize()
+        if((screensize === 'sm' || screensize === 'xs') && !toggle.description) {
+            setToggle({...toggle, description: true})
+        }
+    }
+
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
@@ -35,7 +48,7 @@ const Watch = ({ user, theme }) => {
                                                 alt='Shangri-La Frontier'
                                             />
                                         </div>
-                                        <div className='flex-1 overflow-hidden'>
+                                        <div onClick={() => expandDescription()} className={`flex-1 overflow-hidden sm:h-auto ${toggle.description ? 'h-auto' : 'h-14 md:cursor-auto cursor-pointer'}`}>
                                             <h1 className="text-lg font-medium">Mashle</h1>
                                             <p className={`truncate w-full ${theme === 'light' ? light.text : dark.text}`}>Mashle: Magic and Muscles, Mashle, マッシュル-MASHLE-</p>
                                             <p className={`w-full text-xs leading-5 mt-4 ${theme === 'light' ? light.text : dark.text}`}>
@@ -53,6 +66,11 @@ const Watch = ({ user, theme }) => {
                                                 <p><span className='font-medium'>Quality:</span> <span className={` ml-1 ${theme === 'light' ? light.text : dark.text}`}>HD</span></p>
                                                 <p><span className='font-medium'>Views:</span> <span className={` ml-1 ${theme === 'light' ? light.text : dark.text}`}>18,536,585</span></p>
                                             </div>
+
+                                            <p onClick={(e) => {
+                                                e.stopPropagation();
+                                                setToggle({...toggle, description: false})
+                                            }} className={`sm:hidden block text-xs mt-2 text-center ${theme === 'light' ? light.link : dark.link}`}>Show Less</p>
                                         </div>
                                     </div>
                                 </div>
@@ -147,7 +165,7 @@ const Watch = ({ user, theme }) => {
                                   
                                     <div className='md:flex md:flex-col sm:grid sm:grid-cols-2 flex flex-col gap-4 max-h-[500px] overflow-y-auto'>
                                         <Link to={`/`} className='w-full flex items-start cursor-pointer transition-all'>
-                                            <div className={`rounded-md overflow-hidden md:w-48 md:max-w-48 xs:w-36 xs:max-w-36 w-32 max-w-32 h-20 mr-2 relative border ${theme === 'light' ? light.border : dark.border}`}>
+                                            <div className={`rounded-md overflow-hidden md:w-48 md:max-w-48 xs:w-36 xs:max-w-36 w-56 max-w-32 h-20 mr-2 relative border ${theme === 'light' ? light.border : dark.border}`}>
 
                                                 <p style={{backgroundColor: 'rgb(0, 0, 0, 0.8'}} className='w-full text-white text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 text-xs py-1'>Watching</p>
 
@@ -167,7 +185,7 @@ const Watch = ({ user, theme }) => {
                                                 <p className='truncate w-full mt-2'>
                                                     Episode 1
                                                 </p>
-                                                <p className={`truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}><FontAwesomeIcon icon={faEye} /> 80</p>
+                                                <p className={`text-xs truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}><FontAwesomeIcon icon={faEye} /> 80</p>
                                             </div>
                                         </Link>
                                     </div>
