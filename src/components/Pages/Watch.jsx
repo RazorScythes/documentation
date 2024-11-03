@@ -7,6 +7,7 @@ import { faEye, faFilm } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useScreenSize } from '../Tools';
 import Poster from '../Custom/Poster';
+import Comments from '../Custom/Comments'
 
 const Watch = ({ user, theme }) => {
 
@@ -50,7 +51,7 @@ const Watch = ({ user, theme }) => {
                                         </div>
                                         <div onClick={() => expandDescription()} className={`flex-1 overflow-hidden sm:h-auto ${toggle.description ? 'h-auto' : 'h-14 md:cursor-auto cursor-pointer'}`}>
                                             <h1 className="text-lg font-medium">Mashle</h1>
-                                            <p className={`truncate w-full ${theme === 'light' ? light.text : dark.text}`}>Mashle: Magic and Muscles, Mashle, マッシュル-MASHLE-</p>
+                                            <p className={`${!toggle.description && 'truncate'} w-full ${theme === 'light' ? light.text : dark.text}`}>Mashle: Magic and Muscles, Mashle, マッシュル-MASHLE-</p>
                                             <p className={`w-full text-xs leading-5 mt-4 ${theme === 'light' ? light.text : dark.text}`}>
                                                 In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face. Those unable to practice magic are swiftly exterminated to maintain the magical integrity of society. However, deep within a forest lies an anomaly in Mash Burnedead, who can be found pumping iron with one arm and lifting a cream puff with the other. This aloof boy with superhuman strength—but no magical abilities—leads a quiet life with his father, far removed from society. Mash's peace is soon disturbed when the authorities discover his lack of magical powers. They issue him an ultimatum: compete to become a "Divine Visionary," which would force everyone to accept him, or be persecuted forever. To protect his family, he enrolls in the prestigious Easton Magic Academy, which only the most elite and gifted students are allowed to attend. Now, Mash must overcome his shortcomings as a magicless being and surpass the other students—relying solely on his muscles.
                                             </p>
@@ -153,8 +154,14 @@ const Watch = ({ user, theme }) => {
                                     </div>
                                 </div>
 
-                                <div className={`mt-4 rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                <div className={`mt-4 rounded-md p-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <h1 className="text-xl font-medium">Comments</h1>
+                                    
+                                    <div className={`flex flex-col gap-4 mt-4`}>
+                                        <Comments 
+                                            theme={theme}
+                                        />
+                                    </div>
                                 </div>
 
                             </div>
