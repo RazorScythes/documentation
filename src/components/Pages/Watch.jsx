@@ -161,6 +161,10 @@ const Watch = ({ user, theme }) => {
                                         <Comments 
                                             theme={theme}
                                         />
+
+                                        <Comments 
+                                            theme={theme}
+                                        />
                                     </div>
                                 </div>
 
