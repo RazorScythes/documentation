@@ -5,14 +5,11 @@ import { dark, light } from '../../style';
 import Cookies from 'universal-cookie';
 import moment from 'moment'
 import Avatar from './Avatar'
+import { MotionAnimate } from 'react-motion-animate';
 
 const cookies = new Cookies();
 
-const Template = ({ theme, data, setTrigger }) => {
-    const [token, setToken] = useState(cookies.get('token'))
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('profile')))
-    const [image, setImage] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
-
+const Template = ({ theme, data, token, user, image, setTrigger }) => {
     const [childTrigger, setChildTrigger] = useState(false)
     const [comment, setComment] = useState('')
     const [submitted, setSubmitted] = useState(false)
@@ -99,10 +96,11 @@ const Template = ({ theme, data, setTrigger }) => {
             replies     : [],
         }
 
-        const updatedReplies = [...replies, newReply]
+        const updatedReplies = [newReply, ...replies]
         data.replies = updatedReplies
 
         setComment('')
+        setToggle({...toggle, expand_reply: true})
         setChildTrigger(true)
     }
 
@@ -186,12 +184,17 @@ const Template = ({ theme, data, setTrigger }) => {
                                     toggle.expand_reply &&
                                         data.replies.map((item, index) => {
                                             return (
-                                                <Template
-                                                    id={index}
-                                                    theme={theme}
-                                                    data={item}
-                                                    setTrigger={setChildTrigger}
-                                                />
+                                                <MotionAnimate animation='fadeInUp'>
+                                                    <Template
+                                                        key={index}
+                                                        theme={theme}
+                                                        data={item}
+                                                        token={token}
+                                                        user={user}
+                                                        image={image}
+                                                        setTrigger={setChildTrigger}
+                                                    />
+                                                </MotionAnimate>
                                             )
                                         })
                                 }
@@ -213,6 +216,10 @@ const Template = ({ theme, data, setTrigger }) => {
 
 const Comments = ({ theme }) => {
     const [trigger, setTrigger] = useState(false)
+    const [token, setToken] = useState(cookies.get('token'))
+    const [user, setUser] = useState(JSON.parse(localStorage.getItem('profile')))
+    const [image, setImage] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    console.log(token)
     const [data, setData] = useState({
         id: 1,
         avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
@@ -268,11 +275,16 @@ const Comments = ({ theme }) => {
     }, [trigger])
 
     return (
-        <Template
-            theme={theme}
-            data={data}
-            setTrigger={setTrigger}
-        />
+        <MotionAnimate animation='fadeInUp'>
+            <Template
+                theme={theme}
+                data={data}
+                token={token}
+                user={user}
+                image={image}
+                setTrigger={setTrigger}
+            />
+        </MotionAnimate>
     )
 }
 
