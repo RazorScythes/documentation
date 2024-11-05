@@ -12,7 +12,7 @@ import AdminNavbar from './AdminNavbar';
 import AdminSidebar from './AdminSidebar';
 
 import moment from 'moment-timezone';
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 import { faArrowLeft, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 const AdminOverview = ({ user, path }) => {
 

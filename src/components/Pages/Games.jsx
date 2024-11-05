@@ -10,7 +10,7 @@ import { MotionAnimate } from 'react-motion-animate'
 import GamesCards from './GamesCards';
 import loading from '../../assets/loading.gif'
 import image from '../../assets/hero-bg.jpg'
-import avatar from '../../assets/avatar.png'
+import avatar from '../../assets/avatar.webp'
 import styles from "../../style";
 
 const divideAndScale = (ratings) => {

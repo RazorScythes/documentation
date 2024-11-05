@@ -4,7 +4,7 @@ import { getLogs } from '../../actions/logs';
 import { useDispatch, useSelector } from 'react-redux'
 import moment from 'moment'
 import styles from '../../style'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 
 const Logs = () => {
 

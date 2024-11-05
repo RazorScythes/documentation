@@ -9,7 +9,7 @@ import { convertDriveImageLink } from './Tools'
 import { useDispatch, useSelector } from 'react-redux'
 
 import Logo from '../assets/logo.png'
-import Avatar from '../assets/avatar.png'
+import Avatar from '../assets/avatar.webp'
 
 const capitalizeFirstLetter = (str) => `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 

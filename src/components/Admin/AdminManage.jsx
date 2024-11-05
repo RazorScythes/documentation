@@ -8,7 +8,7 @@ import { getAllUsers } from '../../actions/settings';
 import { convertDriveImageLink } from '../Tools'
 import TableMenu from './TableMenu';
 import styles from '../../style'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 import AdminNavbar from './AdminNavbar';
 import AdminSidebar from './AdminSidebar';
 

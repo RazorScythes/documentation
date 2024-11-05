@@ -6,7 +6,7 @@ import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons
 import "react-multi-carousel/lib/styles.css";
 import { Banner } from '../components/index'
 import { banner_bg } from '../assets';
-import Avatar from '../assets/avatar.png'
+import Avatar from '../assets/avatar.webp'
 
 
 const CustomRight = ({ onClick }) => {

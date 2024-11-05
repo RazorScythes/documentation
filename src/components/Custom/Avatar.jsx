@@ -1,6 +1,6 @@
 import React from 'react'
 import { dark, light } from '../../style';
-import default_avatar from '../../assets/avatar.png'
+import default_avatar from '../../assets/avatar.webp'
 
 const Avatar = ({ onClick, theme, image, size = 8, rounded = true, pointers }) => {
     return (

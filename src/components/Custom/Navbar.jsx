@@ -12,7 +12,7 @@ import { Menu } from "lucide-react";
 import { main, dark, light } from "../../style";
 
 import Logo from '../../assets/logo.png'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 
 const capitalizeFirstLetter = (str) => `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 

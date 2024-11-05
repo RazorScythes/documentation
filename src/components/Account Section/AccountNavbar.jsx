@@ -8,7 +8,7 @@ import { logout } from "../../actions/auth";
 import { useDispatch, useSelector } from 'react-redux'
 
 import Logo from '../../assets/logo.png'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 
 const AccountNavbar = ({ path }) => {
   const dispatch = useDispatch()

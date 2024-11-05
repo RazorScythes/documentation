@@ -13,7 +13,7 @@ import Cookies from 'universal-cookie';
 import GamesCards from './GamesCards';
 import styles from "../../style";
 import image from '../../assets/hero-bg.jpg'
-import avatar from '../../assets/avatar.png'
+import avatar from '../../assets/avatar.webp'
 import loading from '../../assets/loading.gif'
 import moment from 'moment';
 import "react-multi-carousel/lib/styles.css";

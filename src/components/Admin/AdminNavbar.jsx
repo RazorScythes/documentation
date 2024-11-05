@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { convertDriveImageLink } from '../Tools'
 import { logout } from "../../actions/auth";
 import { useDispatch, useSelector } from 'react-redux'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons/faChevronDown';
 
 const AdminNavbar = ({ isOpen, setIsOpen, path }) => {

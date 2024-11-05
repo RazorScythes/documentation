@@ -6,7 +6,7 @@ import { faCircleCheck, faCalendar, faSitemap, faArrowRight, faGamepad, faChevro
 import styles from "../../style";
 import Carousel from "react-multi-carousel";
 import { Link, useParams } from 'react-router-dom'
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 import { portfolio1 } from "../../assets";
 
 const CustomRight = ({ onClick }) => {

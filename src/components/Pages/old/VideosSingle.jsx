@@ -12,7 +12,7 @@ import loading from '../../assets/loading.gif'
 import moment from 'moment'
 import styles from "../../style";
 import VideoThumbnail from '../VideoThumbnail';
-import Avatar from '../../assets/avatar.png'
+import Avatar from '../../assets/avatar.webp'
 import Cookies from 'universal-cookie';
 import SideAlert from '../SideAlert'
 import ReactPlayer from 'react-player/youtube'
