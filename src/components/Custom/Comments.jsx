@@ -10,16 +10,15 @@ import { MotionAnimate } from 'react-motion-animate';
 const cookies = new Cookies();
 
 const Template = ({ theme, data, token, user, image, setTrigger }) => {
-    const [childTrigger, setChildTrigger] = useState(false)
-    const [comment, setComment] = useState('')
-    const [submitted, setSubmitted] = useState(false)
-    const [activeLike, setActiveLike] = useState(false)
+    const [childTrigger, setChildTrigger]   = useState(false)
+    const [comment, setComment]             = useState('')
+    const [activeLike, setActiveLike]       = useState(false)
     const [activeDislike, setActiveDislike] = useState(false)
 
     const [toggle, setToggle] = useState({
-        comment: false,
-        reply: false,
-        expand_reply: false
+        comment         : false,
+        reply           : false,
+        expand_reply    : false
     })
 
     useEffect(() => {
@@ -31,7 +30,7 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
 
     useEffect(() => {
         const userId = cookies.get('uid');
-
+    
         if(data.likes.length > 0){
             if (data.likes.includes(userId)) {
                 setActiveLike(true)
@@ -103,7 +102,7 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
         setToggle({...toggle, expand_reply: true})
         setChildTrigger(true)
     }
-
+    
     return (
         <div className='w-full flex items-start transition-all'>
             <div className="w-12 flex-shrink-0 mr-4 xs:block hidden">
@@ -172,7 +171,7 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
                                             className={`block w-full px-4 py-3 ${theme === 'light' ? light.input : dark.input}`}
                                         >
                                         </textarea>
-                                        <button disabled={!token} onClick={() => addComment()} className={`disabled:cursor-not-allowed mt-3 float-right ${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
+                                        <button disabled={!user} onClick={() => addComment()} className={`disabled:cursor-not-allowed mt-3 float-right ${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
                                             Comment
                                         </button>
                                     </div>
@@ -214,57 +213,11 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
     )
 }
 
-const Comments = ({ theme }) => {
-    const [trigger, setTrigger] = useState(false)
-    const [token, setToken] = useState(cookies.get('token'))
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('profile')))
-    const [image, setImage] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
-    console.log(token)
-    const [data, setData] = useState({
-        id: 1,
-        avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
-        user: 'RazorScythe',
-        text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
-        date: '2023-11-16T06:40:31.459Z',
-        likes: ["fcd674b8-5178-42df-8257-2061df10f18c"],
-        dislikes: [],
-        replies: [{
-            avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
-            user: 'RazorScythe',
-            text: "Tangina mo jhepoy dizon",
-            date: '2023-11-16T06:40:31.459Z',
-            likes: [],
-            dislikes: [],
-            replies: [{
-                id: 1,
-                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
-                user: 'RazorScythe',
-                text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
-                date: '2023-11-16T06:40:31.459Z',
-                likes: ["fcd674b8-5178-42df-8257-2061df10f18c"],
-                dislikes: [],
-                replies: [],
-            }],
-        },
-        {
-            avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
-            user: 'RazorScythe',
-            text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
-            date: '2023-11-16T06:40:31.459Z',
-            likes: [],
-            dislikes: [],
-            replies: [{
-                id: 1,
-                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
-                user: 'RazorScythe',
-                text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
-                date: '2023-11-16T06:40:31.459Z',
-                likes: [],
-                dislikes: [],
-                replies: [],
-            }],
-        }],
-    })
+export const Comments = ({ theme, data }) => {
+    const [trigger, setTrigger]     = useState(false)
+    const [token, setToken]         = useState(cookies.get('token'))
+    const [user, setUser]           = useState(JSON.parse(localStorage.getItem('profile')))
+    const [image, setImage]         = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
 
     useEffect(() => {
         if(trigger) {
@@ -288,4 +241,70 @@ const Comments = ({ theme }) => {
     )
 }
 
-export default Comments
+export const CommentField = ({ theme, comment, setComment }) => {
+    const [user, setUser]           = useState(JSON.parse(localStorage.getItem('profile')))
+    const [image, setImage]         = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    const [text, setText]           = useState('')
+
+    useEffect(() => {
+        setText('')
+    }, [comment])
+
+    const addComment = () => {
+        if(!text || comment) return
+
+        setComment({
+            id          : user._id,
+            avatar      : image,
+            user        : user.username,
+            text        : text,
+            date        : moment().format("YYYY-MM-DDTHH:mm:ss"),
+            likes       : [],
+            dislikes    : [],
+            replies     : [],
+        })
+    }
+
+    return (
+        <>
+            {
+                user ?
+                    <div className='w-full flex items-start transition-all my-4'>
+                        <div className="w-12 flex-shrink-0 mr-4 xs:block hidden">
+                            <Avatar
+                                theme={theme}
+                                rounded={false}
+                                image={image}
+                                size={12}
+                            />
+                        </div>
+
+                        <div className={`flex-1 overflow-hidden rounded-md`}>
+                            <textarea
+                                required
+                                name="message"
+                                id="message"
+                                cols="30"
+                                rows="4"
+                                placeholder="Message"
+                                onChange={(e) => setText(e.target.value)}
+                                value={text}
+                                className={`block w-full px-4 py-3 ${theme === 'light' ? light.input : dark.input}`}
+                            >
+                            </textarea>
+                            <button disabled={!user} onClick={() => addComment()} className={`disabled:cursor-not-allowed mt-3 float-right ${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
+                                {
+                                    !comment ? 'Comment'
+                                        : <span>Commenting</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                :
+                    <div className={`w-full py-8 border-2 border-dashed rounded-md mb-4 ${theme === 'light' ? light.border : dark.semiborder}`}>
+                        <p className='text-center'>You need to <a href='/login' className={`${theme === 'light' ? light.link : dark.link}`}>login</a> to comment</p>
+                    </div>
+            }
+        </>
+    )
+}

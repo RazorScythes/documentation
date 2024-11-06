@@ -7,10 +7,103 @@ import { faEye, faFilm } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useScreenSize } from '../Tools';
 import Poster from '../Custom/Poster';
-import Comments from '../Custom/Comments'
+import { Comments, CommentField } from '../Custom/Comments'
 
 const Watch = ({ user, theme }) => {
 
+    const [data, setData] = useState([
+        {
+            id: 1,
+            avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+            user: 'RazorScythe',
+            text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+            date: '2023-11-16T06:40:31.459Z',
+            likes: ["fcd674b8-5178-42df-8257-2061df10f18c"],
+            dislikes: [],
+            replies: [{
+                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                user: 'RazorScythe',
+                text: "Tangina mo jhepoy dizon",
+                date: '2023-11-16T06:40:31.459Z',
+                likes: [],
+                dislikes: [],
+                replies: [{
+                    id: 1,
+                    avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                    user: 'RazorScythe',
+                    text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                    date: '2023-11-16T06:40:31.459Z',
+                    likes: ["fcd674b8-5178-42df-8257-2061df10f18c"],
+                    dislikes: [],
+                    replies: [],
+                }],
+            },
+            {
+                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                user: 'RazorScythe',
+                text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                date: '2023-11-16T06:40:31.459Z',
+                likes: [],
+                dislikes: [],
+                replies: [{
+                    id: 1,
+                    avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                    user: 'RazorScythe',
+                    text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                    date: '2023-11-16T06:40:31.459Z',
+                    likes: [],
+                    dislikes: [],
+                    replies: [],
+                }],
+            }],
+        },
+        {
+            id: 1,
+            avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+            user: 'RazorScythe',
+            text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+            date: '2023-11-16T06:40:31.459Z',
+            likes: [],
+            dislikes: [],
+            replies: [{
+                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                user: 'RazorScythe',
+                text: "Tangina mo jhepoy dizon",
+                date: '2023-11-16T06:40:31.459Z',
+                likes: [],
+                dislikes: [],
+                replies: [{
+                    id: 1,
+                    avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                    user: 'RazorScythe',
+                    text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                    date: '2023-11-16T06:40:31.459Z',
+                    likes: ["fcd674b8-5178-42df-8257-2061df10f18c"],
+                    dislikes: [],
+                    replies: [],
+                }],
+            },
+            {
+                avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                user: 'RazorScythe',
+                text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                date: '2023-11-16T06:40:31.459Z',
+                likes: [],
+                dislikes: [],
+                replies: [{
+                    id: 1,
+                    avatar: "https://drive.google.com/thumbnail?id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V&sz=w1000",
+                    user: 'RazorScythe',
+                    text: "In this magical world, one is easily identified as having magical abilities by a distinctive mark on their face...",
+                    date: '2023-11-16T06:40:31.459Z',
+                    likes: [],
+                    dislikes: [],
+                    replies: [],
+                }],
+            }],
+        }
+    ])
+    const [comment, setComment] = useState(null)
     const [toggle, setToggle] = useState({
         description: false
     })
@@ -21,6 +114,17 @@ const Watch = ({ user, theme }) => {
             setToggle({...toggle, description: true})
         }
     }
+
+    useEffect(() => {
+        if(comment) {
+            let newData = [comment, ...data]
+            
+            //dispatch function
+            
+            setData(newData)
+            setComment(null)
+        }
+    }, [comment])
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
@@ -158,13 +262,28 @@ const Watch = ({ user, theme }) => {
                                     <h1 className="text-xl font-medium">Comments</h1>
                                     
                                     <div className={`flex flex-col gap-4 mt-4`}>
-                                        <Comments 
+                                        
+                                        <CommentField
+                                            comment={comment}
+                                            setComment={setComment}
                                             theme={theme}
                                         />
+                                        
+                                        <h2 className='text-base'>{data?.length ?? 0} Comment{data?.length > 1 && 's'}</h2>
 
-                                        <Comments 
-                                            theme={theme}
-                                        />
+                                        {
+                                            data?.length > 0 &&
+                                                data.map((item, i) => {
+                                                    return (
+                                                        <Comments 
+                                                            key={i}
+                                                            theme={theme}
+                                                            data={item}
+                                                        />
+                                                    )
+                                                })
+                                        }
+
                                     </div>
                                 </div>
 
