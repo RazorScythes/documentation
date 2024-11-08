@@ -16,6 +16,9 @@ import Watch from './components/Pages/Watch';
 import Navbar from './components/Custom/Navbar';
 import Footer from './components/Custom/Footer';
 
+import Account from './components/Pages/Account';
+import Profile from './components/Pages/Profile';
+
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
 const App = () => {
@@ -60,6 +63,12 @@ const App = () => {
                     <Route index element={<><Home user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime' element={<><Anime user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
+                </Route>
+
+                <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
+                    <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/account/:page' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
 
