@@ -83,7 +83,7 @@ const Account = ({ user, theme }) => {
                                 </div>
                             </div>
 
-                            <div className={`w-full mt-4 px-6 py-3 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                            <div className={`w-full mt-4 px-6 py-3 pb-5 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                 {
                                     activePage('') ?
                                         <Profile
@@ -113,7 +113,7 @@ const Account = ({ user, theme }) => {
                                     : activePage('settings') ?
                                         <Settings
                                             user={user}
-                                            theme={theme}
+                                            theme={ theme}
                                         />
                                     : null
                                 }
