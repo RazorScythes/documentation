@@ -33,7 +33,9 @@ export const dark = {
     background          : "bg-[#0e0e0e]",
     semibackground      : "bg-[#1C1C1C]",
     focusbackground     : "bg-[#2B2B2B]",
+    thirdbackground     : "bg-[#1A1A1A]",
     border              : "border-[#0e0e0e]",
+    row                 : "bg-[#0e0e0e] hover:bg-[#1A1A1A]",
     semiborder          : "border-[#1C1C1C]",
     heading             : "text-white",
     text                : "text-gray-400",
@@ -46,7 +48,7 @@ export const dark = {
     button_secondary    : "bg-blue-600 hover:bg-blue-700 transition-all",
     list_button         : "bg-[#0e0e0e] hover:bg-blue-600 text-white",
     active_list_button  : "bg-blue-600 text-white",
-    paginate_btn        : "p-2 px-4 hover:bg-blue-600 bg-[#0e0e0e] hover:text-white rounded-md transition-all disabled:cursor-not-allowed cursor-pointers",
+    paginate_btn        : "p-2 px-3.5 hover:bg-blue-600 bg-[#0e0e0e] hover:text-white rounded-md transition-all disabled:cursor-not-allowed cursor-pointers",
     input               : "bg-[#1C1C1C] border border-solid border-[#1C1C1C] text-gray-300 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none",
     input_icon          : "text-gray-300"
 }
@@ -57,7 +59,9 @@ export const light = {
     background          : "bg-[#F6F8FA]",
     semibackground      : "bg-[#1C1C1C]",
     focusbackground     : "bg-[#2B2B2B]",
+    thirdbackground     : "bg-[#F3F4F6]",
     border              : "border-[#e0e6eb]",
+    row                 : "bg-transparent hover:bg-[#F3F4F6]",
     semiborder          : "border-[#1C1C1C]",
     heading             : "text-blue-700",
     text                : "text-[#1C1C1C]",
@@ -70,7 +74,7 @@ export const light = {
     button_secondary    : "bg-blue-600 hover:bg-blue-700 transition-all text-white",
     list_button         : "bg-[#F6F8FA] hover:bg-blue-700 hover:text-white",
     active_list_button  : "bg-blue-700 text-white",
-    paginate_btn        : "p-2 px-4 rounded-md hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed cursor-pointers bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight transition-all outline-none",
+    paginate_btn        : "p-2 px-3 rounded-md hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed cursor-pointers bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight transition-all outline-none",
     input               : "bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight focus:outline-none focus:bg-[#e0e6eb] transition-all outline-none",
     input_icon          : "text-[#59636E]"
 }

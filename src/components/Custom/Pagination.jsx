@@ -5,7 +5,7 @@ import { main, dark, light } from "../../style";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 
-const Pagination = ({ data, theme, limit, setPagination }) => {
+const Pagination = ({ data, theme, limit, setPagination, numberOnly, table }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const navigate          = useNavigate()
@@ -78,31 +78,39 @@ const Pagination = ({ data, theme, limit, setPagination }) => {
     };
 
     return (
-        <div className='flex flex-wrap items-center justify-center mt-6 gap-2'>
-            <button
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn}`}
-            >
-                Previous
-            </button>
+        <div className='flex flex-wrap items-center justify-center gap-2'>
+            {
+                !numberOnly ?
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn}`}
+                    >
+                        Previous
+                    </button>
+                : null
+            }
             {displayedPages.map((pageNumber) => (
                 <button
                     key={pageNumber}
                     onClick={() => handlePageChange(pageNumber)}
                     style={{backgroundColor: pageIndex === pageNumber && "#2563eb", color: pageIndex === pageNumber && "#FFF"}}
-                    className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn}`}
+                    className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn} ${table ? (theme === 'light' ? light.semibackground : dark.semibackground) : ''}`}
                 >
                     {pageNumber}
                 </button>
             ))}
-            <button
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn}`}
-            >
-                Next
-            </button>
+            {
+                !numberOnly ?
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className={`${theme === 'light' ? light.paginate_btn : dark.paginate_btn}`}
+                    >
+                        Next
+                    </button>
+                : null
+            }
         </div>
     );
 }

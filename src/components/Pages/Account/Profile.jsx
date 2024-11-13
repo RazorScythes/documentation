@@ -25,7 +25,7 @@ const Profile = ({ user, theme }) => {
 
     return (
         <div>
-            <div className='mb-8'>
+            <div className='mb-8 mt-4'>
                 <h1 className="text-xl font-medium mb-1">Your Information 
                     {
                         !edit &&

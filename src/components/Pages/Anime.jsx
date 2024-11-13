@@ -99,7 +99,7 @@ const Anime = ({ user, theme }) => {
                                     </div>
                                 </div>
 
-                                <div className='grid sm:grid-cols-4 xs:grid-cols-3 grid-cols-2 gap-4 place-content-start mt-8'>
+                                <div className='grid sm:grid-cols-4 xs:grid-cols-3 grid-cols-2 gap-4 place-content-start mt-8 mb-6'>
                                     <Poster 
                                         data={{
                                             thumbnail: 'https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg',
