@@ -47,7 +47,7 @@ const Account = ({ user, theme }) => {
                                         />
                                     </div>
                                     <div className={`flex-1 overflow-hidden xs:mt-4`}>
-                                        <h1 className="text-2xl font-medium mb-1">Zantei25</h1>
+                                        <h1 className="text-2xl font-medium mb-1">RazorScythe</h1>
                                         <p className={`truncate w-full mb-4 ${theme === 'light' ? light.text : dark.text}`}>0 Subscriber</p>
                                         <p className={`truncate w-full ${theme === 'light' ? light.text : dark.text}`}>Mashle: Magic and Muscles, Mashle, マッシュル-MASHLE-</p>
                                     </div>
