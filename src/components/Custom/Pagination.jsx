@@ -5,12 +5,12 @@ import { main, dark, light } from "../../style";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 
-const Pagination = ({ data, theme, limit, setPagination, numberOnly, table }) => {
+const Pagination = ({ data, theme, limit, setPagination, numberOnly, table, triggerSearch }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const navigate          = useNavigate()
-    const pageIndex         = searchParams.get('page') ? parseInt(searchParams.get('page')) : 1
-    const itemsPerPage      = limit ?? 55; 
+    let pageIndex           = searchParams.get('page') ? parseInt(searchParams.get('page')) : 1
+    const itemsPerPage      = limit ?? 10; 
     const totalPages        = Math.ceil(data?.length / itemsPerPage);
 
     const [currentPage, setCurrentPage] = useState(pageIndex);
@@ -20,11 +20,20 @@ const Pagination = ({ data, theme, limit, setPagination, numberOnly, table }) =>
     const endIndex          = startIndex + itemsPerPage;
 
     useEffect(() => {
-        setCurrentPage(pageIndex)
-    }, [pageIndex])
+        const search = new URLSearchParams(window.location.search);
+        search.set('page', 1); 
+
+        const newUrl = `${window.location.pathname}?${search.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+
+        handlePageChange(1)
+    }, [triggerSearch])
 
     useEffect(() => {
-        window.scrollTo(0, 0)
+        if(!table) {
+            window.scrollTo(0, 0)
+        }
+    
         const calculateDisplayedPages = () => {
             const pagesToShow = [];
             const maxDisplayedPages = 6;
@@ -58,7 +67,7 @@ const Pagination = ({ data, theme, limit, setPagination, numberOnly, table }) =>
         };
     
         calculateDisplayedPages();
-    }, [currentPage, totalPages, pageIndex]);
+    }, [currentPage, totalPages]);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
