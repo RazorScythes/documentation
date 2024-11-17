@@ -3,6 +3,7 @@ import { main, dark, light } from '../../../style';
 
 import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
+import CustomForm from '../../Custom/CustomForm';
 
 const Videos = ({ user, theme }) => {
 
@@ -10,6 +11,24 @@ const Videos = ({ user, theme }) => {
     const [openModal, setOpenModal] = useState(false)
     const [deleteId, setDeleteId] = useState('')
     const [confirm, setConfirm] = useState(false)
+
+    const fields = [
+        { label: "Title", name: "title", placeholder: "Enter video title", required: true },
+        { label: "Email", name: "email", type: "email", required: true },
+        {
+            label: "Password",
+            name: "password",
+            type: "password",
+            required: true,
+            validate: (value) =>
+                value?.length < 6 ? "Password must be at least 6 characters" : null,
+        },
+        { label: "Age", name: "age", type: "number", placeholder: "Enter age" },
+    ];
+    
+    const handleSubmit = (formData) => {
+        console.log("Form Submitted:", formData);
+    };
 
     useEffect(() => {
         if(selectedData?.length > 0) {
@@ -41,9 +60,16 @@ const Videos = ({ user, theme }) => {
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
             </div>
 
-            <Table 
+            <CustomForm
                 theme={theme}
-                title="Tangina mo Jhepoy Dizon"
+                fields={fields}
+                onSubmit={handleSubmit}
+                initialValues={{ name: "James Arvie Maderas", email: "jamezarviemaderas@gmail.com", age: 24 }}
+            />
+
+            {/* <Table 
+                theme={theme}
+                title=""
                 header={[
                     { key: 'user', label: 'User', type: 'user', render: (user) => <strong>{user.username}</strong> },
                     { key: 'type', label: 'Type' },
@@ -74,7 +100,7 @@ const Videos = ({ user, theme }) => {
                     "__v": 0
                 }]}
                 setSelectedData={setSelectedData}
-            />
+            /> */}
         </div>
     )
 }

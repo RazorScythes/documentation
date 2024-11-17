@@ -49,7 +49,7 @@ export const dark = {
     list_button         : "bg-[#0e0e0e] hover:bg-blue-600 text-white",
     active_list_button  : "bg-blue-600 text-white",
     paginate_btn        : "p-2 px-3.5 hover:bg-blue-600 bg-[#0e0e0e] hover:text-white rounded-md transition-all disabled:cursor-not-allowed cursor-pointers",
-    input               : "bg-[#1C1C1C] border border-solid border-[#1C1C1C] text-gray-300 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none",
+    input               : "bg-[#1C1C1C] border border-solid border-[#1C1C1C] text-gray-300 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none autofill:bg-[#1C1C1C]",
     input_icon          : "text-gray-300",
     edit_button         : "text-yellow-400 hover:text-yellow-500 transition-all",
     delete_button       : "text-red-600 hover:text-red-700 transition-all",
