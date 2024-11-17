@@ -5,6 +5,9 @@ import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
 import CustomForm from '../../Custom/CustomForm';
 
+import { list, put, del } from '@vercel/blob';
+import { v4 as uuidv4 } from 'uuid';
+
 const Videos = ({ user, theme }) => {
 
     const [selectedData, setSelectedData] = useState(null)
@@ -45,6 +48,37 @@ const Videos = ({ user, theme }) => {
         }
     }, [confirm])
 
+
+
+    const [file, setFile] = useState(null);
+    const [message, setMessage] = useState('');
+
+    const fileName = (originalFileName) => {
+        const uuid = uuidv4();
+        const dotIndex = originalFileName.lastIndexOf('.');
+        const extension = originalFileName.substring(dotIndex);
+        return `${uuid}${extension}`;
+    };
+
+    const handleFileChange = (event) => {
+        setFile(event.target.files[0]);
+    };
+
+    const handleUpload = async (event) => {
+        event.preventDefault();
+        if (!file) {
+          setMessage('Please select a file first.');
+          return;
+        }
+
+        const blob = await put(fileName(file.name), file, {
+            access: 'public',
+            token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
+        });
+
+        console.log(blob)
+    };
+
     return (
         <div>   
             <ConfirmModal 
@@ -60,12 +94,24 @@ const Videos = ({ user, theme }) => {
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
             </div>
 
-            <CustomForm
+            <div>
+                <form onSubmit={handleUpload}>
+                    <input type="file" onChange={handleFileChange} />
+                    <button type="submit" style={{ marginLeft: '10px' }}>
+                        Upload
+                    </button>
+                </form>
+                {message && <p>{message}</p>}
+
+                <img src="https://mvukvlejqwgq8zt5.public.blob.vercel-storage.com/13c80aba-7c24-4224-818e-be223bfed5ea-x0ggZ5sluxQmWAmm2X78g26XBRyLBO.jpg" />
+            </div>
+
+            {/* <CustomForm
                 theme={theme}
                 fields={fields}
                 onSubmit={handleSubmit}
                 initialValues={{ name: "James Arvie Maderas", email: "jamezarviemaderas@gmail.com", age: 24 }}
-            />
+            /> */}
 
             {/* <Table 
                 theme={theme}
