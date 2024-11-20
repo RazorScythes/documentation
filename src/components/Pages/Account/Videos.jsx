@@ -16,8 +16,19 @@ const Videos = ({ user, theme }) => {
     const [confirm, setConfirm] = useState(false)
 
     const fields = [
-        { label: "Title", name: "title", placeholder: "Enter video title", required: true },
-        { label: "Email", name: "email", type: "email", required: true },
+        {
+            label: "Thumbnail",
+            name: "thumbnail",
+            type: "image",
+            required: true,
+        },
+        {
+            label: "Save File",
+            name: "save",
+            type: "file",
+        },
+        { label: "Video Title", name: "title", placeholder: "Enter video title", required: true },
+        { label: "Video Url", name: "link", placeholder: "Enter video url", type: "text", required: true },
         {
             label: "Password",
             name: "password",
@@ -94,7 +105,7 @@ const Videos = ({ user, theme }) => {
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
             </div>
 
-            <div>
+            {/* <div>
                 <form onSubmit={handleUpload}>
                     <input type="file" onChange={handleFileChange} />
                     <button type="submit" style={{ marginLeft: '10px' }}>
@@ -104,16 +115,16 @@ const Videos = ({ user, theme }) => {
                 {message && <p>{message}</p>}
 
                 <img src="https://mvukvlejqwgq8zt5.public.blob.vercel-storage.com/13c80aba-7c24-4224-818e-be223bfed5ea-x0ggZ5sluxQmWAmm2X78g26XBRyLBO.jpg" />
-            </div>
+            </div> */}
 
-            {/* <CustomForm
+            <CustomForm
                 theme={theme}
                 fields={fields}
                 onSubmit={handleSubmit}
                 initialValues={{ name: "James Arvie Maderas", email: "jamezarviemaderas@gmail.com", age: 24 }}
-            /> */}
+            />
 
-            {/* <Table 
+            <Table 
                 theme={theme}
                 title=""
                 header={[
@@ -146,7 +157,7 @@ const Videos = ({ user, theme }) => {
                     "__v": 0
                 }]}
                 setSelectedData={setSelectedData}
-            /> */}
+            />
         </div>
     )
 }
