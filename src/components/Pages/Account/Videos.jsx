@@ -27,6 +27,20 @@ const Videos = ({ user, theme }) => {
             name: "save",
             type: "file",
         },
+        {
+            label: "Tags",
+            name: "tags",
+            type: "multi_select",
+            options: [{
+                name: 'Profile',
+                count: 10,
+                value: 1
+            },{
+                name: 'Adventure',
+                count: 20,
+                value: 2
+            }]
+        },
         { label: "Video Title", name: "title", placeholder: "Enter video title", required: true },
         { label: "Video Url", name: "link", placeholder: "Enter video url", type: "text", required: true },
         {

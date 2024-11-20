@@ -11,7 +11,10 @@ const CustomForm = ({
     const [field, setField] = useState([]);
     const [formValues, setFormValues] = useState(initialValues);
     const [errors, setErrors] = useState({});
-    const [loadingImages, setLoadingImages] = useState({}); // Tracks loading state for each image
+    const [loadingImages, setLoadingImages] = useState({}); 
+    const [dropdownData, setDropdownData] = useState({});
+    const [dropdownVisible, setDropdownVisible] = useState({});
+    const [inputFocus, setInputFocus] = useState({})
 
     useEffect(() => {
         setField(fields ?? []);
@@ -30,7 +33,7 @@ const CustomForm = ({
                 setTimeout(() => {
                     setFormValues({ ...formValues, [name]: file });
                     setLoadingImages((prev) => ({ ...prev, [name]: false })); 
-                }, 2000); 
+                }, 1000); 
             }
         } else {
             setFormValues({ ...formValues, [name]: e.target.value });
@@ -46,6 +49,65 @@ const CustomForm = ({
             setFormValues({ ...formValues, [name]: file });
         }
     }
+
+    const handleTagInputChange = (e, name) => {
+        const { value } = e.target;
+
+        setFormValues((prev) => ({
+            ...prev,
+            [name]: {
+                ...prev[name],
+                input: value,
+            },
+        }));
+        setInputFocus((prev) => ({ ...prev, [name]: true }));
+
+        const field = fields.find((f) => f.name === name);
+        if (field && field.options) {
+            const filteredOptions = field.options.filter((option) =>
+                option.name.toLowerCase().includes(value.toLowerCase())
+            );
+            setDropdownData((prev) => ({ ...prev, [name]: filteredOptions }));
+            setDropdownVisible((prev) => ({ ...prev, [name]: value.length >= 3 || value.length === 0 }));
+        }
+    };
+
+    const inputOnFocus = (name) => {
+        setInputFocus((prev) => ({ ...prev, [name]: true }));
+    } 
+
+    const inputOnBlur = (name) => {
+        setTimeout(() => {
+            setInputFocus((prev) => ({ ...prev, [name]: false }));
+        }, 150); 
+    }
+
+    const handleTagSelect = (name, tag) => {
+        const currentTags = formValues[name]?.tags || [];
+        if (!currentTags.some((t) => t.value === tag.value)) {
+            setFormValues((prev) => ({
+                ...prev,
+                [name]: {
+                    input: "",
+                    tags: [...currentTags, tag],
+                },
+            }));
+        }
+
+        setDropdownVisible((prev) => ({ ...prev, [name]: false }));
+    };
+
+    const handleTagRemove = (name, tagValue) => {
+        const currentTags = formValues[name]?.tags || [];
+        const updatedTags = currentTags.filter((tag) => tag.value !== tagValue);
+        setFormValues((prev) => ({
+            ...prev,
+            [name]: {
+                ...prev[name],
+                tags: updatedTags,
+            },
+        }));
+    };
 
     const validateFields = () => {
         const newErrors = {};
@@ -78,6 +140,10 @@ const CustomForm = ({
         document.getElementById(inputId)?.click();
     };
 
+    const handleInputFocus = (inputId) => {
+        document.getElementById(inputId)?.focus();
+    };
+
     return (
         <div className="grid md:grid-cols-2 gap-2">
             <form onSubmit={handleSubmit}>
@@ -85,45 +151,120 @@ const CustomForm = ({
                     
                     <div key={name} className="pb-2.5">
                         <label htmlFor={name}>{label}:</label>
-                        {type === "image" ? (
-                            <div>
-                                {(formValues[name] || loadingImages[name] === true) ? (
-                                    loadingImages[name] === true ? ( // Show loading animation while loading
-                                        <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
-                                            <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
-                                        </div>
-                                    ) : (
+                        {
+                            type === "multi_select" ? (
+                                <div className="relative">
+                                    <div
+                                        onClick={() => handleInputFocus(name)}
+                                        className={`relative flex flex-wrap items-center gap-3 w-full rounded-sm mt-2 mb-1 py-2 px-4 ${
+                                            theme === "light" ? light.input : dark.input
+                                        }`}
+                                    >
+                                        {formValues[name]?.tags?.map((tag) => (
+                                            <p
+                                                key={tag.value}
+                                                className={`cursor-pointer px-3 py-1 rounded-full text-white ${
+                                                    theme === "light"
+                                                        ? light.button_secondary
+                                                        : dark.button_secondary
+                                                }`}
+                                                onClick={() => handleTagRemove(name, tag.value)}
+                                            >
+                                                {tag.name}
+                                            </p>
+                                        ))}
+                                        <input
+                                            id={name}
+                                            name={name}
+                                            type="text"
+                                            placeholder={placeholder}
+                                            value={formValues[name]?.input || ""}
+                                            onChange={(e) => handleTagInputChange(e, name)}
+                                            className={`flex-grow min-w-[10px] w-8 py-2 px-4 border rounded-sm ${
+                                                theme === "light" ? light.input : dark.input
+                                            }`}
+                                            onFocus={() => inputOnFocus(name)}
+                                            onBlur={() => inputOnBlur(name)}
+                                            autoSave="false"
+                                        />
+                                    </div>
+                                    {(dropdownVisible[name] && inputFocus[name]) && (
                                         <div
-                                            className={`mt-2.5 w-full border border-solid ${theme === "light" ? light.semiborder : dark.semiborder} rounded-md`}
+                                            className={`absolute z-70 top-[105%] left-0 w-full border border-solid ${
+                                                theme === "light"
+                                                    ? light.border
+                                                    : dark.semiborder
+                                            } shadow-md`}
+                                        >
+                                            <ul className="max-h-64 overflow-y-auto custom-scroll">
+                                                {dropdownData[name]?.map((option) => (
+                                                    <li
+                                                        key={option.value}
+                                                        className={`w-full px-6 py-2.5 transition-all cursor-pointer ${
+                                                            theme === "light"
+                                                                ? light.list_button
+                                                                : dark.list_button
+                                                        }`}
+                                                        onClick={() => handleTagSelect(name, option)}
+                                                    >
+                                                        {option.name} ({option.count})
+                                                    </li>
+                                                ))}
+                                                {dropdownData[name]?.length === 0 && (
+                                                    <li className={`px-6 py-2.5 transition-all cursor-pointer ${
+                                                        theme === "light"
+                                                            ? light.list_button
+                                                            : dark.list_button
+                                                    }`}>
+                                                        No results found
+                                                    </li>
+                                                )}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                            : type === "image" ? (
+                            <div>
+                                {
+                                    (formValues[name] || loadingImages[name] === true) ? (
+                                        loadingImages[name] === true ? ( 
+                                            <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
+                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`mt-2.5 w-full border border-solid ${theme === "light" ? light.semiborder : dark.semiborder} rounded-md`}
+                                                onClick={() => handleFileClick(name)}
+                                                style={{ cursor: "pointer" }}
+                                            >
+                                                <img
+                                                    src={URL.createObjectURL(formValues[name])}
+                                                    alt="Uploaded Thumbnail"
+                                                    className="w-full h-full object-fit rounded-md"
+                                                />
+                                            </div>
+                                        )
+                                    ) :  (
+                                        <div
+                                            className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed rounded-md ${
+                                                theme === "light"
+                                                    ? light.border
+                                                    : dark.semiborder
+                                            }`}
                                             onClick={() => handleFileClick(name)}
                                             style={{ cursor: "pointer" }}
                                         >
-                                            <img
-                                                src={URL.createObjectURL(formValues[name])}
-                                                alt="Uploaded Thumbnail"
-                                                className="w-full h-full object-cover rounded-md"
-                                            />
+                                            <p
+                                                className={`cursor-default text-center ${
+                                                    theme === "light" ? light.text : dark.text
+                                                }`}
+                                            >
+                                                Click to upload an image
+                                            </p>
                                         </div>
                                     )
-                                ) :  (
-                                    <div
-                                        className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed rounded-md ${
-                                            theme === "light"
-                                                ? light.border
-                                                : dark.semiborder
-                                        }`}
-                                        onClick={() => handleFileClick(name)}
-                                        style={{ cursor: "pointer" }}
-                                    >
-                                        <p
-                                            className={`cursor-default text-center ${
-                                                theme === "light" ? light.text : dark.text
-                                            }`}
-                                        >
-                                            Click to upload an image
-                                        </p>
-                                    </div>
-                                )}
+                                }
                                 <input
                                     type="file"
                                     id={name}
