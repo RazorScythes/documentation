@@ -20,7 +20,6 @@ const Videos = ({ user, theme }) => {
             label: "Thumbnail",
             name: "thumbnail",
             type: "image",
-            required: true,
         },
         {
             label: "Save File",
@@ -28,14 +27,38 @@ const Videos = ({ user, theme }) => {
             type: "file",
         },
         {
+            label: "Textarea",
+            name: "text",
+            type: "textarea",
+            required: true
+        },
+        {
+            label: "Select Field",
+            name: "select",
+            type: "select",
+            required: true,
+            options: [
+                { id: 1, name: 'RPG'},
+                { id: 2, name: 'Puzzel'},
+                { id: 3, name: 'MMORPG'},
+            ]
+        },
+        {
+            label: "Downloadable",
+            name: "checkbox",
+            type: "checkbox",
+        },
+        {
             label: "Tags",
             name: "tags",
             type: "multi_select",
             options: [{
+                id: 1,
                 name: 'Profile',
                 count: 10,
                 value: 1
             },{
+                id: 2,
                 name: 'Adventure',
                 count: 20,
                 value: 2
@@ -47,7 +70,6 @@ const Videos = ({ user, theme }) => {
             label: "Password",
             name: "password",
             type: "password",
-            required: true,
             validate: (value) =>
                 value?.length < 6 ? "Password must be at least 6 characters" : null,
         },

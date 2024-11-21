@@ -20,9 +20,9 @@ const CustomForm = ({
         setField(fields ?? []);
     }, [fields]);
 
-    useEffect(() => {
-        setFormValues(initialValues ?? {});
-    }, [initialValues]);
+    // useEffect(() => {
+    //     setFormValues(initialValues ?? {});
+    // }, [initialValues]);
 
     const handleChange = (e) => {
         const { name, type, files } = e.target;
@@ -38,6 +38,11 @@ const CustomForm = ({
         } else {
             setFormValues({ ...formValues, [name]: e.target.value });
         }
+    };
+
+    const handleCheckboxChange = (e) => {
+        const { name } = e.target;
+        setFormValues({ ...formValues, [name]: !formValues[name] });
     };
 
     const handleFileChange = (e) => {
@@ -68,7 +73,7 @@ const CustomForm = ({
                 option.name.toLowerCase().includes(value.toLowerCase())
             );
             setDropdownData((prev) => ({ ...prev, [name]: filteredOptions }));
-            setDropdownVisible((prev) => ({ ...prev, [name]: value.length >= 3 || value.length === 0 }));
+            setDropdownVisible((prev) => ({ ...prev, [name]: value.length >= 0 || value.length === 0 }));
         }
     };
 
@@ -79,7 +84,7 @@ const CustomForm = ({
     const inputOnBlur = (name) => {
         setTimeout(() => {
             setInputFocus((prev) => ({ ...prev, [name]: false }));
-        }, 150); 
+        }, 100); 
     }
 
     const handleTagSelect = (name, tag) => {
@@ -124,10 +129,30 @@ const CustomForm = ({
         return Object.keys(newErrors).length === 0;
     };
 
+    const transformObject = (obj) => {
+        const newObj = { ...obj };
+    
+        for (const key in newObj) {
+            const value = newObj[key];
+    
+            if (
+                value &&
+                typeof value === 'object' &&
+                'input' in value &&
+                Object.keys(value).some((k) => Array.isArray(value[k]))
+            ) {
+                const arrayKey = Object.keys(value).find((k) => Array.isArray(value[k]));
+                newObj[key] = value[arrayKey];
+            }
+        }
+    
+        return newObj;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (validateFields()) {
-            onSubmit(formValues);
+            onSubmit(transformObject(formValues));
         }
     };
 
@@ -147,16 +172,63 @@ const CustomForm = ({
     return (
         <div className="grid md:grid-cols-2 gap-2">
             <form onSubmit={handleSubmit}>
-                {field.map(({ label, name, type, placeholder, required }) => (
+                {field.map(({ label, name, type, placeholder, options, required }) => (
                     
                     <div key={name} className="pb-2.5">
-                        <label htmlFor={name}>{label}:</label>
+                        { type !== "checkbox" && <label htmlFor={name}>{label}:</label> }
                         {
-                            type === "multi_select" ? (
+                            type === "checkbox" ? (
+                                <div className="flex items-center">
+                                <input
+                                    id={name}
+                                    name={name}
+                                    type={"checkbox"}
+                                    placeholder={placeholder || ""}
+                                    checked={formValues[name] || false}
+                                    onChange={handleCheckboxChange}
+                                    className={`w-4 h-4 mr-2 outline-none`}
+                                />
+                                <label htmlFor={name} className="">{label}</label>
+                                </div>
+                            )
+                            : type === "select" ? (
+                                <select
+                                    id={name}
+                                    name={name}
+                                    type={type || "text"}
+                                    placeholder={placeholder || ""}
+                                    value={formValues[name] || ""}
+                                    onChange={handleChange}
+                                    className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                >
+                                    <option value="">Select option</option>
+                                    {
+                                        options?.length > 0 &&
+                                        options.map((item, i) => {
+                                            return (
+                                                <option value={item.id}> {item.name} </option>
+                                            )
+                                        })
+                                    }
+                                </select>
+                            )
+                            : type === "textarea" ? (
+                                <textarea
+                                    id={name}
+                                    name={name}
+                                    type={type || "text"}
+                                    placeholder={placeholder || ""}
+                                    value={formValues[name] || ""}
+                                    onChange={handleChange}
+                                    className={`block w-full rounded-sm mt-2 mb-1 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                    rows={8}
+                                />
+                            )
+                            : type === "multi_select" ? (
                                 <div className="relative">
                                     <div
                                         onClick={() => handleInputFocus(name)}
-                                        className={`relative flex flex-wrap items-center gap-3 w-full rounded-sm mt-2 mb-1 py-2 px-4 ${
+                                        className={`relative flex flex-wrap items-center gap-3 w-full rounded-sm mt-2 mb-1 py-1 px-4 ${
                                             theme === "light" ? light.input : dark.input
                                         }`}
                                     >
