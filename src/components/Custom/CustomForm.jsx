@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { dark, light } from "../../style";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClose, faFile, faPlus } from "@fortawesome/free-solid-svg-icons";
 
 const CustomForm = ({
     theme,
@@ -114,6 +116,44 @@ const CustomForm = ({
         }));
     };
 
+    const handleListChange = (e, name) => {
+        const { value } = e.target;
+
+        setFormValues((prev) => ({
+            ...prev,
+            [name]: {
+                ...prev[name],
+                input: value,
+            },
+        }));
+    };
+
+    const addList = (name) => {
+        const currentLists = formValues[name]?.lists || [];
+        const value = formValues[name]?.input || "";
+        if (!currentLists.some((l) => l === value)) {
+            setFormValues((prev) => ({
+                ...prev,
+                [name]: {
+                    input: "",
+                    lists: [...currentLists, value],
+                },
+            }));
+        }
+    };
+
+    const removeList = (name, listValue) => {
+        const currentLists = formValues[name]?.lists || [];
+        const updatedLists = currentLists.filter((list) => list !== listValue);
+        setFormValues((prev) => ({
+            ...prev,
+            [name]: {
+                ...prev[name],
+                lists: updatedLists,
+            },
+        }));
+    };
+
     const validateFields = () => {
         const newErrors = {};
         fields.forEach(({ name, required, validate }) => {
@@ -129,33 +169,6 @@ const CustomForm = ({
         return Object.keys(newErrors).length === 0;
     };
 
-    const transformObject = (obj) => {
-        const newObj = { ...obj };
-    
-        for (const key in newObj) {
-            const value = newObj[key];
-    
-            if (
-                value &&
-                typeof value === 'object' &&
-                'input' in value &&
-                Object.keys(value).some((k) => Array.isArray(value[k]))
-            ) {
-                const arrayKey = Object.keys(value).find((k) => Array.isArray(value[k]));
-                newObj[key] = value[arrayKey];
-            }
-        }
-    
-        return newObj;
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (validateFields()) {
-            onSubmit(transformObject(formValues));
-        }
-    };
-
     const handleClear = () => {
         setFormValues({});
         setErrors({});
@@ -169,6 +182,48 @@ const CustomForm = ({
         document.getElementById(inputId)?.focus();
     };
 
+    const removeUndefined = (obj) => {
+        return Object.fromEntries(
+            Object.entries(obj).filter(([key, value]) => value !== undefined)
+        );
+    };
+
+    const transformObject = (obj) => {
+        const newObj = { ...obj };
+    
+        for (const key in newObj) {
+            const value = newObj[key];
+            if(value instanceof File) {
+                newObj[key] = value;
+            }
+            else if (
+                value &&
+                typeof value === 'object' &&
+                value.hasOwnProperty('input') && 
+                Object.keys(value).some((k) => Array.isArray(value[k]))
+            ) {
+                const arrayKey = Object.keys(value).find((k) => Array.isArray(value[k]));
+                newObj[key] = value[arrayKey];
+            }
+            else if(value && typeof value === 'object' && value.hasOwnProperty('input')) {
+                newObj[key] = []
+            }
+            else if(value && typeof value === 'object' && !value.hasOwnProperty('input')) {
+                const arrayKey = Object.keys(value).find((k) => Array.isArray(value[k]));
+                newObj[key] = value[arrayKey];
+            }
+        }
+    
+        return removeUndefined(newObj);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (validateFields()) {
+            onSubmit(transformObject(formValues));
+        }
+    };
+    
     return (
         <div className="grid md:grid-cols-2 gap-2">
             <form onSubmit={handleSubmit}>
@@ -177,7 +232,49 @@ const CustomForm = ({
                     <div key={name} className="pb-2.5">
                         { type !== "checkbox" && <label htmlFor={name}>{label}:</label> }
                         {
-                            type === "checkbox" ? (
+                            type === "labelOnly" ? <></>
+                            : type === "list" ? (
+                                <>
+                                    <div className='flex flex-row mt-2 mb-1'>
+                                        <input
+                                            id={name}
+                                            name={name}
+                                            type="text"
+                                            placeholder={placeholder || ""}
+                                            value={formValues[name]?.input || ""}
+                                            onChange={(e) => handleListChange(e, name)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault()
+                                                    addList(name)
+                                                }
+                                            }}
+                                            className={`block w-full rounded-sm py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                            autoSave="false"
+                                        />
+                                        <button
+                                            type="button"
+                                            className={`py-2 px-4 ${
+                                                theme === "light"
+                                                    ? light.button_secondary
+                                                    : dark.button_secondary
+                                            }`}
+                                            onClick={() => addList(name)}
+                                        >
+                                            <FontAwesomeIcon icon={faPlus} />
+                                        </button>
+                                    </div>
+
+                                    <ul className="mt-2">
+                                        {formValues[name]?.lists?.map((list, k) => (
+                                            <li key={k} className={`flex justify-between items-center px-4 py-2 ${theme === 'light' ? light.active_list_button : dark.active_list_button} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
+                                                {list} <FontAwesomeIcon onClick={() => removeList(name, list)} icon={faClose} className='mr-1'/>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </>
+                            ) 
+                            : type === "checkbox" ? (
                                 <div className="flex items-center">
                                 <input
                                     id={name}
@@ -199,14 +296,14 @@ const CustomForm = ({
                                     placeholder={placeholder || ""}
                                     value={formValues[name] || ""}
                                     onChange={handleChange}
-                                    className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                    className={`block custom-scroll w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
                                 >
                                     <option value="">Select option</option>
                                     {
                                         options?.length > 0 &&
                                         options.map((item, i) => {
                                             return (
-                                                <option value={item.id}> {item.name} </option>
+                                                <option key={i} value={item.id}> {item.name} </option>
                                             )
                                         })
                                     }
@@ -220,8 +317,9 @@ const CustomForm = ({
                                     placeholder={placeholder || ""}
                                     value={formValues[name] || ""}
                                     onChange={handleChange}
-                                    className={`block w-full rounded-sm mt-2 mb-1 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                    className={`block custom-scroll w-full rounded-sm mt-2 mb-1 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
                                     rows={8}
+                                    autoSave="false"
                                 />
                             )
                             : type === "multi_select" ? (
@@ -232,9 +330,9 @@ const CustomForm = ({
                                             theme === "light" ? light.input : dark.input
                                         }`}
                                     >
-                                        {formValues[name]?.tags?.map((tag) => (
+                                        {formValues[name]?.tags?.map((tag, k) => (
                                             <p
-                                                key={tag.value}
+                                                key={k}
                                                 className={`cursor-pointer px-3 py-1 rounded-full text-white ${
                                                     theme === "light"
                                                         ? light.button_secondary
@@ -269,9 +367,9 @@ const CustomForm = ({
                                             } shadow-md`}
                                         >
                                             <ul className="max-h-64 overflow-y-auto custom-scroll">
-                                                {dropdownData[name]?.map((option) => (
+                                                {dropdownData[name]?.map((option, k) => (
                                                     <li
-                                                        key={option.value}
+                                                        key={k}
                                                         className={`w-full px-6 py-2.5 transition-all cursor-pointer ${
                                                             theme === "light"
                                                                 ? light.list_button
@@ -279,7 +377,7 @@ const CustomForm = ({
                                                         }`}
                                                         onClick={() => handleTagSelect(name, option)}
                                                     >
-                                                        {option.name} ({option.count})
+                                                        {option.name} {option?.count ? `(${option.count})` : ''}
                                                     </li>
                                                 ))}
                                                 {dropdownData[name]?.length === 0 && (
@@ -299,7 +397,26 @@ const CustomForm = ({
                             : type === "image" ? (
                             <div>
                                 {
-                                    (formValues[name] || loadingImages[name] === true) ? (
+                                    formValues[name]?.preview ? (
+                                        loadingImages[name] === true ? ( 
+                                            <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
+                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`mt-2.5 w-full border border-solid ${theme === "light" ? light.semiborder : dark.semiborder} rounded-md`}
+                                                onClick={() => handleFileClick(name)}
+                                                style={{ cursor: "pointer" }}
+                                            >
+                                                <img
+                                                    src={formValues[name]?.preview}
+                                                    alt="Uploaded Thumbnail"
+                                                    className="w-full h-full object-fit rounded-md"
+                                                />
+                                            </div>
+                                        )
+                                    )
+                                    : (formValues[name] || loadingImages[name] === true) ? (
                                         loadingImages[name] === true ? ( 
                                             <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
                                                 <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
@@ -347,6 +464,7 @@ const CustomForm = ({
                                 />
                             </div>
                         ) : type === "file" ? (
+                            <>
                                 <input
                                     type="file"
                                     id={name}
@@ -354,6 +472,12 @@ const CustomForm = ({
                                     onChange={handleFileChange}
                                     className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
                                 />
+                                {
+                                    formValues[name]?.filename ?
+                                        <p className="flex gap-2 items-center"><FontAwesomeIcon icon={faFile} /> {formValues[name].filename} </p>
+                                    : null
+                                }
+                            </>
                         ) : (
                             <input
                                 id={name}
@@ -363,6 +487,7 @@ const CustomForm = ({
                                 value={formValues[name] || ""}
                                 onChange={handleChange}
                                 className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                autoSave="false"
                             />
                         )}
                         {errors[name] && <span className="text-red-600">{errors[name]}</span>}

@@ -22,31 +22,83 @@ const Videos = ({ user, theme }) => {
             type: "image",
         },
         {
-            label: "Save File",
-            name: "save",
-            type: "file",
+            label: "Video Title",
+            name: "title",
+            type: "text",
+            required: true,
+            validate: (value) =>
+                value?.length < 6 ? "Title must be at least 6 characters" : null,
         },
         {
-            label: "Textarea",
-            name: "text",
-            type: "textarea",
+            label: "Video Url",
+            name: "link",
+            type: "text",
             required: true
         },
         {
-            label: "Select Field",
-            name: "select",
+            label: "Description",
+            name: "description",
+            type: "textarea"
+        },
+        {
+            label: "Video Settings",
+            type: "labelOnly",
+        },
+        {
+            label: "Strict Mode",
+            name: "strict",
+            type: "checkbox",
+        },
+        {
+            label: "Private",
+            name: "privacy",
+            type: "checkbox",
+        },
+        {
+            label: "Downloadable",
+            name: "downloadable",
+            type: "checkbox",
+        },
+        {
+            label: "Groups",
+            name: "groups",
             type: "select",
-            required: true,
             options: [
                 { id: 1, name: 'RPG'},
                 { id: 2, name: 'Puzzel'},
                 { id: 3, name: 'MMORPG'},
-            ]
+            ],
+            required: true
         },
         {
-            label: "Downloadable",
-            name: "checkbox",
-            type: "checkbox",
+            label: "Artist/Owner",
+            name: "owner",
+            type: "multi_select",
+            options: [{
+                id: 1,
+                name: 'Profile',
+                count: 10,
+                value: 1
+            },{
+                id: 2,
+                name: 'Adventure',
+                count: 20,
+                value: 2
+            }]
+        },
+        {
+            label: "Category",
+            name: "category",
+            type: "multi_select",
+            options: [{
+                id: 1,
+                name: 'Profile',
+                value: 1
+            },{
+                id: 2,
+                name: 'Adventure',
+                value: 2
+            }]
         },
         {
             label: "Tags",
@@ -63,17 +115,7 @@ const Videos = ({ user, theme }) => {
                 count: 20,
                 value: 2
             }]
-        },
-        { label: "Video Title", name: "title", placeholder: "Enter video title", required: true },
-        { label: "Video Url", name: "link", placeholder: "Enter video url", type: "text", required: true },
-        {
-            label: "Password",
-            name: "password",
-            type: "password",
-            validate: (value) =>
-                value?.length < 6 ? "Password must be at least 6 characters" : null,
-        },
-        { label: "Age", name: "age", type: "number", placeholder: "Enter age" },
+        }
     ];
     
     const handleSubmit = (formData) => {
@@ -157,7 +199,35 @@ const Videos = ({ user, theme }) => {
                 theme={theme}
                 fields={fields}
                 onSubmit={handleSubmit}
-                initialValues={{ name: "James Arvie Maderas", email: "jamezarviemaderas@gmail.com", age: 24 }}
+                initialValues={{ 
+                    save: { filename: "filename.pdf" },
+                    thumbnail: "",
+                    name: "James Arvie Maderas", 
+                    email: "jamezarviemaderas@gmail.com", 
+                    age: 24, 
+                    text: "SAMPLE",
+                    select: 1,
+                    checkbox: true,
+                    list: {
+                        lists: ['Sample1', 'Sample2']
+                    },
+                    tags: { 
+                        tags: [
+                            {
+                                "id": 1,
+                                "name": "Adventure",
+                                "count": 20,
+                                "value": 1
+                            },
+                            {
+                                "id": 2,
+                                "name": "Profile",
+                                "count": 20,
+                                "value": 2
+                            }
+                        ]
+                    }
+                }}
             />
 
             <Table 
