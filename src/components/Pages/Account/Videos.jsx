@@ -14,6 +14,7 @@ const Videos = ({ user, theme }) => {
     const [openModal, setOpenModal] = useState(false)
     const [deleteId, setDeleteId] = useState('')
     const [confirm, setConfirm] = useState(false)
+    const [formOpen, setFormOpen] = useState(false)
 
     const fields = [
         {
@@ -179,8 +180,18 @@ const Videos = ({ user, theme }) => {
                 setConfirm={setConfirm}
             />
 
-            <div className='mb-8 mt-4'>
+            <div className='mb-8 mt-4 flex items-center gap-2'>
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
+                <button
+                    onClick={() => setFormOpen(!formOpen)}
+                    className={`py-1.5 px-4 ${
+                        theme === "light"
+                            ? light.button_secondary
+                            : dark.button_secondary
+                    } rounded-full`}
+                >
+                    { formOpen ? 'Cancel' : 'Upload' } 
+                </button>
             </div>
 
             {/* <div>
@@ -194,76 +205,79 @@ const Videos = ({ user, theme }) => {
 
                 <img src="https://mvukvlejqwgq8zt5.public.blob.vercel-storage.com/13c80aba-7c24-4224-818e-be223bfed5ea-x0ggZ5sluxQmWAmm2X78g26XBRyLBO.jpg" />
             </div> */}
-
-            <CustomForm
-                theme={theme}
-                fields={fields}
-                onSubmit={handleSubmit}
-                initialValues={{ 
-                    save: { filename: "filename.pdf" },
-                    thumbnail: "",
-                    name: "James Arvie Maderas", 
-                    email: "jamezarviemaderas@gmail.com", 
-                    age: 24, 
-                    text: "SAMPLE",
-                    select: 1,
-                    checkbox: true,
-                    list: {
-                        lists: ['Sample1', 'Sample2']
-                    },
-                    tags: { 
-                        tags: [
-                            {
-                                "id": 1,
-                                "name": "Adventure",
-                                "count": 20,
-                                "value": 1
-                            },
-                            {
-                                "id": 2,
-                                "name": "Profile",
-                                "count": 20,
-                                "value": 2
-                            }
-                        ]
-                    }
-                }}
-            />
-
-            <Table 
-                theme={theme}
-                title=""
-                header={[
-                    { key: 'user', label: 'User', type: 'user', render: (user) => <strong>{user.username}</strong> },
-                    { key: 'type', label: 'Type' },
-                    { key: 'message', label: 'Message' },
-                    { key: 'createdAt', label: 'Timestamp' },
-                    { key: 'actions', label: 'Action' },
-                ]}
-                actions={[
-                    { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => console.log('Edit', item) },
-                    { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
-                ]}
-                limit={1}
-                multipleSelect={true}
-                data={[{
-                    "_id": "671f4afa4f08c1947ed4e077a",
-                    "user": {
-                        "_id": "641730c1637f7ac77c72fb91",
-                        "username": "Zantei25",
-                        "role": "Admin",
-                        "avatar": "https://drive.google.com/uc?export=view&id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V"
-                    },
-                    "type": "blog1",
-                    "method": "PATCH",
-                    "message": "Updated blog",
-                    "id": "649860071075e8ba6fadc7ef",
-                    "createdAt": "2024-10-28T08:27:38.965Z",
-                    "updatedAt": "2024-10-28T08:27:38.965Z",
-                    "__v": 0
-                }]}
-                setSelectedData={setSelectedData}
-            />
+            <div className={`${formOpen ? 'block' : 'hidden'}`}>
+                <CustomForm
+                    theme={theme}
+                    fields={fields}
+                    onSubmit={handleSubmit}
+                    initialValues={{ 
+                        save: { filename: "filename.pdf" },
+                        thumbnail: "",
+                        name: "James Arvie Maderas", 
+                        email: "jamezarviemaderas@gmail.com", 
+                        age: 24, 
+                        text: "SAMPLE",
+                        select: 1,
+                        checkbox: true,
+                        list: {
+                            lists: ['Sample1', 'Sample2']
+                        },
+                        tags: { 
+                            tags: [
+                                {
+                                    "id": 1,
+                                    "name": "Adventure",
+                                    "count": 20,
+                                    "value": 1
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "Profile",
+                                    "count": 20,
+                                    "value": 2
+                                }
+                            ]
+                        }
+                    }}
+                />
+            </div>
+            
+            <div className={`${formOpen ? 'hidden' : 'block'}`}>
+                <Table 
+                    theme={theme}
+                    title="My Videos"
+                    header={[
+                        { key: 'user', label: 'User', type: 'user', render: (user) => <strong>{user.username}</strong> },
+                        { key: 'type', label: 'Type' },
+                        { key: 'message', label: 'Message' },
+                        { key: 'createdAt', label: 'Timestamp' },
+                        { key: 'actions', label: 'Action' },
+                    ]}
+                    actions={[
+                        { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => console.log('Edit', item) },
+                        { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
+                    ]}
+                    limit={1}
+                    multipleSelect={true}
+                    data={[{
+                        "_id": "671f4afa4f08c1947ed4e077a",
+                        "user": {
+                            "_id": "641730c1637f7ac77c72fb91",
+                            "username": "Zantei25",
+                            "role": "Admin",
+                            "avatar": "https://drive.google.com/uc?export=view&id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V"
+                        },
+                        "type": "blog1",
+                        "method": "PATCH",
+                        "message": "Updated blog",
+                        "id": "649860071075e8ba6fadc7ef",
+                        "createdAt": "2024-10-28T08:27:38.965Z",
+                        "updatedAt": "2024-10-28T08:27:38.965Z",
+                        "__v": 0
+                    }]}
+                    setSelectedData={setSelectedData}
+                />
+            </div>
         </div>
     )
 }

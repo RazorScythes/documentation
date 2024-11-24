@@ -3,9 +3,9 @@ import { main, dark, light } from '../../style';
 
 import Avatar from '../Custom/Avatar';
 import styles from "../../style";
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faHeart, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faHeart, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import Profile from './Account/Profile';
 import Videos from './Account/Videos';
@@ -14,15 +14,52 @@ import Favorites from './Account/Favorites';
 import Messages from './Account/Messages'; 
 import Settings from './Account/Settings';
 import NotFound from './NotFound';
+import Reports from './Account/Reports';
+import Groups from './Account/Groups';
 
 const Account = ({ user, theme }) => {
     const navigate  = useNavigate()
-    const { page } = useParams();
+    const location = useLocation();
+    const { page, subpage } = useParams();
 
     const [image, setImage]         = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
 
+    const menuItems = [
+        { name: 'Profile', icon: faUserEdit, path: '', dropdown: [] },
+        { 
+            name: 'Videos', 
+            icon: faPlayCircle, 
+            path: 'videos', 
+            dropdown: [
+                { name: 'My Videos', path: 'videos' },
+                { name: 'Groups', path: 'videos/groups' },
+                { name: 'Reports', path: 'videos/reports' },
+            ] 
+        },
+        { name: 'Playlists', icon: faListSquares, path: 'playlist', dropdown: [] },
+        { name: 'Favorites', icon: faHeart, path: 'favorites', dropdown: [] },
+        { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
+        { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
+    ];
+    
+    const [openDropdown, setOpenDropdown] = useState(null); 
+
+    const toggleDropdown = (itemPath) => {
+        setOpenDropdown(openDropdown === itemPath ? null : itemPath);
+    };
+
     const activePage = (type) => {
-        return (page === undefined && type === '') || page === type
+        const relativePath = location.pathname;
+        
+        if(subpage) {
+            return (relativePath.includes(type) && type !== '')
+        }
+        return (relativePath.includes(type)) && ((page === undefined && type === '') || page === type)
+    }
+
+    const activeSubPage = (main, type) => {
+        const relativePath = location.pathname;
+        return relativePath.includes(type) && (subpage === undefined && type === `${main}${subpage ? `/${subpage}` : ''}`) || (`${main}/${subpage}`) === type || type === ''
     }
 
     const redirect = (path) => {
@@ -61,24 +98,47 @@ const Account = ({ user, theme }) => {
                             <div className="sm:w-72 w-full flex-shrink-0 mr-4 transition-all">
                                 <div className={`mt-4 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <ul>
-                                        <li onClick={() => redirect('')} className={`px-6 py-3 ${activePage('') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
-                                            <FontAwesomeIcon icon={faUserEdit} className='mr-1'/> Profile
-                                        </li>
-                                        <li onClick={() => redirect('videos')} className={`px-6 py-3 ${activePage('videos') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
-                                            <FontAwesomeIcon icon={faPlayCircle} className='mr-1'/> Videos
-                                        </li>
-                                        <li onClick={() => redirect('playlist')} className={`px-6 py-3 ${activePage('playlist') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
-                                            <FontAwesomeIcon icon={faListSquares} className='mr-1'/> Playlists
-                                        </li>
-                                        <li onClick={() => redirect('favorites')} className={`px-6 py-3 ${activePage('favorites') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
-                                            <FontAwesomeIcon icon={faHeart} className='mr-1'/> Favorites
-                                        </li>
-                                        <li onClick={() => redirect('messages')} className={`px-6 py-3 ${activePage('messages') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
-                                            <FontAwesomeIcon icon={faMessage} className='mr-1'/> Messages
-                                        </li>
-                                        <li onClick={() => redirect('settings')} className={`px-6 py-3 ${activePage('settings') && (theme === 'light' ? light.active_list_button : dark.active_list_button)} transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} `}>
-                                            <FontAwesomeIcon icon={faCog} className='mr-1'/> Settings
-                                        </li>
+                                        {menuItems.map((item, i) => (
+                                            <li key={item.path} className="">
+                                                <div
+                                                    className={`px-6 py-3 ${
+                                                        activePage(item.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
+                                                    } transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} ${item.dropdown.length > 0 && 'flex justify-between items-center'}
+                                                    ${ (i+1) !== menuItems.length && 'border-b' } border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
+                                                    onClick={() => (item.dropdown.length > 0 ? toggleDropdown(item.path) : redirect(item.path))}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <FontAwesomeIcon icon={item.icon} className="mr-2" />
+                                                        {item.name}
+                                                    </div>
+                                                    {item.dropdown.length > 0 && (
+                                                        <FontAwesomeIcon icon={openDropdown === item.path ? faChevronUp : faChevronDown} />
+                                                    )}
+                                                </div>
+
+                                                <div
+                                                    className={`overflow-hidden transition-all duration-300`}
+                                                    style={{
+                                                        maxHeight: openDropdown === item.path ? `${item.dropdown.length * 40}px` : '0px',
+                                                    }}
+                                                >
+                                                    <ul className="">
+                                                        {item.dropdown.map((subItem, si) => (
+                                                            <li
+                                                                key={subItem.path}
+                                                                onClick={() => redirect(subItem.path)}
+                                                                className={`px-6 py-2 ${
+                                                                    activeSubPage(item.path, subItem.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
+                                                                } cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button}
+                                                                ${ (si+1) !== subItem.length && 'border-b' } border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
+                                                            >
+                                                                {subItem.name}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </li>
+                                        ))}
                                     </ul>
                                 </div>
                             </div>
@@ -91,10 +151,21 @@ const Account = ({ user, theme }) => {
                                             theme={theme}
                                         />
                                     : activePage('videos') ?
-                                        <Videos
-                                            user={user}
-                                            theme={theme}
-                                        />
+                                        activeSubPage('videos', 'videos') ?
+                                            <Videos
+                                                user={user}
+                                                theme={theme}
+                                            />
+                                        : activeSubPage('videos', 'videos/groups') ?
+                                            <Groups
+                                                user={user}
+                                                theme={theme}
+                                            />
+                                        : activeSubPage('videos', 'videos/reports') &&
+                                            <Reports
+                                                user={user}
+                                                theme={theme}
+                                            />
                                     : activePage('playlist') ?
                                         <Playlist
                                             user={user}

@@ -1,10 +1,9 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faSearch, faStarAndCrescent, faSun } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faSearch, faStarAndCrescent, faSun, faUser, faGear, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { video_links } from "../../constants";
-import { faUser, faGear, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
 import { logout } from "../../actions/auth";
 import { convertDriveImageLink } from '../Tools'
 import { useDispatch, useSelector } from 'react-redux'
@@ -98,8 +97,8 @@ const Navbar = ({ theme, setTheme }) => {
                     {
                         video_links.map((link, i) => {
                             return (
-                                <a href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link}`} onClick={() => setIsActive(!isActive)}>
-                                    <FontAwesomeIcon icon={link.icon} className="mr-2" />
+                                <a key={i} href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link}`} onClick={() => setIsActive(!isActive)}>
+                                    { link.icon && <FontAwesomeIcon icon={link.icon} className="mr-2" /> }
                                     {link.name}
                                 </a>
                             )
@@ -141,8 +140,8 @@ const Navbar = ({ theme, setTheme }) => {
                         {
                             video_links.map((link, i) => {
                                 return (
-                                    <a id={i} href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link} mr-4`} onClick={() => setIsActive(!isActive)}>
-                                        <FontAwesomeIcon icon={link.icon} className="mr-2" />
+                                    <a key={i} href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link} mr-4`} onClick={() => setIsActive(!isActive)}>
+                                        { link.icon && <FontAwesomeIcon icon={link.icon} className="mr-2" /> }
                                         {link.name}
                                     </a>
                                 )

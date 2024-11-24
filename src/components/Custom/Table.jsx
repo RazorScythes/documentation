@@ -7,7 +7,7 @@ import Avatar from './Avatar';
 import Pagination from './Pagination';
 import ConfirmModal from './ConfirmModal'
 
-const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData }) => {
+const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData, category }) => {
     const [openModal, setOpenModal] = useState(false)
     const [confirm, setConfirm] = useState(false)
     const [toggle, setToggle] = useState(false)
@@ -104,7 +104,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
             <ConfirmModal 
                 theme={theme}
                 title="Confirm Video Deletion"
-                description={`Are you sure you want to delete these ${idList.length} videos?`}
+                description={`Are you sure you want to delete these ${idList.length} ${category ? category : 'items'}?`}
                 openModal={openModal}
                 setOpenModal={setOpenModal}
                 setConfirm={setConfirm}
@@ -288,7 +288,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                     <Pagination 
                         data={tableData}
                         theme={theme}
-                        limit={1}
+                        limit={limit ?? 10}
                         setPagination={setPagination}
                         numberOnly={true}
                         table={true}

@@ -9,6 +9,9 @@ const CustomForm = ({
     onSubmit,
     initialValues = {},
     showReset = false,
+    update,
+    setUpdate,
+    disabled
 }) => {
     const [field, setField] = useState([]);
     const [formValues, setFormValues] = useState(initialValues);
@@ -22,9 +25,12 @@ const CustomForm = ({
         setField(fields ?? []);
     }, [fields]);
 
-    // useEffect(() => {
-    //     setFormValues(initialValues ?? {});
-    // }, [initialValues]);
+    useEffect(() => {
+        if(update) {
+            setFormValues(initialValues ?? {});
+            setUpdate(false)
+        }
+    }, [update]);
 
     const handleChange = (e) => {
         const { name, type, files } = e.target;
@@ -86,7 +92,7 @@ const CustomForm = ({
     const inputOnBlur = (name) => {
         setTimeout(() => {
             setInputFocus((prev) => ({ ...prev, [name]: false }));
-        }, 100); 
+        }, 300); 
     }
 
     const handleTagSelect = (name, tag) => {
@@ -508,11 +514,12 @@ const CustomForm = ({
                     )}
                     <button
                         type="submit"
-                        className={`py-1.5 px-4 ${
+                        className={`disabled:cursor-not-allowed py-1.5 px-4 ${
                             theme === "light"
                                 ? light.button_secondary
                                 : dark.button_secondary
                         } rounded-full ml-2`}
+                        disabled={disabled}
                     >
                         Submit
                     </button>

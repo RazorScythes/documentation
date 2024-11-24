@@ -11,11 +11,11 @@ const Hero = ({ }) => {
           className={`${main.font} relative bg-cover bg-center py-14`}
           style={{ backgroundImage: `url(${heroBackgroundImage})` }}
         >
-            <div class="bubbles-wrapper">
-                <div><span class="dot"></span></div>
-                <div><span class="dot"></span></div>
-                <div><span class="dot"></span></div>
-                <div><span class="dot"></span></div>
+            <div className="bubbles-wrapper">
+                <div><span className="dot"></span></div>
+                <div><span className="dot"></span></div>
+                <div><span className="dot"></span></div>
+                <div><span className="dot"></span></div>
             </div>
 
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>

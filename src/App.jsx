@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Custom, Projects, Home, Games, Login, NewLogin, CreateAccount, ForgotPassword, NotFound, Portfolio, Blogs, BlogsSingle, Store, ProjectsSingle, Archive, ArchiveDirectory, GamesSingle, Videos, VideosSingle, Verify, VideoTag, GameTag } from './components/index'
+import { Custom, Projects, Home, Games, Login, NewLogin, CreateAccount, ForgotPassword, NotFound, Portfolio, Blogs, BlogsSingle, Store, ProjectsSingle, Archive, ArchiveDirectory, GamesSingle, VideosSingle, Verify, VideoTag, GameTag } from './components/index'
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AccountNavbar, Overview, AccountPortfolio, AccountStore, Uploads, Settings, Manage, Logs } from './components/Account Section/index'
 import { AdminOverview, AdminPortfolio, AdminUploads, AdminSettings, AdminLogs, AdminManage, AdminProjects, AdminVideos } from './components/Admin/index';
@@ -40,8 +40,8 @@ const App = () => {
 
   useEffect(() => {
       if(user) {
-        dispatch(getProfile({id: user.result?._id}))
-        dispatch(userToken({username: user.result?.username}))
+        // dispatch(getProfile({id: user.result?._id}))
+        // dispatch(userToken({username: user.result?.username}))
       }
 
       if(window.location.pathname.includes('/account') && !user){
@@ -67,8 +67,9 @@ const App = () => {
                 </Route>
 
                 <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
-                    <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route index element={<><Account user={user} theme={theme}/> </>} />
                     <Route path='/account/:page' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/account/videos/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
 

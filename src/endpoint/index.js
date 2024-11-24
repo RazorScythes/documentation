@@ -20,3 +20,10 @@ const options   = {
     USER
 */
 export const login                              = (formData) => endpoint.post('/user/login', formData)
+
+/*
+    GROUPS
+*/
+export const getGroups                          = (id, type) => endpoint.get(`/account/getGroups/${id}/${type}`, options)
+export const newGroups                          = (formData) => endpoint.post('/account/newGroups', formData, options)
+export const updateGroups                       = (formData) => endpoint.patch('/account/updateGroups', formData, options)
