@@ -49,7 +49,7 @@ const Footer = ({ theme }) => {
     }
 
     return (
-            <footer className={`${main.font} px-8 relative z-50 ${theme === 'light' ? light.border : dark.border} border-t border-solid shadow-inner transition-all`}>
+            <footer className={`${main.font} px-8 relative z-40 ${theme === 'light' ? light.border : dark.border} border-t border-solid shadow-inner transition-all`}>
                 <SideAlert
                     variants='success'
                     heading='Success'

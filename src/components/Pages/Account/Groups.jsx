@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
-import { getGroups, newGroups, updateGroups } from '../../../actions/groups';
+import { getGroups, newGroups, updateGroups, deleteGroups, deleteMultipleGroups, clearAlert } from '../../../actions/groups';
 
 import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
 import CustomForm from '../../Custom/CustomForm';
 
-const Groups = ({ user, theme }) => {
+const Groups = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
 
     const groups = useSelector((state) => state.groups.data)
+    const loading = useSelector((state) => state.groups.isLoading)
+    const alert = useSelector((state) => state.groups.alert) 
 
     const [tableData, setTableData] = useState([])
     const [initialValues, setInitialValues] = useState({})
@@ -99,16 +101,23 @@ const Groups = ({ user, theme }) => {
 
     useEffect(() => {
         if(selectedData?.length > 0) {
-            //dispatch function
+            dispatch(deleteMultipleGroups({
+                ids: selectedData, 
+                user: user._id, 
+                type: 'video'
+            }))
+            setSelectedData(null)
             console.log(selectedData)
         }
     }, [selectedData])
 
     useEffect(() => {
         if(confirm) {
-            //dispatch function 
-            console.log(deleteId)
-            setConfirm(false)
+            dispatch(deleteGroups({
+                id: deleteId, 
+                user: user._id, 
+                type: 'video'
+            }))
         }
     }, [confirm])
 
@@ -119,6 +128,13 @@ const Groups = ({ user, theme }) => {
         setInitialValues({})
         setTableData(groups)
     }, [groups])
+
+    useEffect(() => {
+        if(alert) {
+            setNotification(alert)
+            clearAlert()
+        }
+    }, [alert])
 
     useEffect(() => {
         dispatch(getGroups({
@@ -138,7 +154,7 @@ const Groups = ({ user, theme }) => {
                 setConfirm={setConfirm}
             />
 
-            <div className='mb-8 mt-4 flex items-center gap-2'>
+            <div className='mb-8 mt-4 flex xs:flex-row flex-col justify-start items-start gap-2'>
                 <h1 className="text-xl font-medium mb-1">Your Group Lists</h1>
                 <button
                     onClick={() => {
@@ -187,6 +203,7 @@ const Groups = ({ user, theme }) => {
                     multipleSelect={true}
                     data={tableData}
                     setSelectedData={setSelectedData}
+                    loading={loading}
                 />
             </div>
         </div>

@@ -17,12 +17,26 @@ import NotFound from './NotFound';
 import Reports from './Account/Reports';
 import Groups from './Account/Groups';
 
+import Notification from '../Custom/Notification';
+
 const Account = ({ user, theme }) => {
     const navigate  = useNavigate()
     const location = useLocation();
     const { page, subpage } = useParams();
 
-    const [image, setImage]         = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    const [image, setImage] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    const [notification, setNotification] = useState({})
+    const [show, setShow] = useState(true)
+
+    useEffect(() => {
+        if(Object.keys(notification).length > 0) { 
+            setShow(true) 
+        }
+    }, [notification])
+
+    useEffect(() => {
+        if(!show) { setNotification({}) }
+    }, [show])
 
     const menuItems = [
         { name: 'Profile', icon: faUserEdit, path: '', dropdown: [] },
@@ -71,6 +85,14 @@ const Account = ({ user, theme }) => {
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidth}`}>
                     <div className={`${main.container} file:lg:px-8 relative px-0 my-12`}>
+
+                        <Notification
+                            theme={theme}
+                            data={notification}
+                            show={show}
+                            setShow={setShow}
+                        />
+
                         <div className={`mt-4 rounded-md p-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                             <div className='flex justify-between'>
                                 <div className='w-full flex items-start transition-all'>
@@ -160,6 +182,7 @@ const Account = ({ user, theme }) => {
                                             <Groups
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                         : activeSubPage('videos', 'videos/reports') &&
                                             <Reports

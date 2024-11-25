@@ -521,7 +521,7 @@ const CustomForm = ({
                         } rounded-full ml-2`}
                         disabled={disabled}
                     >
-                        Submit
+                        { disabled ? 'Submitting' : 'Submit' }
                     </button>
                 </div>
             </form>

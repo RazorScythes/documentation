@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { main, dark, light } from '../../../style';
+import { dark, light } from '../../../style';
+import { useDispatch, useSelector } from 'react-redux'
+import { getGroups } from '../../../actions/groups';
 
 import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
@@ -9,114 +11,67 @@ import { list, put, del } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
 
 const Videos = ({ user, theme }) => {
+    const dispatch = useDispatch()
+
+    const groups = useSelector((state) => state.groups.data)
 
     const [selectedData, setSelectedData] = useState(null)
     const [openModal, setOpenModal] = useState(false)
     const [deleteId, setDeleteId] = useState('')
     const [confirm, setConfirm] = useState(false)
     const [formOpen, setFormOpen] = useState(false)
+    const [list, setList] = useState({
+        groups: [],
+        owner: [],
+        category: [{
+            id: 1,
+            name: 'Profile',
+            count: 10,
+            value: 1
+        },{
+            id: 2,
+            name: 'Adventure',
+            count: 20,
+            value: 2
+        }],
+        tags: []
+    })
+
+    useEffect(() => {
+        dispatch(getGroups({
+            id: user._id, 
+            type: 'video'
+        }))
+    }, [])
+
+    useEffect(() => {
+        if(groups.length > 0) {
+            const arr = groups.map((group) => {
+                return {
+                    id: group._id,
+                    name: group.group_name
+                }
+            })
+            setList({...list, groups: arr})
+        }
+    }, [groups])
 
     const fields = [
-        {
-            label: "Thumbnail",
-            name: "thumbnail",
-            type: "image",
-        },
-        {
-            label: "Video Title",
-            name: "title",
-            type: "text",
-            required: true,
+        { label: "Thumbnail", name: "thumbnail", type: "image" },
+        { label: "Video Title", name: "title", type: "text", required: true,
             validate: (value) =>
                 value?.length < 6 ? "Title must be at least 6 characters" : null,
         },
-        {
-            label: "Video Url",
-            name: "link",
-            type: "text",
-            required: true
-        },
-        {
-            label: "Description",
-            name: "description",
-            type: "textarea"
-        },
-        {
-            label: "Video Settings",
-            type: "labelOnly",
-        },
-        {
-            label: "Strict Mode",
-            name: "strict",
-            type: "checkbox",
-        },
-        {
-            label: "Private",
-            name: "privacy",
-            type: "checkbox",
-        },
-        {
-            label: "Downloadable",
-            name: "downloadable",
-            type: "checkbox",
-        },
-        {
-            label: "Groups",
-            name: "groups",
-            type: "select",
-            options: [
-                { id: 1, name: 'RPG'},
-                { id: 2, name: 'Puzzel'},
-                { id: 3, name: 'MMORPG'},
-            ],
-            required: true
-        },
-        {
-            label: "Artist/Owner",
-            name: "owner",
-            type: "multi_select",
-            options: [{
-                id: 1,
-                name: 'Profile',
-                count: 10,
-                value: 1
-            },{
-                id: 2,
-                name: 'Adventure',
-                count: 20,
-                value: 2
-            }]
-        },
-        {
-            label: "Category",
-            name: "category",
-            type: "multi_select",
-            options: [{
-                id: 1,
-                name: 'Profile',
-                value: 1
-            },{
-                id: 2,
-                name: 'Adventure',
-                value: 2
-            }]
-        },
-        {
-            label: "Tags",
-            name: "tags",
-            type: "multi_select",
-            options: [{
-                id: 1,
-                name: 'Profile',
-                count: 10,
-                value: 1
-            },{
-                id: 2,
-                name: 'Adventure',
-                count: 20,
-                value: 2
-            }]
-        }
+        { label: "Video Url", name: "link", type: "text", required: true },
+        { label: "Description", name: "description", type: "textarea" },
+        { label: "Video Settings", type: "labelOnly" },
+        { label: "Strict Mode", name: "strict", type: "checkbox" },
+        { label: "Private", name: "privacy", type: "checkbox" },
+        { label: "Downloadable", name: "downloadable", type: "checkbox" },
+        { label: "Groups", name: "groups", type: "select", options: list.groups,required: true },
+        { label: "Artist/Owner", name: "owner", type: "multi_select", options: list.owner },
+        { label: "Category", name: "category", type: "multi_select", options: list.category },
+        { label: "Tags", name: "tags", type: "multi_select", options: list.tags }
     ];
     
     const handleSubmit = (formData) => {

@@ -7,7 +7,7 @@ import Avatar from './Avatar';
 import Pagination from './Pagination';
 import ConfirmModal from './ConfirmModal'
 
-const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData, category }) => {
+const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData, category, loading }) => {
     const [openModal, setOpenModal] = useState(false)
     const [confirm, setConfirm] = useState(false)
     const [toggle, setToggle] = useState(false)
@@ -82,6 +82,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
         if(confirm) {
             setSelectedData(idList)
             setIdList([])
+            setConfirm(false)
         }
     }, [confirm])
 
@@ -120,28 +121,28 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                         { title }
                     </h2>
                 </div>
-                <form className="md:block hidden">
+                <div className="md:block hidden">
                     <div className="relative">
                         <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`} /> </span>
                         <input onChange={handleSearch} value={search} className={`block w-full rounded-full py-2 px-7 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search`} />
                     </div>
-                </form>
+                </div>
                 <button onClick={() => setToggle(!toggle)} className={`md:hidden p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}><FontAwesomeIcon icon={faSearch} /></button>
             </div>
 
             {
                 toggle ?
-                    <form className="md:hidden mb-4">
+                    <div className="md:hidden mb-4">
                         <div className="relative">
                             <span className="absolute inset-y-0 right-0 flex items-center pr-6"> <FontAwesomeIcon icon={faSearch} className={`${theme === 'light' ? light.input_icon : dark.input_icon}`} /> </span>
                             <input onChange={handleSearch} value={search} className={`block w-full rounded-full py-2 px-7 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search`} />
                         </div>
-                    </form>
+                    </div>
                 : null
             }
 
             <div className="xs:w-full overflow-hidden rounded-sm">
-                <div className="w-full overflow-x-auto">
+                <div className="w-full overflow-x-auto custom-scroll">
                     <table className="min-w-full overflow-x-auto whitespace-no-wrap">
                         <thead className={`${theme === 'light' ? light.thirdbackground : dark.thirdbackground}`}>
                             <tr className="font-medium cursor-pointer">
@@ -180,7 +181,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                             </tr>
                         </thead>
                         <tbody>
-                            {tableData?.length > 0 &&
+                            {(tableData?.length > 0 && !loading) &&
                                 tableData.slice(startIndex, endIndex).map((item) => (
                                     <tr
                                         key={item._id}
@@ -253,10 +254,19 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                 ))}
                         </tbody>
                     </table>
+                    
+                    {
+                        loading ?
+                            <p className={`text-center py-6 border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}>
+                                Loading data...
+                            </p>
+                        : null
+                    }       
+                 
                 </div>
                 
                 {
-                    tableData?.length === 0 &&
+                    (!loading && tableData?.length === 0) &&
                         <p className={`text-center py-6 border-b border-solid ${theme === 'light' ? light.border : dark.semiborder}`}><FontAwesomeIcon icon={faList} className='mr-1'/>  No data to show</p>
                 }
                 

@@ -24,6 +24,8 @@ export const login                              = (formData) => endpoint.post('/
 /*
     GROUPS
 */
-export const getGroups                          = (id, type) => endpoint.get(`/account/getGroups/${id}/${type}`, options)
-export const newGroups                          = (formData) => endpoint.post('/account/newGroups', formData, options)
-export const updateGroups                       = (formData) => endpoint.patch('/account/updateGroups', formData, options)
+export const getGroups                          = (id, type) => endpoint.get(`/groups/getGroups/${id}/${type}`, options)
+export const newGroups                          = (formData) => endpoint.post('/groups/newGroups', formData, options)
+export const updateGroups                       = (formData) => endpoint.patch('/groups/updateGroups', formData, options)
+export const deleteGroups                       = (id, user, type) => endpoint.delete(`/groups/deleteGroups/${id}/${user}/${type}`, options)
+export const deleteMultipleGroups               = (formData) => endpoint.patch('/groups/deleteMultipleGroups', formData, options)
