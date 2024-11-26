@@ -37,7 +37,7 @@ const Notification = ({ data, duration = 3000, show = true, setShow }) => {
                         <FontAwesomeIcon icon={faInfoCircle} className="mr-1" /> { data?.message }
                     </div>
                 : data?.variant === 'warning' ?
-                    <div className="px-6 py-3 bg-yellow-600 text-[#1C1C1C] rounded-sm z-[90] shadow-lg">
+                    <div className="px-6 py-3 bg-yellow-500 text-[#1C1C1C] rounded-sm z-[90] shadow-lg">
                         <FontAwesomeIcon icon={faExclamationCircle} className="mr-1" /> { data?.message }
                     </div>
                 : data?.variant === 'danger' &&

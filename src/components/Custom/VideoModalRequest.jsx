@@ -1,10 +1,17 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { dark, light } from '../../style';
 import { faClose } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MotionAnimate } from 'react-motion-animate';
 
-const ConfirmModal = ({ theme, openModal, setOpenModal, title, description, setConfirm }) => {
+import CustomForm from './CustomForm';
+
+const VideoModalRequest = ({ theme, openModal, setOpenModal, title, description, setConfirm }) => {
+
+    const [form, setForm ] = useState({
+        source: '',
+        link: ''
+    })
 
     const closeModal = () => {
         setOpenModal(false)
@@ -14,6 +21,15 @@ const ConfirmModal = ({ theme, openModal, setOpenModal, title, description, setC
         setConfirm(true)
         setOpenModal(false)
     }
+
+    const fields = [
+        { label: "Groups", name: "groups", type: "select", options: [{ id: 'drive', name: 'Google Drive' }], required: true },
+        { label: "Video Url", name: "link", type: "text", required: true },
+    ];
+
+    const handleSubmit = (formData) => {
+        console.log("Form Submitted:", formData);
+    };
 
     return (
         <>
@@ -57,16 +73,22 @@ const ConfirmModal = ({ theme, openModal, setOpenModal, title, description, setC
                                     {/*body*/}
                                     
                                     <div className="p-5 pb-8 font-normal">
-                                        <p className='mb-6'>{ description }</p>
+                                        <CustomForm
+                                            theme={theme}
+                                            fields={fields}
+                                            onSubmit={handleSubmit}
+                                            initialValues={{}}
+                                            fullWidth={true}
+                                        />
 
-                                        <div className='flex justify-end'>
+                                        {/* <div className='flex justify-end'>
                                             <button onClick={() => closeModal()} type="submit" className={`${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
                                                 Cancel
                                             </button>
-                                            <button onClick={() => confirm()} type="submit" className={`py-1.5 px-4 ${theme === 'light' ? light.button_secondary : dark.button_secondary} rounded-full ml-2`}>
+                                            <button onClick={() => handleSubmit()} type="submit" className={`py-1.5 px-4 ${theme === 'light' ? light.button_secondary : dark.button_secondary} rounded-full ml-2`}>
                                                 Confirm
                                             </button>
-                                        </div>
+                                        </div> */}
                                     </div>
                                     
                                 </div>
@@ -79,4 +101,4 @@ const ConfirmModal = ({ theme, openModal, setOpenModal, title, description, setC
     )
 }
 
-export default ConfirmModal
+export default VideoModalRequest

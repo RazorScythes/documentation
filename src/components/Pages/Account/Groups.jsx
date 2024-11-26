@@ -107,7 +107,6 @@ const Groups = ({ user, theme, setNotification }) => {
                 type: 'video'
             }))
             setSelectedData(null)
-            console.log(selectedData)
         }
     }, [selectedData])
 
@@ -130,9 +129,9 @@ const Groups = ({ user, theme, setNotification }) => {
     }, [groups])
 
     useEffect(() => {
-        if(alert) {
+        if(Object.keys(alert).length > 0) {
+            dispatch(clearAlert())
             setNotification(alert)
-            clearAlert()
         }
     }, [alert])
 

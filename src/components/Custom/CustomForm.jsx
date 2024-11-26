@@ -11,7 +11,8 @@ const CustomForm = ({
     showReset = false,
     update,
     setUpdate,
-    disabled
+    disabled,
+    fullWidth
 }) => {
     const [field, setField] = useState([]);
     const [formValues, setFormValues] = useState(initialValues);
@@ -231,7 +232,7 @@ const CustomForm = ({
     };
     
     return (
-        <div className="grid md:grid-cols-2 gap-2">
+        <div className={`${!fullWidth && 'grid md:grid-cols-2 gap-2'}`}>
             <form onSubmit={handleSubmit}>
                 {field.map(({ label, name, type, placeholder, options, required }) => (
                     

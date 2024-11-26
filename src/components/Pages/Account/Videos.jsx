@@ -6,9 +6,12 @@ import { getGroups } from '../../../actions/groups';
 import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
 import CustomForm from '../../Custom/CustomForm';
+import VideoModalRequest from '../../Custom/VideoModalRequest';
 
 import { list, put, del } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars, faDownload, faFileImport, faHamburger, faUpload } from '@fortawesome/free-solid-svg-icons';
 
 const Videos = ({ user, theme }) => {
     const dispatch = useDispatch()
@@ -20,6 +23,7 @@ const Videos = ({ user, theme }) => {
     const [deleteId, setDeleteId] = useState('')
     const [confirm, setConfirm] = useState(false)
     const [formOpen, setFormOpen] = useState(false)
+    const [openVideoModal, setOpenVideoModal] = useState(false)
     const [list, setList] = useState({
         groups: [],
         owner: [],
@@ -135,6 +139,15 @@ const Videos = ({ user, theme }) => {
                 setConfirm={setConfirm}
             />
 
+            <VideoModalRequest
+                theme={theme}
+                title="Import Data"
+                description={`Are you sure you want to delete this video?`}
+                openModal={openVideoModal}
+                setOpenModal={setOpenVideoModal}
+                setConfirm={setConfirm}
+            />
+
             <div className='mb-8 mt-4 flex items-center gap-2'>
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
                 <button
@@ -147,6 +160,7 @@ const Videos = ({ user, theme }) => {
                 >
                     { formOpen ? 'Cancel' : 'Upload' } 
                 </button>
+                <button onClick={() => setOpenVideoModal(!openVideoModal)} className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>Import</button>
             </div>
 
             {/* <div>
@@ -165,35 +179,37 @@ const Videos = ({ user, theme }) => {
                     theme={theme}
                     fields={fields}
                     onSubmit={handleSubmit}
-                    initialValues={{ 
-                        save: { filename: "filename.pdf" },
-                        thumbnail: "",
-                        name: "James Arvie Maderas", 
-                        email: "jamezarviemaderas@gmail.com", 
-                        age: 24, 
-                        text: "SAMPLE",
-                        select: 1,
-                        checkbox: true,
-                        list: {
-                            lists: ['Sample1', 'Sample2']
-                        },
-                        tags: { 
-                            tags: [
-                                {
-                                    "id": 1,
-                                    "name": "Adventure",
-                                    "count": 20,
-                                    "value": 1
-                                },
-                                {
-                                    "id": 2,
-                                    "name": "Profile",
-                                    "count": 20,
-                                    "value": 2
-                                }
-                            ]
-                        }
-                    }}
+                    initialValues={{}
+                    // { 
+                    //     save: { filename: "filename.pdf" },
+                    //     thumbnail: "",
+                    //     name: "James Arvie Maderas", 
+                    //     email: "jamezarviemaderas@gmail.com", 
+                    //     age: 24, 
+                    //     text: "SAMPLE",
+                    //     select: 1,
+                    //     checkbox: true,
+                    //     list: {
+                    //         lists: ['Sample1', 'Sample2']
+                    //     },
+                    //     tags: { 
+                    //         tags: [
+                    //             {
+                    //                 "id": 1,
+                    //                 "name": "Adventure",
+                    //                 "count": 20,
+                    //                 "value": 1
+                    //             },
+                    //             {
+                    //                 "id": 2,
+                    //                 "name": "Profile",
+                    //                 "count": 20,
+                    //                 "value": 2
+                    //             }
+                    //         ]
+                    //     }
+                    // }
+                    }
                 />
             </div>
             
