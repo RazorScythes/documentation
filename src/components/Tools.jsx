@@ -18,7 +18,7 @@ export const useScreenSize = () => {
 };
   
 
-const getLinkId = (url) => {
+export const getLinkId = (url) => {
     let id;
     const youtubeMatch = /^(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=))([\w-]{11})(?:\S+)?$/;
     const dropboxMatch = /^(?:https?:\/\/)?(?:www\.)?dropbox\.com\/(?:s|sh)\/([\w\d]+)(?:\/.*)?$/;

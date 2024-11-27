@@ -12,6 +12,8 @@ const CustomForm = ({
     update,
     setUpdate,
     disabled,
+    setUpdateFormValue,
+    updateFormValue,
     fullWidth
 }) => {
     const [field, setField] = useState([]);
@@ -28,6 +30,7 @@ const CustomForm = ({
 
     useEffect(() => {
         if(update) {
+            console.log(initialValues)
             setFormValues(initialValues ?? {});
             setUpdate(false)
         }
@@ -195,12 +198,20 @@ const CustomForm = ({
         );
     };
 
+    function isStringArrayOnly(arr) {
+        return Array.isArray(arr) && arr.every(item => typeof item === 'string');
+    }
+
     const transformObject = (obj) => {
         const newObj = { ...obj };
     
         for (const key in newObj) {
             const value = newObj[key];
-            if(value instanceof File) {
+
+            if (value.hasOwnProperty('save')) {
+                newObj[key] = value.save;
+            }
+            else if(value instanceof File || isStringArrayOnly(value)) {
                 newObj[key] = value;
             }
             else if (

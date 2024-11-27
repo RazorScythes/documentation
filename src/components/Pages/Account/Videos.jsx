@@ -24,6 +24,9 @@ const Videos = ({ user, theme }) => {
     const [confirm, setConfirm] = useState(false)
     const [formOpen, setFormOpen] = useState(false)
     const [openVideoModal, setOpenVideoModal] = useState(false)
+    const [updateFormValue, setUpdateFormValue] = useState(false)
+    const [initialValues, setInitialValues] = useState({})
+    const [edit, setEdit] = useState(false)
     const [list, setList] = useState({
         groups: [],
         owner: [],
@@ -78,6 +81,13 @@ const Videos = ({ user, theme }) => {
         { label: "Tags", name: "tags", type: "multi_select", options: list.tags }
     ];
     
+    const importedData = (formData) => {
+        if(formData) {
+            setInitialValues({...initialValues, ...formData})
+            setUpdateFormValue(true)
+        }
+    }
+
     const handleSubmit = (formData) => {
         console.log("Form Submitted:", formData);
     };
@@ -145,7 +155,7 @@ const Videos = ({ user, theme }) => {
                 description={`Are you sure you want to delete this video?`}
                 openModal={openVideoModal}
                 setOpenModal={setOpenVideoModal}
-                setConfirm={setConfirm}
+                importedData={importedData}
             />
 
             <div className='mb-8 mt-4 flex items-center gap-2'>
@@ -160,7 +170,7 @@ const Videos = ({ user, theme }) => {
                 >
                     { formOpen ? 'Cancel' : 'Upload' } 
                 </button>
-                <button onClick={() => setOpenVideoModal(!openVideoModal)} className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>Import</button>
+                { (formOpen && !edit) && <button onClick={() => setOpenVideoModal(!openVideoModal)} className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>Import</button> }
             </div>
 
             {/* <div>
@@ -179,7 +189,10 @@ const Videos = ({ user, theme }) => {
                     theme={theme}
                     fields={fields}
                     onSubmit={handleSubmit}
-                    initialValues={{}
+                    setUpdate={setUpdateFormValue}
+                    update={updateFormValue}
+                    initialValues={initialValues}
+                    // initialValues={{}
                     // { 
                     //     save: { filename: "filename.pdf" },
                     //     thumbnail: "",
@@ -209,7 +222,7 @@ const Videos = ({ user, theme }) => {
                     //         ]
                     //     }
                     // }
-                    }
+                    // }
                 />
             </div>
             

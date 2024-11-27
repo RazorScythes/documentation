@@ -3,32 +3,67 @@ import { dark, light } from '../../style';
 import { faClose } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MotionAnimate } from 'react-motion-animate';
+import { getLinkId } from '../Tools';
+import axios from 'axios';
 
 import CustomForm from './CustomForm';
 
-const VideoModalRequest = ({ theme, openModal, setOpenModal, title, description, setConfirm }) => {
-
-    const [form, setForm ] = useState({
-        source: '',
-        link: ''
-    })
+const VideoModalRequest = ({ theme, openModal, setOpenModal, title, importedData }) => {
+    const [error, setError] = useState(false)
 
     const closeModal = () => {
         setOpenModal(false)
     }
 
-    const confirm = () => {
-        setConfirm(true)
-        setOpenModal(false)
-    }
-
     const fields = [
-        { label: "Groups", name: "groups", type: "select", options: [{ id: 'drive', name: 'Google Drive' }], required: true },
+        { label: "Source", name: "source", type: "select", options: [{ id: 'drive', name: 'Google Drive' }], required: true },
         { label: "Video Url", name: "link", type: "text", required: true },
     ];
 
-    const handleSubmit = (formData) => {
-        console.log("Form Submitted:", formData);
+    const driveRequest = async (link) => {
+        try {
+            const url = `https://www.googleapis.com/drive/v2/files/${getLinkId(link)}?key=${import.meta.env.VITE_DRIVE_API_KEY}`;
+            const response = await axios.get(url);
+
+            const data = response.data;
+            
+            return {
+                title: data.title,
+                link: data.downloadUrl,
+                alternateLink: data.alternateLink,
+                downloadUrl: data.downloadUrl,
+                embedLink: data.embedLink,
+                fileExtension: data.fileExtension,
+                fileSize: data.fileSize,
+                thumbnail: {
+                    preview: data.thumbnailLink,
+                    save: data.thumbnailLink
+                },
+                webContentLink: data.webContentLink,
+                duration: data.videoMediaMetadata.durationMillis,
+                ownerNames: data.ownerNames
+            }
+        } catch (err) {
+            console.log(err)
+            setError(true);
+            return null
+        }
+    }
+
+    const handleSubmit = async (formData) => {
+        if(formData.source === 'drive') {
+            setError(false);
+
+            const result = await driveRequest(formData.link);
+
+            if(result) {
+                importedData(result);
+                closeModal();
+            }
+            else {
+                setError(true);
+            }
+        }
     };
 
     return (
@@ -55,7 +90,7 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, description,
                                 }
                             }
                         }}>
-                            <div className={`sm:w-auto sm:min-w-[550px] w-full rounded-md shadow-lg relative flex flex-col ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                            <div className={`sm:w-auto sm:min-w-[500px] w-full rounded-md shadow-lg relative flex flex-col ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                 {/*content*/}
                                 <div className="border-0 rounded-sm shadow-lg relative flex flex-col w-full bg-transparent outline-none focus:outline-none">
                                     {/*header*/}
@@ -73,6 +108,8 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, description,
                                     {/*body*/}
                                     
                                     <div className="p-5 pb-8 font-normal">
+                                        { error && <div className='pb-2'><span className="text-red-600 font-medium">Error: Invalid URL</span></div> }
+
                                         <CustomForm
                                             theme={theme}
                                             fields={fields}
@@ -80,15 +117,6 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, description,
                                             initialValues={{}}
                                             fullWidth={true}
                                         />
-
-                                        {/* <div className='flex justify-end'>
-                                            <button onClick={() => closeModal()} type="submit" className={`${theme === 'light' ? light.button : dark.button} rounded-full ml-2`}>
-                                                Cancel
-                                            </button>
-                                            <button onClick={() => handleSubmit()} type="submit" className={`py-1.5 px-4 ${theme === 'light' ? light.button_secondary : dark.button_secondary} rounded-full ml-2`}>
-                                                Confirm
-                                            </button>
-                                        </div> */}
                                     </div>
                                     
                                 </div>
