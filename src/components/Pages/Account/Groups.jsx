@@ -80,7 +80,6 @@ const Groups = ({ user, theme, setNotification }) => {
                 }
                 
                 dispatch(updateGroups({
-                    id: user._id,
                     data
                 }))
             }
@@ -103,7 +102,6 @@ const Groups = ({ user, theme, setNotification }) => {
         if(selectedData?.length > 0) {
             dispatch(deleteMultipleGroups({
                 ids: selectedData, 
-                user: user._id, 
                 type: 'video'
             }))
             setSelectedData(null)
@@ -114,7 +112,6 @@ const Groups = ({ user, theme, setNotification }) => {
         if(confirm) {
             dispatch(deleteGroups({
                 id: deleteId, 
-                user: user._id, 
                 type: 'video'
             }))
         }
@@ -137,7 +134,6 @@ const Groups = ({ user, theme, setNotification }) => {
 
     useEffect(() => {
         dispatch(getGroups({
-            id: user._id, 
             type: 'video'
         }))
     }, [])

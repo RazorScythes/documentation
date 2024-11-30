@@ -182,7 +182,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                         </thead>
                         <tbody>
                             {(tableData?.length > 0 && !loading) &&
-                                tableData.slice(startIndex, endIndex).map((item) => (
+                                tableData.slice(startIndex, endIndex).map((item, index) => (
                                     <tr
                                         key={item._id}
                                         className={`border-b border-solid ${theme === 'light' ? light.border : dark.semiborder} ${theme === 'light' ? light.row : dark.row}`}
@@ -245,9 +245,11 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                                     }
                                                                 </div>
                                                             </div>
-                                                        : col.render
-                                                        ? col.render(item[col.key])
-                                                        : item[col.key]}
+                                                        : col.render ? (
+                                                            col.render(item[col.key], index) 
+                                                        ) : (
+                                                            item[col.key]
+                                                        )}
                                             </td>
                                         ))}
                                     </tr>

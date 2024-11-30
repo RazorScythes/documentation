@@ -11,8 +11,8 @@ const initialState = {
 
 export const getGroups = createAsyncThunk('groups/getGroups', async (data, thunkAPI) => {
     try {
-        const { id, type } = data
-        const response = await api.getGroups(id, type)
+        const { type } = data
+        const response = await api.getGroups(type)
         return response
     }
     catch (err) {
@@ -35,9 +35,11 @@ export const newGroups = createAsyncThunk('groups/newGroups', async (form, thunk
         if(err.response.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({ 
-            variant: 'danger',
-            message: "409: there was a problem with the server."
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
         })
     }
 })
@@ -51,26 +53,30 @@ export const updateGroups = createAsyncThunk('groups/updateGroups', async (form,
         if(err.response.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({ 
-            variant: 'danger',
-            message: "409: there was a problem with the server."
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
         })
     }
 })
 
 export const deleteGroups = createAsyncThunk('groups/deleteGroups', async (data, thunkAPI) => {
     try {
-        const { id, user, type } = data
-        const response = await api.deleteGroups(id, user, type)
+        const { id, type } = data
+        const response = await api.deleteGroups(id, type)
         return response
     }
     catch (err) {
         if(err.response.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({ 
-            variant: 'danger',
-            message: "409: there was a problem with the server."
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
         })
     }
 })
@@ -84,9 +90,11 @@ export const deleteMultipleGroups = createAsyncThunk('groups/deleteMultipleGroup
         if(err.response.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({ 
-            variant: 'danger',
-            message: "409: there was a problem with the server."
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
         })
     }
 })

@@ -26,7 +26,7 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, importedData
             const response = await axios.get(url);
 
             const data = response.data;
-            
+
             return {
                 title: data.title,
                 link: data.downloadUrl,

@@ -24,8 +24,15 @@ export const login                              = (formData) => endpoint.post('/
 /*
     GROUPS
 */
-export const getGroups                          = (id, type) => endpoint.get(`/groups/getGroups/${id}/${type}`, options)
+export const getGroups                          = (type) => endpoint.get(`/groups/getGroups/${type}`, options)
 export const newGroups                          = (formData) => endpoint.post('/groups/newGroups', formData, options)
 export const updateGroups                       = (formData) => endpoint.patch('/groups/updateGroups', formData, options)
-export const deleteGroups                       = (id, user, type) => endpoint.delete(`/groups/deleteGroups/${id}/${user}/${type}`, options)
+export const deleteGroups                       = (id, type) => endpoint.delete(`/groups/deleteGroups/${id}/${type}`, options)
 export const deleteMultipleGroups               = (formData) => endpoint.patch('/groups/deleteMultipleGroups', formData, options)
+
+/*
+    VIDEOS
+*/
+export const getUserVideos                      = () => endpoint.get('/videos/getUserVideos', options)
+export const newVideo                           = (formData) => endpoint.post('/videos/newVideo', formData, options) 
+export const updateVideoSettings                = (formData) => endpoint.patch('/videos/updateVideoSettings', formData, options)

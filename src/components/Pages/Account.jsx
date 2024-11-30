@@ -83,8 +83,8 @@ const Account = ({ user, theme }) => {
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
-                <div className={`${styles.boxWidth}`}>
-                    <div className={`${main.container} file:lg:px-8 relative px-0 my-12`}>
+                <div className={`${styles.boxWidthEx}`}>
+                    <div className={`file:lg:px-8 relative px-0 my-12`}>
 
                         <Notification
                             theme={theme}
@@ -116,8 +116,8 @@ const Account = ({ user, theme }) => {
                             </div>
                         </div>
 
-                        <div className='w-full sm:flex items-start transition-all'>
-                            <div className="sm:w-72 w-full flex-shrink-0 mr-4 transition-all">
+                        <div className='w-full md:flex items-start transition-all'>
+                            <div className="md:w-72 w-full flex-shrink-0 mr-4 transition-all">
                                 <div className={`mt-4 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <ul>
                                         {menuItems.map((item, i) => (
@@ -177,6 +177,7 @@ const Account = ({ user, theme }) => {
                                             <Videos
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                         : activeSubPage('videos', 'videos/groups') ?
                                             <Groups
@@ -188,6 +189,7 @@ const Account = ({ user, theme }) => {
                                             <Reports
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                     : activePage('playlist') ?
                                         <Playlist

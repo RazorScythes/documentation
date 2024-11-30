@@ -11,6 +11,7 @@ import archiveSlice from '../actions/archive'
 import projectSlice from '../actions/project'
 import adminSlice from '../actions/admin'
 import groupSlice from '../actions/groups'
+import videosSlice from '../actions/videos'
 
 export const store = configureStore({
     reducer: {
@@ -25,7 +26,8 @@ export const store = configureStore({
         archive     : archiveSlice,
         project     : projectSlice,
         admin       : adminSlice,
-        groups      : groupSlice
+        groups      : groupSlice,
+        videos      : videosSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

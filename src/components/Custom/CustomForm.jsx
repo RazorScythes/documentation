@@ -23,6 +23,7 @@ const CustomForm = ({
     const [dropdownData, setDropdownData] = useState({});
     const [dropdownVisible, setDropdownVisible] = useState({});
     const [inputFocus, setInputFocus] = useState({})
+    const [removedImage, setRemovedImage] = useState([])
 
     useEffect(() => {
         setField(fields ?? []);
@@ -43,6 +44,10 @@ const CustomForm = ({
             if (file) {
                 setLoadingImages((prev) => ({ ...prev, [name]: true })); 
                 setTimeout(() => {
+                    if(formValues[name]?.save) {
+                        setRemovedImage([...removedImage, formValues[name].save])
+                    }
+
                     setFormValues({ ...formValues, [name]: file });
                     setLoadingImages((prev) => ({ ...prev, [name]: false })); 
                 }, 1000); 
@@ -238,6 +243,9 @@ const CustomForm = ({
     const handleSubmit = (e) => {
         e.preventDefault();
         if (validateFields()) {
+            if(removedImage.length) {
+                formValues.removed = removedImage
+            }
             onSubmit(transformObject(formValues));
         }
     };

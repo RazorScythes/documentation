@@ -2,22 +2,30 @@ import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getGroups } from '../../../actions/groups';
+import { getUserVideos, newVideo, updateVideoSettings, clearAlert } from '../../../actions/videos';
+import { convertDriveImageLink, millisToTimeString } from '../../Tools'
 
 import Table from '../../Custom/Table'
 import ConfirmModal from '../../Custom/ConfirmModal'
 import CustomForm from '../../Custom/CustomForm';
 import VideoModalRequest from '../../Custom/VideoModalRequest';
+import VideoModal from '../../VideoModal';
+import CheckBoxRequest from '../../Custom/CheckBoxRequest';
 
-import { list, put, del } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faDownload, faFileImport, faHamburger, faUpload } from '@fortawesome/free-solid-svg-icons';
 
-const Videos = ({ user, theme }) => {
+const Videos = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
 
     const groups = useSelector((state) => state.groups.data)
+    const videos = useSelector((state) => state.videos.data)
+    const loading = useSelector((state) => state.videos.isLoading)
+    const alert = useSelector((state) => state.videos.alert) 
 
+    const [tableData, setTableData] = useState([])
     const [selectedData, setSelectedData] = useState(null)
     const [openModal, setOpenModal] = useState(false)
     const [deleteId, setDeleteId] = useState('')
@@ -25,30 +33,68 @@ const Videos = ({ user, theme }) => {
     const [formOpen, setFormOpen] = useState(false)
     const [openVideoModal, setOpenVideoModal] = useState(false)
     const [updateFormValue, setUpdateFormValue] = useState(false)
+    const [submitted, setSubmitted] = useState(false)
+    const [videoRecord, setVideoRecord] = useState(false)
+    const [recordOpenModal, setRecordOpenModal] = useState(false)
+    const [updateForm, setUpdateForm] = useState(false)
     const [initialValues, setInitialValues] = useState({})
     const [edit, setEdit] = useState(false)
     const [list, setList] = useState({
         groups: [],
-        owner: [],
+        owner: [{
+            id: 1,
+            name: 'RazorScythe',
+            value: 1
+        },{
+            id: 2,
+            name: 'Zantei25',
+            value: 2
+        }],
         category: [{
             id: 1,
             name: 'Profile',
-            count: 10,
             value: 1
         },{
             id: 2,
             name: 'Adventure',
-            count: 20,
             value: 2
         }],
-        tags: []
+        tags: {
+            tags: [
+                {
+                    "id": 1,
+                    "name": "Adventure",
+                    "count": 20,
+                    "value": 1
+                },
+                {
+                    "id": 2,
+                    "name": "Profile",
+                    "count": 20,
+                    "value": 2
+                }
+            ]
+        }
     })
 
     useEffect(() => {
-        dispatch(getGroups({
-            id: user._id, 
-            type: 'video'
-        }))
+        setSubmitted(false)
+        setFormOpen(false)
+        setEdit(false)
+        setInitialValues({})
+        setTableData(videos)
+    }, [videos])
+
+    useEffect(() => {
+        if(Object.keys(alert).length > 0) {
+            dispatch(clearAlert())
+            setNotification(alert)
+        }
+    }, [alert])
+
+    useEffect(() => {
+        dispatch(getGroups({ type: 'video' }))
+        dispatch(getUserVideos())
     }, [])
 
     useEffect(() => {
@@ -86,10 +132,62 @@ const Videos = ({ user, theme }) => {
             setInitialValues({...initialValues, ...formData})
             setUpdateFormValue(true)
         }
-    }
+    }   
 
-    const handleSubmit = (formData) => {
-        console.log("Form Submitted:", formData);
+    const fileName = (originalFileName) => {
+        const uuid = uuidv4();
+        const dotIndex = originalFileName.lastIndexOf('.');
+        const extension = originalFileName.substring(dotIndex);
+        return `${uuid}${extension}`;
+    };
+
+    const uploadImage = async (obj) => {
+        const newObj = { ...obj };
+    
+        for (const key in newObj) {
+            const value = newObj[key];
+
+            if(value instanceof File) {
+                if (value.type.startsWith("image/")) {
+                    const blob = await put(fileName(value.name), value, {
+                        access: 'public',
+                        token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
+                    });
+
+                    newObj[key] = blob.url;
+                }
+            }
+        }
+
+        return newObj;
+    };
+
+    const handleSubmit = async (formData) => {
+        if(!submitted) {
+            setSubmitted(true)
+
+            const data = await uploadImage(formData);
+
+            if(data?.removed?.length) {
+                data.removed.map(async (image) => {
+                    if(image.includes('vercel-storage')) {
+                        await del(image, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN });
+                    }
+                })
+
+                delete data.removed;
+            }
+
+            if(edit) {
+                // update api
+            }
+            else {
+                dispatch(newVideo({
+                    id: user._id,
+                    data
+                }))
+            }
+        }
     };
 
     useEffect(() => {
@@ -106,37 +204,6 @@ const Videos = ({ user, theme }) => {
             setConfirm(false)
         }
     }, [confirm])
-
-
-
-    const [file, setFile] = useState(null);
-    const [message, setMessage] = useState('');
-
-    const fileName = (originalFileName) => {
-        const uuid = uuidv4();
-        const dotIndex = originalFileName.lastIndexOf('.');
-        const extension = originalFileName.substring(dotIndex);
-        return `${uuid}${extension}`;
-    };
-
-    const handleFileChange = (event) => {
-        setFile(event.target.files[0]);
-    };
-
-    const handleUpload = async (event) => {
-        event.preventDefault();
-        if (!file) {
-          setMessage('Please select a file first.');
-          return;
-        }
-
-        const blob = await put(fileName(file.name), file, {
-            access: 'public',
-            token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
-        });
-
-        console.log(blob)
-    };
 
     return (
         <div>   
@@ -156,6 +223,12 @@ const Videos = ({ user, theme }) => {
                 openModal={openVideoModal}
                 setOpenModal={setOpenVideoModal}
                 importedData={importedData}
+            />  
+
+            <VideoModal
+                openModal={recordOpenModal}
+                setOpenModal={setRecordOpenModal}
+                link={videoRecord}
             />
 
             <div className='mb-8 mt-4 flex items-center gap-2'>
@@ -173,17 +246,6 @@ const Videos = ({ user, theme }) => {
                 { (formOpen && !edit) && <button onClick={() => setOpenVideoModal(!openVideoModal)} className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>Import</button> }
             </div>
 
-            {/* <div>
-                <form onSubmit={handleUpload}>
-                    <input type="file" onChange={handleFileChange} />
-                    <button type="submit" style={{ marginLeft: '10px' }}>
-                        Upload
-                    </button>
-                </form>
-                {message && <p>{message}</p>}
-
-                <img src="https://mvukvlejqwgq8zt5.public.blob.vercel-storage.com/13c80aba-7c24-4224-818e-be223bfed5ea-x0ggZ5sluxQmWAmm2X78g26XBRyLBO.jpg" />
-            </div> */}
             <div className={`${formOpen ? 'block' : 'hidden'}`}>
                 <CustomForm
                     theme={theme}
@@ -192,49 +254,76 @@ const Videos = ({ user, theme }) => {
                     setUpdate={setUpdateFormValue}
                     update={updateFormValue}
                     initialValues={initialValues}
-                    // initialValues={{}
-                    // { 
-                    //     save: { filename: "filename.pdf" },
-                    //     thumbnail: "",
-                    //     name: "James Arvie Maderas", 
-                    //     email: "jamezarviemaderas@gmail.com", 
-                    //     age: 24, 
-                    //     text: "SAMPLE",
-                    //     select: 1,
-                    //     checkbox: true,
-                    //     list: {
-                    //         lists: ['Sample1', 'Sample2']
-                    //     },
-                    //     tags: { 
-                    //         tags: [
-                    //             {
-                    //                 "id": 1,
-                    //                 "name": "Adventure",
-                    //                 "count": 20,
-                    //                 "value": 1
-                    //             },
-                    //             {
-                    //                 "id": 2,
-                    //                 "name": "Profile",
-                    //                 "count": 20,
-                    //                 "value": 2
-                    //             }
-                    //         ]
-                    //     }
-                    // }
-                    // }
+                    disabled={submitted}
                 />
             </div>
             
             <div className={`${formOpen ? 'hidden' : 'block'}`}>
                 <Table 
                     theme={theme}
-                    title="My Videos"
+                    title=""
                     header={[
-                        { key: 'user', label: 'User', type: 'user', render: (user) => <strong>{user.username}</strong> },
-                        { key: 'type', label: 'Type' },
-                        { key: 'message', label: 'Message' },
-                        { key: 'createdAt', label: 'Timestamp' },
+                        { key: 'title', label: 'Video', render: (item, index) => 
+                            <div class="flex items-center text-sm">
+                                <div 
+                                    onClick={() => { setVideoRecord(tableData[index].link); setRecordOpenModal(true) }} 
+                                    className='cursor-pointer bg-black rounded-lg overflow-hidden md:w-32 md:min-w-32 xs:w-32 xs:min-w-32 w-32 min-w-32 h-20 mr-2 relative border border-gray-900'>
+                                    <img 
+                                        src={tableData[index].thumbnail} alt="Video Thumbnail" 
+                                        className='mx-auto object-cover h-20 text-xs'
+                                    />
+                                    <div className='absolute bottom-1 right-1 rounded-sm bg-blue-600 border border-solid border-blue-600 text-white'>
+                                        <p className='p-1 px-1 py-0 text-xs'>{tableData[index].duration ? millisToTimeString(tableData[index].duration) : 'embed'}</p>
+                                    </div>
+                                </div>
+                                <div className='md:max-w-[150px] max-w-[125px]'>
+                                    <p class="font-medium truncate">{item}</p>
+                                    <p class={`text-xs ${theme === 'light' ? light.text : dark.text} truncate`}>
+                                        {tableData[index].owner?.map((item, i) => {
+                                            return (
+                                                <span key={i}>{item.name}{(i + 1) !== tableData[index].owner.length &&  ','} </span>
+                                            )
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                        },
+                        { key: 'category', label: 'Category', render: (item) => <>{item.length > 0 ? item[0].name : 'N/A'}</>},
+                        { key: 'privacy', label: 'Visibility', render: (item, index) => 
+                            <CheckBoxRequest 
+                                theme={theme}
+                                item={item}
+                                endpoint={updateVideoSettings({
+                                    id: tableData[index]._id,
+                                    type: 'privacy',
+                                    value: !item,
+                                })}
+                            />
+                        },
+                        { key: 'strict', label: 'Strict', render: (item, index) => 
+                            <CheckBoxRequest 
+                                theme={theme}
+                                item={item}
+                                endpoint={updateVideoSettings({
+                                    id: tableData[index]._id,
+                                    type: 'strict',
+                                    value: !item,
+                                })}
+                            />
+                        },
+                        { key: 'downloadable', label: 'Downloadable', render: (item, index) => 
+                            <CheckBoxRequest 
+                                theme={theme}
+                                item={item}
+                                endpoint={updateVideoSettings({
+                                    id: tableData[index]._id,
+                                    type: 'downloadable',
+                                    value: !item,
+                                })}
+                            />
+                        },
+                        { key: 'tags', label: 'Tags', render: (item) => <div className={`${theme === 'light' ? light.link : dark.link}`}>{item.length}</div>},
+                        { key: 'groups', label: 'Groups', render: (item) => <>{item.group_name}</>},
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
@@ -243,23 +332,9 @@ const Videos = ({ user, theme }) => {
                     ]}
                     limit={1}
                     multipleSelect={true}
-                    data={[{
-                        "_id": "671f4afa4f08c1947ed4e077a",
-                        "user": {
-                            "_id": "641730c1637f7ac77c72fb91",
-                            "username": "Zantei25",
-                            "role": "Admin",
-                            "avatar": "https://drive.google.com/uc?export=view&id=1qf5mzvpZ6xspnY-rv6GM199JJwWfwZ7V"
-                        },
-                        "type": "blog1",
-                        "method": "PATCH",
-                        "message": "Updated blog",
-                        "id": "649860071075e8ba6fadc7ef",
-                        "createdAt": "2024-10-28T08:27:38.965Z",
-                        "updatedAt": "2024-10-28T08:27:38.965Z",
-                        "__v": 0
-                    }]}
+                    data={tableData}
                     setSelectedData={setSelectedData}
+                    loading={loading}
                 />
             </div>
         </div>
