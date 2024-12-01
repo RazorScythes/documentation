@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getGroups } from '../../../actions/groups';
-import { getUserVideos, newVideo, updateVideoSettings, clearAlert } from '../../../actions/videos';
+import { getUserVideos, newVideo, updateVideo, updateVideoSettings, clearAlert } from '../../../actions/videos';
 import { convertDriveImageLink, millisToTimeString } from '../../Tools'
 
 import Table from '../../Custom/Table'
@@ -11,6 +11,7 @@ import CustomForm from '../../Custom/CustomForm';
 import VideoModalRequest from '../../Custom/VideoModalRequest';
 import VideoModal from '../../VideoModal';
 import CheckBoxRequest from '../../Custom/CheckBoxRequest';
+import ListsModal from '../../Custom/ListsModal';
 
 import { put, del } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,6 +29,11 @@ const Videos = ({ user, theme, setNotification }) => {
     const [tableData, setTableData] = useState([])
     const [selectedData, setSelectedData] = useState(null)
     const [openModal, setOpenModal] = useState(false)
+    const [openListModal, setOpenListModal] = useState(false)
+    const [listPreview, setListPreview] = useState({
+        label: '',
+        lists: []
+    })
     const [deleteId, setDeleteId] = useState('')
     const [confirm, setConfirm] = useState(false)
     const [formOpen, setFormOpen] = useState(false)
@@ -59,22 +65,20 @@ const Videos = ({ user, theme, setNotification }) => {
             name: 'Adventure',
             value: 2
         }],
-        tags: {
-            tags: [
-                {
-                    "id": 1,
-                    "name": "Adventure",
-                    "count": 20,
-                    "value": 1
-                },
-                {
-                    "id": 2,
-                    "name": "Profile",
-                    "count": 20,
-                    "value": 2
-                }
-            ]
-        }
+        tags: [
+            {
+                "id": 1,
+                "name": "Adventure",
+                "count": 20,
+                "value": 1
+            },
+            {
+                "id": 2,
+                "name": "Profile",
+                "count": 20,
+                "value": 2
+            }
+        ]
     })
 
     useEffect(() => {
@@ -162,6 +166,27 @@ const Videos = ({ user, theme, setNotification }) => {
         return newObj;
     };
 
+    const editMode = (data) => {
+        const obj = { ...data };
+
+        if(data?.thumbnail) {
+            obj.thumbnail = {
+                preview: data.thumbnail,
+                save: data.thumbnail
+            };
+        }
+
+        obj.groups = obj.groups._id;
+        obj.owner = { tags: obj.owner };
+        obj.category = { tags: obj.category };
+        obj.tags = { tags: obj.tags }; 
+
+        setInitialValues(obj);
+        setEdit(true)
+        setUpdateFormValue(true)
+        setFormOpen(true)
+    }
+
     const handleSubmit = async (formData) => {
         if(!submitted) {
             setSubmitted(true)
@@ -179,7 +204,9 @@ const Videos = ({ user, theme, setNotification }) => {
             }
 
             if(edit) {
-                // update api
+                dispatch(updateVideo({
+                    data
+                }))
             }
             else {
                 dispatch(newVideo({
@@ -216,6 +243,14 @@ const Videos = ({ user, theme, setNotification }) => {
                 setConfirm={setConfirm}
             />
 
+            <ListsModal
+                theme={theme}
+                title={listPreview.label ?? 'List Items'}
+                openModal={openListModal}
+                setOpenModal={setOpenListModal}
+                lists={listPreview.lists}
+            />
+
             <VideoModalRequest
                 theme={theme}
                 title="Import Data"
@@ -234,7 +269,11 @@ const Videos = ({ user, theme, setNotification }) => {
             <div className='mb-8 mt-4 flex items-center gap-2'>
                 <h1 className="text-xl font-medium mb-1">Your Videos</h1>
                 <button
-                    onClick={() => setFormOpen(!formOpen)}
+                    onClick={() => {
+                        setFormOpen(!formOpen)
+                        setInitialValues({})
+                        setUpdateFormValue(true)
+                    }}
                     className={`py-1.5 px-4 ${
                         theme === "light"
                             ? light.button_secondary
@@ -292,6 +331,7 @@ const Videos = ({ user, theme, setNotification }) => {
                         { key: 'privacy', label: 'Visibility', render: (item, index) => 
                             <CheckBoxRequest 
                                 theme={theme}
+                                options={['Private', 'Public']}
                                 item={item}
                                 endpoint={updateVideoSettings({
                                     id: tableData[index]._id,
@@ -303,6 +343,7 @@ const Videos = ({ user, theme, setNotification }) => {
                         { key: 'strict', label: 'Strict', render: (item, index) => 
                             <CheckBoxRequest 
                                 theme={theme}
+                                options={['Yes', 'No']}
                                 item={item}
                                 endpoint={updateVideoSettings({
                                     id: tableData[index]._id,
@@ -314,6 +355,7 @@ const Videos = ({ user, theme, setNotification }) => {
                         { key: 'downloadable', label: 'Downloadable', render: (item, index) => 
                             <CheckBoxRequest 
                                 theme={theme}
+                                options={['Yes', 'No']}
                                 item={item}
                                 endpoint={updateVideoSettings({
                                     id: tableData[index]._id,
@@ -322,12 +364,12 @@ const Videos = ({ user, theme, setNotification }) => {
                                 })}
                             />
                         },
-                        { key: 'tags', label: 'Tags', render: (item) => <div className={`${theme === 'light' ? light.link : dark.link}`}>{item.length}</div>},
+                        { key: 'tags', label: 'Tags', render: (item) => <div onClick={() => { setOpenListModal(true); setListPreview({ label: 'Tags', lists: item })} } className={`${theme === 'light' ? light.link : dark.link}`}>{item.length}</div>},
                         { key: 'groups', label: 'Groups', render: (item) => <>{item.group_name}</>},
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
-                        { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => console.log('Edit', item) },
+                        { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => editMode(item) },
                         { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
                     ]}
                     limit={1}

@@ -31,7 +31,6 @@ const CustomForm = ({
 
     useEffect(() => {
         if(update) {
-            console.log(initialValues)
             setFormValues(initialValues ?? {});
             setUpdate(false)
         }

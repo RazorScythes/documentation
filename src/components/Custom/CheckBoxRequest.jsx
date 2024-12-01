@@ -4,7 +4,7 @@ import { faCheck, faClose, faCopy } from "@fortawesome/free-solid-svg-icons";
 import { light, dark } from '../../style';
 import { useDispatch } from 'react-redux'
 
-const CheckBoxRequest = ({ theme, item, endpoint, id = '', access_key = '', type = '' }) => {
+const CheckBoxRequest = ({ theme, item, endpoint, options = [], id = '', access_key = '', type = '' }) => {
     const dispatch = useDispatch()
 
     const [submitted, setSubmitted] = useState(false)
@@ -23,18 +23,37 @@ const CheckBoxRequest = ({ theme, item, endpoint, id = '', access_key = '', type
     }
 
     return (
-        <div className="leading-5 text-gray-900 text-left">
+        <div className="leading-5 text-left">
             {
                 !submitted ?
                     item ?
                         <div className='flex items-center'>
-                            <FontAwesomeIcon onClick={() => handleChange()} icon={faCheck} className={`w-4 h-4 cursor-pointer text-green-500 rounded-md transition-all`} />
                             {
-                                type && <FontAwesomeIcon className="text-blue-600 mr-2 w-4 h-4 cursor-pointer" title="Copy link" onClick={() => {navigator.clipboard.writeText(`${window.location.origin}/${type}/${id}?access_key=${access_key}`)}} icon={faCopy}/>
+                                options.length > 0 ?
+                                    <button onClick={() => handleChange()} className={`${theme === 'light' ? light.link : dark.link}`}> { options[0] } </button>
+                                :   <FontAwesomeIcon 
+                                        onClick={() => handleChange()} 
+                                        icon={faCheck} 
+                                        className={`w-4 h-4 cursor-pointer text-green-500 rounded-md transition-all`} 
+                                    />               
+                            }
+                            
+                            {
+                                type && <FontAwesomeIcon 
+                                            className="text-blue-600 mr-2 w-4 h-4 cursor-pointer" 
+                                            title="Copy link" 
+                                            onClick={() => {navigator.clipboard.writeText(`${window.location.origin}/${type}/${id}?access_key=${access_key}`)}} 
+                                            icon={faCopy}
+                                        />
                             }
                         </div>
-                    :
-                        <FontAwesomeIcon onClick={() => handleChange()} icon={faClose} className="w-4 h-4 cursor-pointer text-red-600 rounded-md transition-all" />
+                    :   options.length > 0 ?
+                            <button onClick={() => handleChange()} className={`${theme === 'light' ? light.link : dark.link}`}> { options[1] } </button>
+                        :   <FontAwesomeIcon 
+                                onClick={() => handleChange()} 
+                                icon={faClose} 
+                                className="w-4 h-4 cursor-pointer text-red-600 rounded-md transition-all" 
+                            />             
                 :
                 <div role="status">
                     <svg aria-hidden="true" class="w-4 h-4 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">

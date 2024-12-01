@@ -1,5 +1,6 @@
 import * as endpoint from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import jwtDecode from 'jwt-decode';
 import Cookies from 'universal-cookie';
 
 const cookies = new Cookies();
@@ -7,6 +8,11 @@ const initialState = {
     error       : '',
     isLoading   : false,
     data        : {}
+}
+
+const setToken = (token) => {
+    const decoded = jwtDecode(token);
+    cookies.set('token', token, { path: '/', maxAge: new Date(Date.now()+decoded.exp) });
 }
 
 export const login = createAsyncThunk('user/login', async (form, thunkAPI) => {
@@ -32,7 +38,7 @@ export const authSlice = createSlice({
             state.isLoading       = true
         }),
         builder.addCase(login.fulfilled, (state, action) => {
-            cookies.set('token', action.payload?.data.token)
+            setToken(action.payload.data.token);
             localStorage.setItem('profile', JSON.stringify({ ...action.payload?.data.result }));
             localStorage.setItem('avatar', JSON.stringify(action.payload?.data.result?.avatar));
 

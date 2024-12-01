@@ -35,4 +35,5 @@ export const deleteMultipleGroups               = (formData) => endpoint.patch('
 */
 export const getUserVideos                      = () => endpoint.get('/videos/getUserVideos', options)
 export const newVideo                           = (formData) => endpoint.post('/videos/newVideo', formData, options) 
+export const updateVideo                        = (formData) => endpoint.patch('/videos/updateVideo', formData, options) 
 export const updateVideoSettings                = (formData) => endpoint.patch('/videos/updateVideoSettings', formData, options)
