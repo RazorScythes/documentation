@@ -67,8 +67,9 @@ const App = () => {
                 </Route>
 
                 <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
-                    <Route index element={<><Account user={user} theme={theme}/> </>} />
+                    <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/:page' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/account/profile/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/videos/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>

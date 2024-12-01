@@ -63,6 +63,43 @@ export const updateVideo = createAsyncThunk('videos/updateVideo', async (form, t
     }
 })
 
+export const deleteVideo = createAsyncThunk('videos/deleteVideo', async (data, thunkAPI) => {
+    try {
+        const { id } = data
+        const response = await api.deleteVideo(id)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
+export const deleteMultipleVideos = createAsyncThunk('videos/deleteMultipleVideos', async (formData, thunkAPI) => {
+    try {
+        const response = await api.deleteMultipleVideos(formData)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
 export const updateVideoSettings = createAsyncThunk('videos/updateVideoSettings', async (form, thunkAPI) => {
     try {
         const response = await api.updateVideoSettings(form)
@@ -115,6 +152,26 @@ export const videosSlice = createSlice({
             state.notFound      = false
         }),
         builder.addCase(updateVideo.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(deleteVideo.fulfilled, (state, action) => {
+            state.data          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(deleteVideo.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(deleteVideo.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(deleteMultipleVideos.fulfilled, (state, action) => {
+            state.data          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(deleteMultipleVideos.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(deleteMultipleVideos.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
         builder.addCase(updateVideoSettings.fulfilled, (state, action) => {

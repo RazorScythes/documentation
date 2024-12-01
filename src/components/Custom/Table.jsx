@@ -7,7 +7,7 @@ import Avatar from './Avatar';
 import Pagination from './Pagination';
 import ConfirmModal from './ConfirmModal'
 
-const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData, category, loading }) => {
+const Table = ({ theme, title, header, data, limit, multipleSelect, actions, setSelectedData, category, loading, lookupKey = '_id' }) => {
     const [openModal, setOpenModal] = useState(false)
     const [confirm, setConfirm] = useState(false)
     const [toggle, setToggle] = useState(false)
@@ -21,6 +21,8 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
     const allVisibleIds = tableData.slice(startIndex, endIndex).map((item) => item._id);
+
+    const getIndex = (key, value) => { return data.findIndex(obj => obj[key] === value); };
 
     const handleSelectAll = (checked) => {
         if (checked) {
@@ -60,6 +62,9 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
     useEffect(() => {
         if(data?.length > 0) {
             setTableData(data)
+        }
+        else {
+            setTableData([])
         }
 
         if(pagination) {  
@@ -246,7 +251,8 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                                 </div>
                                                             </div>
                                                         : col.render ? (
-                                                            col.render(item[col.key], index) 
+                                                            // col.render(item[col.key], startIndex + index) 
+                                                            col.render(item[col.key], getIndex(lookupKey, item[lookupKey]))
                                                         ) : (
                                                             item[col.key]
                                                         )}

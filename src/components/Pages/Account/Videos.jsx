@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getGroups } from '../../../actions/groups';
-import { getUserVideos, newVideo, updateVideo, updateVideoSettings, clearAlert } from '../../../actions/videos';
+import { getUserVideos, newVideo, updateVideo, deleteVideo, deleteMultipleVideos, updateVideoSettings, clearAlert } from '../../../actions/videos';
 import { convertDriveImageLink, millisToTimeString } from '../../Tools'
 
 import Table from '../../Custom/Table'
@@ -145,7 +145,7 @@ const Videos = ({ user, theme, setNotification }) => {
         return `${uuid}${extension}`;
     };
 
-    const uploadImage = async (obj) => {
+    const uploadVercelImage = async (obj) => {
         const newObj = { ...obj };
     
         for (const key in newObj) {
@@ -166,6 +166,22 @@ const Videos = ({ user, theme, setNotification }) => {
         return newObj;
     };
 
+    const deleteVercelImage = async (obj) => {
+        const newObj = { ...obj };
+    
+        for (const key in newObj) {
+            const value = newObj[key];
+
+            if (typeof value === 'string' && !Array.isArray(value)) {
+                if(value.includes('vercel-storage')) {
+                    await del(value, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN });
+                }
+            }
+        }
+
+        return newObj;
+    }
+
     const editMode = (data) => {
         const obj = { ...data };
 
@@ -176,7 +192,7 @@ const Videos = ({ user, theme, setNotification }) => {
             };
         }
 
-        obj.groups = obj.groups._id;
+        obj.groups = obj.groups?._id;
         obj.owner = { tags: obj.owner };
         obj.category = { tags: obj.category };
         obj.tags = { tags: obj.tags }; 
@@ -191,7 +207,7 @@ const Videos = ({ user, theme, setNotification }) => {
         if(!submitted) {
             setSubmitted(true)
 
-            const data = await uploadImage(formData);
+            const data = await uploadVercelImage(formData);
 
             if(data?.removed?.length) {
                 data.removed.map(async (image) => {
@@ -219,16 +235,27 @@ const Videos = ({ user, theme, setNotification }) => {
 
     useEffect(() => {
         if(selectedData?.length > 0) {
-            //dispatch function
-            console.log(selectedData)
+            const data = selectedData.map((id) => {
+                return tableData.find(item => item._id === id)
+            })
+
+            data.forEach((item) => {
+                deleteVercelImage(item);
+            })
+
+            dispatch(deleteMultipleVideos({
+                ids: selectedData, 
+            }))
+            setSelectedData(null)
         }
     }, [selectedData])
 
     useEffect(() => {
         if(confirm) {
-            //dispatch function 
-            console.log(deleteId)
-            setConfirm(false)
+            deleteVercelImage(deleteId);
+            dispatch(deleteVideo({
+                id: deleteId._id, 
+            }))
         }
     }, [confirm])
 
@@ -273,6 +300,7 @@ const Videos = ({ user, theme, setNotification }) => {
                         setFormOpen(!formOpen)
                         setInitialValues({})
                         setUpdateFormValue(true)
+                        setEdit(false)
                     }}
                     className={`py-1.5 px-4 ${
                         theme === "light"
@@ -305,22 +333,22 @@ const Videos = ({ user, theme, setNotification }) => {
                         { key: 'title', label: 'Video', render: (item, index) => 
                             <div class="flex items-center text-sm">
                                 <div 
-                                    onClick={() => { setVideoRecord(tableData[index].link); setRecordOpenModal(true) }} 
+                                    onClick={() => { setVideoRecord(tableData[index]?.link); setRecordOpenModal(true) }} 
                                     className='cursor-pointer bg-black rounded-lg overflow-hidden md:w-32 md:min-w-32 xs:w-32 xs:min-w-32 w-32 min-w-32 h-20 mr-2 relative border border-gray-900'>
                                     <img 
-                                        src={tableData[index].thumbnail} alt="Video Thumbnail" 
+                                        src={tableData[index]?.thumbnail} alt="Video Thumbnail" 
                                         className='mx-auto object-cover h-20 text-xs'
                                     />
                                     <div className='absolute bottom-1 right-1 rounded-sm bg-blue-600 border border-solid border-blue-600 text-white'>
-                                        <p className='p-1 px-1 py-0 text-xs'>{tableData[index].duration ? millisToTimeString(tableData[index].duration) : 'embed'}</p>
+                                        <p className='p-1 px-1 py-0 text-xs'>{tableData[index]?.duration ? millisToTimeString(tableData[index]?.duration) : 'embed'}</p>
                                     </div>
                                 </div>
                                 <div className='md:max-w-[150px] max-w-[125px]'>
                                     <p class="font-medium truncate">{item}</p>
                                     <p class={`text-xs ${theme === 'light' ? light.text : dark.text} truncate`}>
-                                        {tableData[index].owner?.map((item, i) => {
+                                        {tableData[index]?.owner?.map((item, i) => {
                                             return (
-                                                <span key={i}>{item.name}{(i + 1) !== tableData[index].owner.length &&  ','} </span>
+                                                <span key={i}>{item.name}{(i + 1) !== tableData[index]?.owner.length &&  ','} </span>
                                             )
                                         })}
                                     </p>
@@ -334,7 +362,7 @@ const Videos = ({ user, theme, setNotification }) => {
                                 options={['Private', 'Public']}
                                 item={item}
                                 endpoint={updateVideoSettings({
-                                    id: tableData[index]._id,
+                                    id: tableData[index]?._id,
                                     type: 'privacy',
                                     value: !item,
                                 })}
@@ -346,7 +374,7 @@ const Videos = ({ user, theme, setNotification }) => {
                                 options={['Yes', 'No']}
                                 item={item}
                                 endpoint={updateVideoSettings({
-                                    id: tableData[index]._id,
+                                    id: tableData[index]?._id,
                                     type: 'strict',
                                     value: !item,
                                 })}
@@ -358,21 +386,21 @@ const Videos = ({ user, theme, setNotification }) => {
                                 options={['Yes', 'No']}
                                 item={item}
                                 endpoint={updateVideoSettings({
-                                    id: tableData[index]._id,
+                                    id: tableData[index]?._id,
                                     type: 'downloadable',
                                     value: !item,
                                 })}
                             />
                         },
                         { key: 'tags', label: 'Tags', render: (item) => <div onClick={() => { setOpenListModal(true); setListPreview({ label: 'Tags', lists: item })} } className={`${theme === 'light' ? light.link : dark.link}`}>{item.length}</div>},
-                        { key: 'groups', label: 'Groups', render: (item) => <>{item.group_name}</>},
+                        { key: 'groups', label: 'Groups', render: (item) => <>{item?.group_name}</>},
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
                         { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => editMode(item) },
-                        { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
+                        { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item); setOpenModal(true); setConfirm(false); } },
                     ]}
-                    limit={1}
+                    limit={10}
                     multipleSelect={true}
                     data={tableData}
                     setSelectedData={setSelectedData}

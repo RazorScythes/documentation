@@ -5,8 +5,9 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faHeart, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faDashboard, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
 
+import Overview from './Account/Overview';
 import Profile from './Account/Profile';
 import Videos from './Account/Videos';
 import Playlist from './Account/Playlist';
@@ -16,6 +17,8 @@ import Settings from './Account/Settings';
 import NotFound from './NotFound';
 import Reports from './Account/Reports';
 import Groups from './Account/Groups';
+import Password from './Account/Password';
+import Logs from './Account/Logs';
 
 import Notification from '../Custom/Notification';
 
@@ -39,7 +42,17 @@ const Account = ({ user, theme }) => {
     }, [show])
 
     const menuItems = [
-        { name: 'Profile', icon: faUserEdit, path: '', dropdown: [] },
+        { name: 'Overview', icon: faHome, path: '', dropdown: [] },
+        { 
+            name: 'Profile', 
+            icon: faUserEdit, 
+            path: 'profile', 
+            dropdown: [
+                { name: 'My Profile', path: 'profile' },
+                { name: 'Change Password', path: 'profile/password' },
+                { name: 'Activity Logs', path: 'profile/logs' },
+            ] 
+        },
         { 
             name: 'Videos', 
             icon: faPlayCircle, 
@@ -166,13 +179,31 @@ const Account = ({ user, theme }) => {
                             </div>
 
                             <div className={`w-full mt-4 px-6 py-3 pb-5 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                {
+                                {   
                                     activePage('') ?
-                                        <Profile
+                                        <Overview
                                             user={user}
                                             theme={theme}
                                         />
-                                    : activePage('videos') ?
+                                    :
+                                    activePage('profile') ? (
+                                        activeSubPage('profile', 'profile') ?
+                                            <Profile
+                                                user={user}
+                                                theme={theme}
+                                            />
+                                        : activeSubPage('profile', 'profile/password') ?
+                                            <Password
+                                                user={user}
+                                                theme={theme}
+                                            />
+                                        : activeSubPage('profile', 'profile/logs') &&
+                                            <Logs
+                                                user={user}
+                                                theme={theme}
+                                            />
+                                    )
+                                    : activePage('videos') ? (
                                         activeSubPage('videos', 'videos') ?
                                             <Videos
                                                 user={user}
@@ -191,6 +222,7 @@ const Account = ({ user, theme }) => {
                                                 theme={theme}
                                                 setNotification={setNotification}
                                             />
+                                    )
                                     : activePage('playlist') ?
                                         <Playlist
                                             user={user}
