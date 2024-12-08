@@ -28,8 +28,8 @@ const Navbar = ({ theme, setTheme }) => {
         notification: false
     })
 
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('profile')))
-    const [avatar, setAvatar] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : Avatar)
+    const [user, setUser] = useState()
+    const [avatar, setAvatar] = useState()
     const [firstPath, setFirstPath] = useState('')
     const [searchKey, setSearchKey] = useState('')
 
@@ -38,6 +38,11 @@ const Navbar = ({ theme, setTheme }) => {
         navigate(`/login`)
         setUser(null)
     }
+
+    useEffect(() => {
+        setAvatar(localStorage.getItem('avatar')?.replaceAll('"', ""))
+        setUser(JSON.parse(localStorage.getItem('profile')))
+    }, [localStorage.getItem('avatar'), localStorage.getItem('profile')])
 
     useEffect(() => {
         const url = window.location.href;

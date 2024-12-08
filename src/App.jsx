@@ -49,9 +49,9 @@ const App = () => {
       }
   }, [user])
 
-  useEffect(() => {
-      localStorage.setItem('avatar', settings.avatar ? JSON.stringify(settings.avatar) : '');
-  }, [settings])
+  // useEffect(() => {
+  //     localStorage.setItem('avatar', settings.avatar ? JSON.stringify(settings.avatar) : '');
+  // }, [settings])
 
   return (
     <div className={`w-full ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} text-sm`}>

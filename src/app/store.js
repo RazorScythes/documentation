@@ -12,6 +12,7 @@ import projectSlice from '../actions/project'
 import adminSlice from '../actions/admin'
 import groupSlice from '../actions/groups'
 import videosSlice from '../actions/videos'
+import userSlice from '../actions/user'
 
 export const store = configureStore({
     reducer: {
@@ -27,7 +28,8 @@ export const store = configureStore({
         project     : projectSlice,
         admin       : adminSlice,
         groups      : groupSlice,
-        videos      : videosSlice
+        videos      : videosSlice,
+        user        : userSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

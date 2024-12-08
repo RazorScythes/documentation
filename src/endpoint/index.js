@@ -20,6 +20,8 @@ const options   = {
     USER
 */
 export const login                              = (formData) => endpoint.post('/user/login', formData)
+export const getProfile                         = () => endpoint.get(`/user/getProfile`, options)
+export const updateProfile                      = (formData) => endpoint.post(`/user/updateProfile`, formData, options)
 
 /*
     GROUPS

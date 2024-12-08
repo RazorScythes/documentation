@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { dark, light } from "../../style";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClose, faFile, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { faClose, faFile, faLock, faPlus } from "@fortawesome/free-solid-svg-icons";
 
 const CustomForm = ({
     theme,
@@ -252,7 +252,7 @@ const CustomForm = ({
     return (
         <div className={`${!fullWidth && 'grid md:grid-cols-2 gap-2'}`}>
             <form onSubmit={handleSubmit}>
-                {field.map(({ label, name, type, placeholder, options, required }) => (
+                {field.map(({ label, name, type, placeholder, options, readOnly, required }) => (
                     
                     <div key={name} className="pb-2.5">
                         { type !== "checkbox" && <label htmlFor={name}>{label}:</label> }
@@ -503,7 +503,21 @@ const CustomForm = ({
                                     : null
                                 }
                             </>
-                        ) : (
+                        ) : 
+                            readOnly ? 
+                                <div className="relative mt-2 mb-1">
+                                    <span className={`absolute inset-y-0 left-0 flex items-center p-4 ${theme === 'light' ? light.active_list_button : dark.active_list_button}`}> <FontAwesomeIcon icon={faLock} /> </span>
+                                    <input 
+                                        value={formValues[name] || ""}
+                                        className={`block w-full rounded-sm py-2 px-4 pl-14 ${theme === 'light' ? light.input : dark.input}`} 
+                                        type={type || "text"}
+                                        placeholder={placeholder || ""}
+                                        readOnly
+                                        autoSave="false"
+                                        title="cannot be edited"
+                                    />
+                                </div>
+                            :
                             <input
                                 id={name}
                                 name={name}
@@ -513,8 +527,9 @@ const CustomForm = ({
                                 onChange={handleChange}
                                 className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
                                 autoSave="false"
+                                readOnly={readOnly}
                             />
-                        )}
+                        }
                         {errors[name] && <span className="text-red-600">{errors[name]}</span>}
                     </div>
                 ))}

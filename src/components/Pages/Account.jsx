@@ -27,7 +27,8 @@ const Account = ({ user, theme }) => {
     const location = useLocation();
     const { page, subpage } = useParams();
 
-    const [image, setImage] = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    const [image, setImage] = useState('')
+    const [profile, setProfile] = useState({})
     const [notification, setNotification] = useState({})
     const [show, setShow] = useState(true)
 
@@ -40,6 +41,11 @@ const Account = ({ user, theme }) => {
     useEffect(() => {
         if(!show) { setNotification({}) }
     }, [show])
+
+    useEffect(() => {
+        setImage(localStorage.getItem('avatar')?.replaceAll('"', ""))
+        setProfile(JSON.parse(localStorage.getItem('profile')))
+    }, [localStorage.getItem('avatar'), localStorage.getItem('profile')])
 
     const menuItems = [
         { name: 'Overview', icon: faHome, path: '', dropdown: [] },
@@ -119,9 +125,9 @@ const Account = ({ user, theme }) => {
                                         />
                                     </div>
                                     <div className={`flex-1 overflow-hidden xs:mt-4`}>
-                                        <h1 className="text-2xl font-medium mb-1">RazorScythe</h1>
+                                        <h1 className="text-2xl font-medium mb-1">{ profile?.username }</h1>
                                         <p className={`truncate w-full mb-4 ${theme === 'light' ? light.text : dark.text}`}>0 Subscriber</p>
-                                        <p className={`truncate w-full ${theme === 'light' ? light.text : dark.text}`}>Mashle: Magic and Muscles, Mashle, マッシュル-MASHLE-</p>
+                                        <p className={`truncate w-full ${theme === 'light' ? light.text : dark.text}`}> { profile.bio ? profile.bio : 'No bio' } </p>
                                     </div>
                                     
                                 </div> 
@@ -191,16 +197,19 @@ const Account = ({ user, theme }) => {
                                             <Profile
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                         : activeSubPage('profile', 'profile/password') ?
                                             <Password
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                         : activeSubPage('profile', 'profile/logs') &&
                                             <Logs
                                                 user={user}
                                                 theme={theme}
+                                                setNotification={setNotification}
                                             />
                                     )
                                     : activePage('videos') ? (
