@@ -33,6 +33,15 @@ export const deleteGroups                       = (id, type) => endpoint.delete(
 export const deleteMultipleGroups               = (formData) => endpoint.patch('/groups/deleteMultipleGroups', formData, options)
 
 /*
+    TAGS
+*/
+export const getTags                            = (type, option) => endpoint.get(`/tags/getTags/${type}${option ? '/1' : ''}`, options)
+export const newTags                            = (formData) => endpoint.post('/tags/newTags', formData, options)
+export const updateTags                         = (formData) => endpoint.patch('/tags/updateTags', formData, options)
+export const deleteTags                         = (id, type) => endpoint.delete(`/tags/deleteTags/${id}/${type}`, options)
+export const deleteMultipleTags                 = (formData) => endpoint.patch('/tags/deleteMultipleTags', formData, options)
+
+/*
     VIDEOS
 */
 export const getUserVideos                      = () => endpoint.get('/videos/getUserVideos', options)

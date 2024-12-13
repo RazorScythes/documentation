@@ -51,20 +51,6 @@ const Navbar = ({ theme, setTheme }) => {
         setFirstPath(pathSegments[3])
     }, [window.location.href])
 
-    useEffect(() => {
-        if(Object.keys(tokenResult).length !== 0) {
-        setAvatar(localStorage.getItem('avatar')?.replaceAll('"', ""))
-        setUser(JSON.parse(localStorage.getItem('profile')))
-        }
-    }, [tokenResult])
-
-    useEffect(() => {
-        setTimeout(() => {
-        setAvatar(localStorage.getItem('avatar')?.replaceAll('"', ""))
-        setUser(JSON.parse(localStorage.getItem('profile')))
-        }, 5000);
-    }, [])
-
     const handleSearch = (e) => {
         e.preventDefault()
 

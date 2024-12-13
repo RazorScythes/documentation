@@ -233,7 +233,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                                 >
                                                                     <Avatar 
                                                                         theme={theme}
-                                                                        image={''}
+                                                                        image={item.user?.avatar}
                                                                         size={8}
                                                                     />
                                                                     <div
@@ -242,10 +242,10 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                                     ></div>
                                                                 </div>
                                                                 <div>
-                                                                    <p className="font-medium">{item.user.username}</p>
+                                                                    <p className="font-medium">{item.user?.username}</p>
                                                                     {
-                                                                        item.user.role === 'Admin' ? <p className="text-xs font-medium text-[#DC2626]">Admin</p> :
-                                                                        item.user.role === 'Moderator' ? <p className="text-xs font-medium text-[#FFAA33]">Moderator</p> 
+                                                                        item.user?.role === 'Admin' ? <p className="text-xs font-medium text-[#DC2626]">Admin</p> :
+                                                                        item.user?.role === 'Moderator' ? <p className="text-xs font-medium text-[#FFAA33]">Moderator</p> 
                                                                         : <p class="text-xs font-medium text-[#2563EB]">User</p>
                                                                     }
                                                                 </div>

@@ -3,6 +3,7 @@ import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getGroups } from '../../../actions/groups';
 import { getUserVideos, newVideo, updateVideo, deleteVideo, deleteMultipleVideos, updateVideoSettings, clearAlert } from '../../../actions/videos';
+import { getTags } from '../../../actions/tags';
 import { convertDriveImageLink, millisToTimeString } from '../../Tools'
 
 import Table from '../../Custom/Table'
@@ -25,6 +26,7 @@ const Videos = ({ user, theme, setNotification }) => {
     const videos = useSelector((state) => state.videos.data)
     const loading = useSelector((state) => state.videos.isLoading)
     const alert = useSelector((state) => state.videos.alert) 
+    const tags = useSelector((state) => state.tags.data)
 
     const [tableData, setTableData] = useState([])
     const [selectedData, setSelectedData] = useState(null)
@@ -65,20 +67,7 @@ const Videos = ({ user, theme, setNotification }) => {
             name: 'Adventure',
             value: 2
         }],
-        tags: [
-            {
-                "id": 1,
-                "name": "Adventure",
-                "count": 20,
-                "value": 1
-            },
-            {
-                "id": 2,
-                "name": "Profile",
-                "count": 20,
-                "value": 2
-            }
-        ]
+        tags: []
     })
 
     useEffect(() => {
@@ -90,15 +79,23 @@ const Videos = ({ user, theme, setNotification }) => {
     }, [videos])
 
     useEffect(() => {
+        if(tags.length > 0) {
+            setList({ ...list, tags: tags })
+        }
+    }, [tags])
+
+    useEffect(() => {
         if(Object.keys(alert).length > 0) {
             dispatch(clearAlert())
             setNotification(alert)
+            setSubmitted(false)
         }
     }, [alert])
 
     useEffect(() => {
         dispatch(getGroups({ type: 'video' }))
         dispatch(getUserVideos())
+        dispatch(getTags({ type: 'video', options: true }))
     }, [])
 
     useEffect(() => {

@@ -13,6 +13,7 @@ import adminSlice from '../actions/admin'
 import groupSlice from '../actions/groups'
 import videosSlice from '../actions/videos'
 import userSlice from '../actions/user'
+import tagsSlice from '../actions/tags'
 
 export const store = configureStore({
     reducer: {
@@ -29,7 +30,8 @@ export const store = configureStore({
         admin       : adminSlice,
         groups      : groupSlice,
         videos      : videosSlice,
-        user        : userSlice
+        user        : userSlice,
+        tags        : tagsSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

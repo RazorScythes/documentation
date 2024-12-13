@@ -5,7 +5,7 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faDashboard, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -19,6 +19,9 @@ import Reports from './Account/Reports';
 import Groups from './Account/Groups';
 import Password from './Account/Password';
 import Logs from './Account/Logs';
+import Author from './Account/Author';
+import Tags from './Account/Tags';
+import Categories from './Account/Categories';
 
 import Notification from '../Custom/Notification';
 
@@ -70,6 +73,16 @@ const Account = ({ user, theme }) => {
             ] 
         },
         { name: 'Playlists', icon: faListSquares, path: 'playlist', dropdown: [] },
+        { 
+            name: 'Global List', 
+            icon: faGlobe, 
+            path: 'globallist', 
+            dropdown: [
+                { name: 'Tags', path: 'globallist' },
+                { name: 'Categories', path: 'globallist/categories' },
+                { name: 'Author', path: 'globallist/author' },
+            ] 
+        },
         { name: 'Favorites', icon: faHeart, path: 'favorites', dropdown: [] },
         { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
         { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
@@ -184,7 +197,7 @@ const Account = ({ user, theme }) => {
                                 </div>
                             </div>
 
-                            <div className={`w-full mt-4 px-6 py-3 pb-5 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                            <div className={`w-full mt-4 px-6 py-3 pb-5 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                 {   
                                     activePage('') ?
                                         <Overview
@@ -227,6 +240,26 @@ const Account = ({ user, theme }) => {
                                             />
                                         : activeSubPage('videos', 'videos/reports') &&
                                             <Reports
+                                                user={user}
+                                                theme={theme}
+                                                setNotification={setNotification}
+                                            />
+                                    )
+                                    : activePage('globallist') ? (
+                                        activeSubPage('globallist', 'globallist') ?
+                                            <Tags
+                                                user={user}
+                                                theme={theme}
+                                                setNotification={setNotification}
+                                            />
+                                        : activeSubPage('globallist', 'globallist/categories') ?
+                                            <Categories
+                                                user={user}
+                                                theme={theme}
+                                                setNotification={setNotification}
+                                            />
+                                        : activeSubPage('globallist', 'globallist/author') &&
+                                            <Author
                                                 user={user}
                                                 theme={theme}
                                                 setNotification={setNotification}
