@@ -129,6 +129,9 @@ const Groups = ({ user, theme, setNotification }) => {
         if(Object.keys(alert).length > 0) {
             dispatch(clearAlert())
             setNotification(alert)
+            setSubmitted(false)
+			setEdit(false)
+			setConfirm(false)
         }
     }, [alert])
 

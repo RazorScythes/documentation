@@ -9,10 +9,10 @@ const initialState = {
     error       : '',
 }
 
-export const getTags = createAsyncThunk('tags/getTags', async (data, thunkAPI) => {
+export const getCategory = createAsyncThunk('category/getCategory', async (data, thunkAPI) => {
     try {
         const { type, options } = data
-        const response = await api.getTags(type, options)
+        const response = await api.getCategory(type, options)
         return response
     }
     catch (err) {
@@ -26,9 +26,9 @@ export const getTags = createAsyncThunk('tags/getTags', async (data, thunkAPI) =
     }
 })
 
-export const newTags = createAsyncThunk('tags/newTags', async (form, thunkAPI) => {
+export const newCategory = createAsyncThunk('category/newCategory', async (form, thunkAPI) => {
     try {
-        const response = await api.newTags(form)
+        const response = await api.newCategory(form)
         return response
     }
     catch (err) {
@@ -44,9 +44,9 @@ export const newTags = createAsyncThunk('tags/newTags', async (form, thunkAPI) =
     }
 })
 
-export const updateTags = createAsyncThunk('tags/updateTags', async (form, thunkAPI) => {
+export const updateCategory = createAsyncThunk('category/updateCategory', async (form, thunkAPI) => {
     try {
-        const response = await api.updateTags(form)
+        const response = await api.updateCategory(form)
         return response
     }
     catch (err) {
@@ -62,10 +62,10 @@ export const updateTags = createAsyncThunk('tags/updateTags', async (form, thunk
     }
 })
 
-export const deleteTags = createAsyncThunk('tags/deleteTags', async (data, thunkAPI) => {
+export const deleteCategory = createAsyncThunk('category/deleteCategory', async (data, thunkAPI) => {
     try {
         const { id, type } = data
-        const response = await api.deleteTags(id, type)
+        const response = await api.deleteCategory(id, type)
         return response
     }
     catch (err) {
@@ -81,9 +81,9 @@ export const deleteTags = createAsyncThunk('tags/deleteTags', async (data, thunk
     }
 })
 
-export const deleteMultipleTags = createAsyncThunk('tags/deleteMultipleTags', async (form, thunkAPI) => {
+export const deleteMultipleCategory = createAsyncThunk('category/deleteMultipleCategory', async (form, thunkAPI) => {
     try {
-        const response = await api.deleteMultipleTags(form)
+        const response = await api.deleteMultipleCategory(form)
         return response
     }
     catch (err) {
@@ -99,9 +99,9 @@ export const deleteMultipleTags = createAsyncThunk('tags/deleteMultipleTags', as
     }
 })
 
-export const updateTagsSettings = createAsyncThunk('tags/updateTagsSettings', async (form, thunkAPI) => {
+export const updateCategorySettings = createAsyncThunk('category/updateCategorySettings', async (form, thunkAPI) => {
     try {
-        const response = await api.updateTagsSettings(form)
+        const response = await api.updateCategorySettings(form)
         return response
     }
     catch (err) {
@@ -117,63 +117,63 @@ export const updateTagsSettings = createAsyncThunk('tags/updateTagsSettings', as
     }
 })
 
-export const tagsSlice = createSlice({
-    name: 'tags',
+export const categorySlice = createSlice({
+    name: 'category',
     initialState,
     extraReducers: (builder) => {
-        builder.addCase(getTags.fulfilled, (state, action) => {
+        builder.addCase(getCategory.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.isLoading     = false
         }),
-        builder.addCase(getTags.pending, (state, action) => {
+        builder.addCase(getCategory.pending, (state, action) => {
             state.notFound      = false
             state.isLoading     = true
         }),
-        builder.addCase(getTags.rejected, (state, action) => {
+        builder.addCase(getCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
             state.isLoading     = false
         }),
-        builder.addCase(newTags.fulfilled, (state, action) => {
+        builder.addCase(newCategory.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(newTags.pending, (state, action) => {
+        builder.addCase(newCategory.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(newTags.rejected, (state, action) => {
+        builder.addCase(newCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(updateTags.fulfilled, (state, action) => {
+        builder.addCase(updateCategory.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(updateTags.pending, (state, action) => {
+        builder.addCase(updateCategory.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(updateTags.rejected, (state, action) => {
+        builder.addCase(updateCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(deleteTags.fulfilled, (state, action) => {
+        builder.addCase(deleteCategory.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(deleteTags.pending, (state, action) => {
+        builder.addCase(deleteCategory.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(deleteTags.rejected, (state, action) => {
+        builder.addCase(deleteCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(deleteMultipleTags.fulfilled, (state, action) => {
+        builder.addCase(deleteMultipleCategory.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(deleteMultipleTags.pending, (state, action) => {
+        builder.addCase(deleteMultipleCategory.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(deleteMultipleTags.rejected, (state, action) => {
+        builder.addCase(deleteMultipleCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(updateTagsSettings.fulfilled, (state, action) => {
+        builder.addCase(updateCategorySettings.fulfilled, (state, action) => {
             const filteredObjects = state.data.map(obj => {
                 if (obj._id === action.payload.data.result._id) {return action.payload.data.result;}
                 return obj;
@@ -182,10 +182,10 @@ export const tagsSlice = createSlice({
             state.data          = filteredObjects
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(updateTagsSettings.pending, (state, action) => {
+        builder.addCase(updateCategorySettings.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(updateTagsSettings.rejected, (state, action) => {
+        builder.addCase(updateCategorySettings.rejected, (state, action) => {
             state.alert         = action.payload.alert
         })
     },
@@ -196,6 +196,6 @@ export const tagsSlice = createSlice({
     },
 })
 
-export const { clearAlert, clearMailStatus } = tagsSlice.actions
+export const { clearAlert, clearMailStatus } = categorySlice.actions
 
-export default tagsSlice.reducer
+export default categorySlice.reducer

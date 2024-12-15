@@ -14,6 +14,8 @@ import groupSlice from '../actions/groups'
 import videosSlice from '../actions/videos'
 import userSlice from '../actions/user'
 import tagsSlice from '../actions/tags'
+import categorySlice from '../actions/category'
+import authorSlice from '../actions/author'
 
 export const store = configureStore({
     reducer: {
@@ -31,7 +33,9 @@ export const store = configureStore({
         groups      : groupSlice,
         videos      : videosSlice,
         user        : userSlice,
-        tags        : tagsSlice
+        tags        : tagsSlice,
+        category    : categorySlice,
+        author      : authorSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

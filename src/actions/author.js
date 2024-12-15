@@ -9,10 +9,10 @@ const initialState = {
     error       : '',
 }
 
-export const getTags = createAsyncThunk('tags/getTags', async (data, thunkAPI) => {
+export const getAuthor = createAsyncThunk('author/getAuthor', async (data, thunkAPI) => {
     try {
         const { type, options } = data
-        const response = await api.getTags(type, options)
+        const response = await api.getAuthor(type, options)
         return response
     }
     catch (err) {
@@ -26,9 +26,9 @@ export const getTags = createAsyncThunk('tags/getTags', async (data, thunkAPI) =
     }
 })
 
-export const newTags = createAsyncThunk('tags/newTags', async (form, thunkAPI) => {
+export const newAuthor = createAsyncThunk('author/newAuthor', async (form, thunkAPI) => {
     try {
-        const response = await api.newTags(form)
+        const response = await api.newAuthor(form)
         return response
     }
     catch (err) {
@@ -44,9 +44,9 @@ export const newTags = createAsyncThunk('tags/newTags', async (form, thunkAPI) =
     }
 })
 
-export const updateTags = createAsyncThunk('tags/updateTags', async (form, thunkAPI) => {
+export const updateAuthor = createAsyncThunk('author/updateAuthor', async (form, thunkAPI) => {
     try {
-        const response = await api.updateTags(form)
+        const response = await api.updateAuthor(form)
         return response
     }
     catch (err) {
@@ -62,10 +62,10 @@ export const updateTags = createAsyncThunk('tags/updateTags', async (form, thunk
     }
 })
 
-export const deleteTags = createAsyncThunk('tags/deleteTags', async (data, thunkAPI) => {
+export const deleteAuthor = createAsyncThunk('author/deleteAuthor', async (data, thunkAPI) => {
     try {
         const { id, type } = data
-        const response = await api.deleteTags(id, type)
+        const response = await api.deleteAuthor(id, type)
         return response
     }
     catch (err) {
@@ -81,9 +81,9 @@ export const deleteTags = createAsyncThunk('tags/deleteTags', async (data, thunk
     }
 })
 
-export const deleteMultipleTags = createAsyncThunk('tags/deleteMultipleTags', async (form, thunkAPI) => {
+export const deleteMultipleAuthor = createAsyncThunk('author/deleteMultipleAuthor', async (form, thunkAPI) => {
     try {
-        const response = await api.deleteMultipleTags(form)
+        const response = await api.deleteMultipleAuthor(form)
         return response
     }
     catch (err) {
@@ -99,93 +99,60 @@ export const deleteMultipleTags = createAsyncThunk('tags/deleteMultipleTags', as
     }
 })
 
-export const updateTagsSettings = createAsyncThunk('tags/updateTagsSettings', async (form, thunkAPI) => {
-    try {
-        const response = await api.updateTagsSettings(form)
-        return response
-    }
-    catch (err) {
-        if(err.response.data)
-          return thunkAPI.rejectWithValue(err.response.data);
-
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
-        })
-    }
-})
-
-export const tagsSlice = createSlice({
-    name: 'tags',
+export const authorSlice = createSlice({
+    name: 'author',
     initialState,
     extraReducers: (builder) => {
-        builder.addCase(getTags.fulfilled, (state, action) => {
+        builder.addCase(getAuthor.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.isLoading     = false
         }),
-        builder.addCase(getTags.pending, (state, action) => {
+        builder.addCase(getAuthor.pending, (state, action) => {
             state.notFound      = false
             state.isLoading     = true
         }),
-        builder.addCase(getTags.rejected, (state, action) => {
+        builder.addCase(getAuthor.rejected, (state, action) => {
             state.alert         = action.payload.alert
             state.isLoading     = false
         }),
-        builder.addCase(newTags.fulfilled, (state, action) => {
+        builder.addCase(newAuthor.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(newTags.pending, (state, action) => {
+        builder.addCase(newAuthor.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(newTags.rejected, (state, action) => {
+        builder.addCase(newAuthor.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(updateTags.fulfilled, (state, action) => {
+        builder.addCase(updateAuthor.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(updateTags.pending, (state, action) => {
+        builder.addCase(updateAuthor.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(updateTags.rejected, (state, action) => {
+        builder.addCase(updateAuthor.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(deleteTags.fulfilled, (state, action) => {
+        builder.addCase(deleteAuthor.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(deleteTags.pending, (state, action) => {
+        builder.addCase(deleteAuthor.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(deleteTags.rejected, (state, action) => {
+        builder.addCase(deleteAuthor.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
-        builder.addCase(deleteMultipleTags.fulfilled, (state, action) => {
+        builder.addCase(deleteMultipleAuthor.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
-        builder.addCase(deleteMultipleTags.pending, (state, action) => {
+        builder.addCase(deleteMultipleAuthor.pending, (state, action) => {
             state.notFound      = false
         }),
-        builder.addCase(deleteMultipleTags.rejected, (state, action) => {
-            state.alert         = action.payload.alert
-        }),
-        builder.addCase(updateTagsSettings.fulfilled, (state, action) => {
-            const filteredObjects = state.data.map(obj => {
-                if (obj._id === action.payload.data.result._id) {return action.payload.data.result;}
-                return obj;
-            });
-
-            state.data          = filteredObjects
-            state.alert         = action.payload.data.alert
-        }),
-        builder.addCase(updateTagsSettings.pending, (state, action) => {
-            state.notFound      = false
-        }),
-        builder.addCase(updateTagsSettings.rejected, (state, action) => {
+        builder.addCase(deleteMultipleAuthor.rejected, (state, action) => {
             state.alert         = action.payload.alert
         })
     },
@@ -196,6 +163,6 @@ export const tagsSlice = createSlice({
     },
 })
 
-export const { clearAlert, clearMailStatus } = tagsSlice.actions
+export const { clearAlert, clearMailStatus } = authorSlice.actions
 
-export default tagsSlice.reducer
+export default authorSlice.reducer

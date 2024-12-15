@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
-import { getTags, newTags, updateTags, deleteTags, deleteMultipleTags, clearAlert } from '../../../actions/tags';
+import { getTags, newTags, updateTags, updateTagsSettings, deleteTags, deleteMultipleTags, clearAlert } from '../../../actions/tags';
 
-import Table from '../../Custom/Table'
-import ConfirmModal from '../../Custom/ConfirmModal'
+import Table from '../../Custom/Table';
+import ConfirmModal from '../../Custom/ConfirmModal';
 import CustomForm from '../../Custom/CustomForm';
+import CheckBoxRequest from '../../Custom/CheckBoxRequest';
 
 const Tags = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
@@ -33,13 +34,28 @@ const Tags = ({ user, theme, setNotification }) => {
             required: true,
             validate: (value) =>
                 value?.length < 3 ? "Title must be at least 3 characters" : null,
-        }
+        },
+        {
+            label: "Description",
+            name: "description",
+            type: "textarea"
+        },
+        {
+            label: "Settings",
+            type: "labelOnly",
+        },
+        {
+            label: "Strict Mode",
+            name: "strict",
+            type: "checkbox",
+        },
     ];
     
     const editMode = (data) => {
         setInitialValues({ 
             id: data._id,
             name: data.name,
+            description: data.description
         })
         setEdit(true)
         setUpdateForm(true)
@@ -108,6 +124,8 @@ const Tags = ({ user, theme, setNotification }) => {
             dispatch(clearAlert())
             setNotification(alert)
             setSubmitted(false)
+            setEdit(false)
+            setConfirm(false)
         }
     }, [alert])
 
@@ -129,7 +147,7 @@ const Tags = ({ user, theme, setNotification }) => {
             />
 
             <div className='mb-8 mt-4 flex xs:flex-row flex-col justify-start items-start gap-2'>
-                <h1 className="text-xl font-medium mb-1">Your Group Lists</h1>
+                <h1 className="text-xl font-medium mb-1">Tag Lists</h1>
                 <button
                     onClick={() => {
                         setFormOpen(!formOpen)
@@ -163,14 +181,26 @@ const Tags = ({ user, theme, setNotification }) => {
                     theme={theme}
                     title=""
                     header={[
-                        { key: 'name', label: 'Tag Name' },
+                        { key: 'name', label: 'Category Name' },
                         { key: 'count', label: 'Total Used' },
                         { key: 'user', label: 'Created By', type: 'user' },
+                        { key: 'strict', label: 'Strict', render: (item, index) => 
+                            <CheckBoxRequest 
+                                theme={theme}
+                                options={['Yes', 'No']}
+                                item={item}
+                                endpoint={updateTagsSettings({
+                                    id: tableData[index]?._id,
+                                    type: 'strict',
+                                    value: !item,
+                                })}
+                            />
+                        },
                         { key: 'createdAt', label: 'Timestamp' },
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
-                        // { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => editMode(item) },
+                        { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => editMode(item) },
                         { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
                     ]}
                     limit={10}

@@ -109,7 +109,7 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
 
             <ConfirmModal 
                 theme={theme}
-                title="Confirm Video Deletion"
+                title="Confirm Deletion"
                 description={`Are you sure you want to delete these ${idList.length} ${category ? category : 'items'}?`}
                 openModal={openModal}
                 setOpenModal={setOpenModal}
@@ -227,35 +227,54 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                         </button>
                                                     ))
                                                     : col?.type === 'user' ?
-                                                            <div class="flex items-center">
+                                                        <div class="flex items-center">
+                                                            <div
+                                                                className="relative w-8 h-8 mr-3 rounded-full"
+                                                            >
+                                                                <Avatar 
+                                                                    theme={theme}
+                                                                    image={item.user?.avatar}
+                                                                    size={8}
+                                                                />
                                                                 <div
-                                                                    className="relative w-8 h-8 mr-3 rounded-full"
-                                                                >
-                                                                    <Avatar 
-                                                                        theme={theme}
-                                                                        image={item.user?.avatar}
-                                                                        size={8}
-                                                                    />
-                                                                    <div
-                                                                        className="absolute inset-0 rounded-full shadow-inner"
-                                                                        aria-hidden="true"
-                                                                    ></div>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-medium">{item.user?.username}</p>
-                                                                    {
-                                                                        item.user?.role === 'Admin' ? <p className="text-xs font-medium text-[#DC2626]">Admin</p> :
-                                                                        item.user?.role === 'Moderator' ? <p className="text-xs font-medium text-[#FFAA33]">Moderator</p> 
-                                                                        : <p class="text-xs font-medium text-[#2563EB]">User</p>
-                                                                    }
-                                                                </div>
+                                                                    className="absolute inset-0 rounded-full shadow-inner"
+                                                                    aria-hidden="true"
+                                                                ></div>
                                                             </div>
-                                                        : col.render ? (
-                                                            // col.render(item[col.key], startIndex + index) 
-                                                            col.render(item[col.key], getIndex(lookupKey, item[lookupKey]))
-                                                        ) : (
-                                                            item[col.key]
-                                                        )}
+                                                            <div>
+                                                                <p className="font-medium">{item.user?.username}</p>
+                                                                {
+                                                                    item.user?.role === 'Admin' ? <p className="text-xs font-medium text-[#DC2626]">Admin</p> :
+                                                                    item.user?.role === 'Moderator' ? <p className="text-xs font-medium text-[#FFAA33]">Moderator</p> 
+                                                                    : <p class="text-xs font-medium text-[#2563EB]">User</p>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    : col?.type === 'image_name' ?
+                                                        <div class="flex items-center">
+                                                            <div
+                                                                className="relative w-8 h-8 mr-3 rounded-full"
+                                                            >
+                                                                <Avatar 
+                                                                    theme={theme}
+                                                                    image={item?.image}
+                                                                    size={8}
+                                                                />
+                                                                <div
+                                                                    className="absolute inset-0 rounded-full shadow-inner"
+                                                                    aria-hidden="true"
+                                                                ></div>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium">{item?.name}</p>
+                                                            </div>
+                                                        </div>
+                                                    : col.render ? (
+                                                        // col.render(item[col.key], startIndex + index) 
+                                                        col.render(item[col.key], getIndex(lookupKey, item[lookupKey]))
+                                                    ) : (
+                                                        item[col.key]
+                                                    )}
                                             </td>
                                         ))}
                                     </tr>

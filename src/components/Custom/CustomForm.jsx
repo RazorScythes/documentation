@@ -212,7 +212,7 @@ const CustomForm = ({
         for (const key in newObj) {
             const value = newObj[key];
 
-            if (value.hasOwnProperty('save')) {
+            if (value?.hasOwnProperty('save')) {
                 newObj[key] = value.save;
             }
             else if(value instanceof File || isStringArrayOnly(value)) {

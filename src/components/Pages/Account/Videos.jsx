@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { getGroups } from '../../../actions/groups';
 import { getUserVideos, newVideo, updateVideo, deleteVideo, deleteMultipleVideos, updateVideoSettings, clearAlert } from '../../../actions/videos';
 import { getTags } from '../../../actions/tags';
+import { getCategory } from '../../../actions/category';
+import { getAuthor } from '../../../actions/author';
 import { convertDriveImageLink, millisToTimeString } from '../../Tools'
 
 import Table from '../../Custom/Table'
@@ -27,6 +29,8 @@ const Videos = ({ user, theme, setNotification }) => {
     const loading = useSelector((state) => state.videos.isLoading)
     const alert = useSelector((state) => state.videos.alert) 
     const tags = useSelector((state) => state.tags.data)
+    const category = useSelector((state) => state.category.data)
+    const author = useSelector((state) => state.author.data)
 
     const [tableData, setTableData] = useState([])
     const [selectedData, setSelectedData] = useState(null)
@@ -49,24 +53,8 @@ const Videos = ({ user, theme, setNotification }) => {
     const [edit, setEdit] = useState(false)
     const [list, setList] = useState({
         groups: [],
-        owner: [{
-            id: 1,
-            name: 'RazorScythe',
-            value: 1
-        },{
-            id: 2,
-            name: 'Zantei25',
-            value: 2
-        }],
-        category: [{
-            id: 1,
-            name: 'Profile',
-            value: 1
-        },{
-            id: 2,
-            name: 'Adventure',
-            value: 2
-        }],
+        owner: [],
+        category: [],
         tags: []
     })
 
@@ -79,16 +67,21 @@ const Videos = ({ user, theme, setNotification }) => {
     }, [videos])
 
     useEffect(() => {
-        if(tags.length > 0) {
-            setList({ ...list, tags: tags })
-        }
-    }, [tags])
+        setList(prevList => ({
+            ...prevList,
+            ...(tags.length > 0 && { tags }),
+            ...(category.length > 0 && { category }),
+            ...(author.length > 0 && { owner: author }),
+        }));
+    }, [tags, category, author]);
 
     useEffect(() => {
         if(Object.keys(alert).length > 0) {
             dispatch(clearAlert())
             setNotification(alert)
             setSubmitted(false)
+            setEdit(false)
+			setConfirm(false)
         }
     }, [alert])
 
@@ -96,6 +89,8 @@ const Videos = ({ user, theme, setNotification }) => {
         dispatch(getGroups({ type: 'video' }))
         dispatch(getUserVideos())
         dispatch(getTags({ type: 'video', options: true }))
+        dispatch(getCategory({ type: 'video', options: true }))
+        dispatch(getAuthor({ type: 'video', options: true }))
     }, [])
 
     useEffect(() => {
