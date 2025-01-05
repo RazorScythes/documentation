@@ -16,6 +16,7 @@ import userSlice from '../actions/user'
 import tagsSlice from '../actions/tags'
 import categorySlice from '../actions/category'
 import authorSlice from '../actions/author'
+import watchSlice from '../actions/watch'
 
 export const store = configureStore({
     reducer: {
@@ -35,7 +36,8 @@ export const store = configureStore({
         user        : userSlice,
         tags        : tagsSlice,
         category    : categorySlice,
-        author      : authorSlice
+        author      : authorSlice,
+        watch       : watchSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

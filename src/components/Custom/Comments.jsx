@@ -117,7 +117,7 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
                 <div className='flex justify-between'>
                     <div className='w-full'>
                         <h1 className="font-medium truncate">{data.user}</h1>
-                        <p className={`text-xs ${!toggle.comment && 'truncate'} w-full ${theme === 'light' ? light.text : dark.text}`}>{moment(data.date).fromNow()}</p>
+                        <p className={`text-xs ${!toggle.comment && 'truncate'} w-full ${theme === 'light' ? light.text : dark.text}`}>{moment(data.createdAt ?? data.date).fromNow()}</p>
                     </div>
 
                     <div className="flex gap-5">
@@ -213,7 +213,7 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
     )
 }
 
-export const Comments = ({ theme, data }) => {
+export const Comments = ({ theme, data, handleSubmit }) => {
     const [trigger, setTrigger]     = useState(false)
     const [token, setToken]         = useState(cookies.get('token'))
     const [user, setUser]           = useState(JSON.parse(localStorage.getItem('profile')))
@@ -221,8 +221,7 @@ export const Comments = ({ theme, data }) => {
 
     useEffect(() => {
         if(trigger) {
-            //dispatch function
-            console.log(data)
+            handleSubmit(data)
             setTrigger(false)
         }
     }, [trigger])
@@ -254,7 +253,7 @@ export const CommentField = ({ theme, comment, setComment }) => {
         if(!text || comment) return
 
         setComment({
-            id          : user._id,
+            user_id     : user._id,
             avatar      : image,
             user        : user.username,
             text        : text,

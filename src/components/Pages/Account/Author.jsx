@@ -171,7 +171,7 @@ const Author = ({ user, theme, setNotification }) => {
                     theme={theme}
                     title=""
                     header={[
-                        { key: 'name', label: 'Category Name' },
+                        { key: 'name', label: 'Author Name' },
                         { key: 'count', label: 'Total Used' },
                         { key: 'user', label: 'Created By', type: 'user' },
                         { key: 'createdAt', label: 'Timestamp' },

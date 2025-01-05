@@ -70,3 +70,12 @@ export const updateVideo                        = (formData) => endpoint.patch('
 export const updateVideoSettings                = (formData) => endpoint.patch('/videos/updateVideoSettings', formData, options) 
 export const deleteVideo                        = (id) => endpoint.delete(`/videos/deleteVideo/${id}`, options) 
 export const deleteMultipleVideos               = (formData) => endpoint.patch(`/videos/deleteMultipleVideos`, formData, options) 
+
+/*
+    PUBLIC
+*/
+export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, options)
+export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, options)
+export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, options) 
+export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, options)
+

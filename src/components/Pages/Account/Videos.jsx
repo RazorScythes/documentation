@@ -21,6 +21,18 @@ import { v4 as uuidv4 } from 'uuid';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faDownload, faFileImport, faHamburger, faUpload } from '@fortawesome/free-solid-svg-icons';
 
+const generateRandomID = (length = 20) => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+  
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters.charAt(randomIndex);
+    }
+  
+    return result;
+}
+
 const Videos = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
 
@@ -212,11 +224,17 @@ const Videos = ({ user, theme, setNotification }) => {
             }
 
             if(edit) {
+                if(!data.access_key) {
+                    data.access_key = generateRandomID();
+                }
+
                 dispatch(updateVideo({
                     data
                 }))
             }
             else {
+                data.access_key = generateRandomID();
+
                 dispatch(newVideo({
                     id: user._id,
                     data
