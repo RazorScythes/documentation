@@ -42,6 +42,7 @@ const Watch = ({ user, theme }) => {
             const deepClonedComments = JSON.parse(JSON.stringify(comments));
 
             setData(deepClonedComments);
+            setComment(null);
         }
         else setData([]);
     }, [comments])
@@ -72,9 +73,6 @@ const Watch = ({ user, theme }) => {
             comment.type = 'video';
 
             dispatch(addVideoComment(comment))
-            
-            setData(newData)
-            setComment(null)
         }
     }, [comment])
 

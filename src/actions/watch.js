@@ -112,6 +112,13 @@ export const watchSlice = createSlice({
         builder.addCase(getVideoComment.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
+        builder.addCase(addVideoComment.fulfilled, (state, action) => {
+            state.comments      = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(addVideoComment.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
         builder.addCase(updateVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
             state.alert         = action.payload.data.alert
