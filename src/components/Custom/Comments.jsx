@@ -5,15 +5,39 @@ import { dark, light } from '../../style';
 import Cookies from 'universal-cookie';
 import moment from 'moment'
 import Avatar from './Avatar'
+import ConfirmModal from './ConfirmModal';
 import { MotionAnimate } from 'react-motion-animate';
 
 const cookies = new Cookies();
 
-const Template = ({ theme, data, token, user, image, setTrigger }) => {
+const generateRandomKey = (length = 16) => {
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        result += characters[randomIndex];
+    }
+
+    return result;
+};
+
+const removeReply = (replies, targetId) => {
+    return replies
+        .map(reply => ({
+            ...reply,
+            replies: removeReply(reply.replies, targetId) 
+        }))
+        .filter(reply => reply.comment_id !== targetId);
+}
+
+const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) => {
     const [childTrigger, setChildTrigger]   = useState(false)
     const [comment, setComment]             = useState('')
     const [activeLike, setActiveLike]       = useState(false)
     const [activeDislike, setActiveDislike] = useState(false)
+    const [openModal, setOpenModal]         = useState(false)
+    const [confirm, setConfirm]             = useState(false)
 
     const [toggle, setToggle] = useState({
         comment         : false,
@@ -29,8 +53,21 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
     }, [childTrigger])
 
     useEffect(() => {
+        if(confirm) {
+            setRemove({
+                type: data.comment_id ? 'child' : 'parent',
+                id: data.comment_id ? data.comment_id : data._id
+            })
+            setConfirm(false);
+        }
+    }, [confirm])
+
+    useEffect(() => {
         const userId = cookies.get('uid');
-    
+
+        setActiveLike(false);
+        setActiveDislike(false);
+        
         if(data.likes.length > 0){
             if (data.likes.includes(userId)) {
                 setActiveLike(true)
@@ -85,7 +122,8 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
         const replies = [...data.replies]
 
         const newReply = {
-            id          : user._id,
+            user_id     : user._id,
+            comment_id  : generateRandomKey(),
             avatar      : image,
             user        : user.username,
             text        : comment,
@@ -105,6 +143,15 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
     
     return (
         <div className='w-full flex items-start transition-all'>
+            <ConfirmModal 
+                theme={theme}
+                title="Delete Comment"
+                description={`Are you sure you want to delete your comment?`}
+                openModal={openModal}
+                setOpenModal={setOpenModal}
+                setConfirm={setConfirm}
+            />
+
             <div className="w-12 flex-shrink-0 mr-4 xs:block hidden">
                 <Avatar
                     theme={theme}
@@ -144,6 +191,11 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
                                 </button>
 
                                 <button onClick={() => setToggle({...toggle, reply: !toggle.reply})} className={`${theme === 'light' ? light.text : dark.text} ${theme === 'light' ? light.link : dark.link}`}>Reply</button>
+                                {
+                                    data.user_id === user._id &&
+                                        <button onClick={() => setOpenModal(true)} className={`${theme === 'light' ? light.text : dark.text} ${theme === 'light' ? light.link : dark.link}`}>Delete</button>
+                                }
+                                
                             </div>
 
                             {
@@ -192,6 +244,8 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
                                                         user={user}
                                                         image={image}
                                                         setTrigger={setChildTrigger}
+                                                        setRemove={setRemove}
+                                                        index={index}
                                                     />
                                                 </MotionAnimate>
                                             )
@@ -213,28 +267,49 @@ const Template = ({ theme, data, token, user, image, setTrigger }) => {
     )
 }
 
-export const Comments = ({ theme, data, handleSubmit }) => {
-    const [trigger, setTrigger]     = useState(false)
+export const Comments = ({ theme, data, handleSubmit, deleteComment }) => {
+    const [trigger, setTrigger]     = useState(false);
+    const [remove, setRemove]       = useState(null);
     const [token, setToken]         = useState(cookies.get('token'))
     const [user, setUser]           = useState(JSON.parse(localStorage.getItem('profile')))
     const [image, setImage]         = useState(localStorage.getItem('avatar') ? localStorage.getItem('avatar')?.replaceAll('"', "") : '')
+    const [comment, setComment]     = useState(data)
+    
+    useEffect(() => {
+        setComment(data)
+    }, [data])
 
     useEffect(() => {
         if(trigger) {
-            handleSubmit(data)
+            handleSubmit(comment)
             setTrigger(false)
         }
     }, [trigger])
+ 
+    useEffect(() => {
+        if(remove && typeof remove === 'object') {
+            if (remove.type === 'parent') {
+                deleteComment(remove.id)
+            }
+            else {
+                const obj = removeReply([data], remove.id)
+                setComment(...obj);
+                setRemove(null);
+                setTrigger(true);
+            }
+        }
+    }, [remove])
 
     return (
         <MotionAnimate animation='fadeInUp'>
             <Template
                 theme={theme}
-                data={data}
+                data={comment}
                 token={token}
                 user={user}
                 image={image}
                 setTrigger={setTrigger}
+                setRemove={setRemove}
             />
         </MotionAnimate>
     )

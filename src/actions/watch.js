@@ -5,6 +5,7 @@ const initialState = {
     data        : {},
     alert       : {},
     comments    : [],
+    videoList   : {},
     isLoading   : false,
     notFound    : false,
     error       : '',
@@ -16,6 +17,26 @@ export const getVideoById = createAsyncThunk('watch/getVideoById', async (data, 
         const { id, access_key } = data;
 
         const response = await api.getVideoById(id, access_key)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
+export const getVideoList = createAsyncThunk('watch/getVideoList', async (data, thunkAPI) => {
+    try {
+        const { id } = data;
+
+        const response = await api.getVideoList(id)
         return response
     }
     catch (err) {
@@ -87,6 +108,26 @@ export const updateVideoComment = createAsyncThunk('watch/updateVideoComment', a
     }
 })
 
+export const deleteVideoComment = createAsyncThunk('watch/deleteVideoComment', async (data, thunkAPI) => {
+    try {
+        const { id, video_id } = data;
+
+        const response = await api.deleteVideoComment(id, video_id)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
 export const watchSlice = createSlice({
     name: 'watch',
     initialState,
@@ -100,10 +141,16 @@ export const watchSlice = createSlice({
             state.isLoading     = true
         }),
         builder.addCase(getVideoById.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
             state.notFound      = action.payload.notFound
             state.forbiden      = action.payload.forbiden
             state.isLoading     = false
+        }),
+        builder.addCase(getVideoList.fulfilled, (state, action) => {
+            state.videoList     = action.payload.data.result
+        }),
+        builder.addCase(getVideoList.rejected, (state, action) => {
+            state.alert         = action.payload.alert
         }),
         builder.addCase(getVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
@@ -121,12 +168,21 @@ export const watchSlice = createSlice({
         }),
         builder.addCase(updateVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
-            state.alert         = action.payload.data.alert
         }),
         builder.addCase(updateVideoComment.pending, (state, action) => {
             state.notFound      = false
         }),
         builder.addCase(updateVideoComment.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(deleteVideoComment.fulfilled, (state, action) => {
+            state.comments      = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(deleteVideoComment.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(deleteVideoComment.rejected, (state, action) => {
             state.alert         = action.payload.alert
         })
     },

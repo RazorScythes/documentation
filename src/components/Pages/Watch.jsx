@@ -3,21 +3,41 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom';
 
-import { faEye, faFilm, faSearch, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faCode, faEye, faFilm, faSearch, faThumbsDown, faThumbsUp, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useScreenSize } from '../Tools';
 import { Comments, CommentField } from '../Custom/Comments'
 import { main, dark, light } from '../../style';
-import { getVideoById, getVideoComment, addVideoComment, updateVideoComment } from '../../actions/watch';
+import { getVideoById, getVideoList, getVideoComment, addVideoComment, updateVideoComment, deleteVideoComment, clearAlert } from '../../actions/watch';
 
 import Poster from '../Custom/Poster';
+import Notification from '../Custom/Notification';
 import styles from "../../style";
+
+const millisToTimeString = (millis) => {
+    var seconds = Math.floor(millis / 1000);
+    var hours = Math.floor(seconds / 3600);
+    seconds %= 3600;
+    var minutes = Math.floor(seconds / 60);
+    seconds %= 60;
+
+    var timeString = "";
+    if (hours > 0) {
+        timeString += hours.toString().padStart(2, '0') + ":";
+    }
+    timeString += minutes.toString().padStart(2, '0') + ":" +
+                  seconds.toString().padStart(2, '0');
+    
+    return timeString;
+}
 
 const Watch = ({ user, theme }) => {
     const dispatch = useDispatch()
     const { id } = useParams();
     
     const video = useSelector((state) => state.watch.data)
+    const videoList = useSelector((state) => state.watch.videoList)
+    const alert = useSelector((state) => state.watch.alert)
     const comments = useSelector((state) => state.watch.comments)
     const notFound = useSelector((state) => state.watch.notFound)
     const forbiden = useSelector((state) => state.watch.forbiden)
@@ -27,16 +47,31 @@ const Watch = ({ user, theme }) => {
     const access_key = searchParams.get('access_key')
 
     const [videoData, setVideoData] = useState(null)
+    const [notification, setNotification] = useState({})
+    const [show, setShow] = useState(true)
 
     useEffect(() => {
         dispatch(getVideoById({ id, access_key }))
-    }, [id])
+    }, [id, access_key])
 
     useEffect(() => {
         setVideoData(video);
         dispatch(getVideoComment({id}));
+        dispatch(getVideoList({id}));
     }, [video])
     
+    useEffect(() => {
+        if(Object.keys(alert).length > 0) { 
+            dispatch(clearAlert())
+            setNotification(alert)
+            setShow(true) 
+        }
+    }, [alert])
+
+    useEffect(() => {
+        if(!show) { setNotification({}) }
+    }, [show])
+
     useEffect(() => {
         if(comments.length) {
             const deepClonedComments = JSON.parse(JSON.stringify(comments));
@@ -46,10 +81,6 @@ const Watch = ({ user, theme }) => {
         }
         else setData([]);
     }, [comments])
-
-    useEffect(() => {
-        console.log(videoData)
-    }, [videoData])
     
     const [data, setData] = useState([])
     const [comment, setComment] = useState(null)
@@ -65,9 +96,7 @@ const Watch = ({ user, theme }) => {
     }
 
     useEffect(() => {
-        if(comment) {
-            let newData = [comment, ...data]
-            
+        if(comment) {      
             comment.parent_id = id;
             comment.user_id = user._id;
             comment.type = 'video';
@@ -83,10 +112,23 @@ const Watch = ({ user, theme }) => {
         }))
     }
 
+    const deleteComment = (cid) => {
+        dispatch(deleteVideoComment({
+            id: cid,
+            video_id: id
+        }))
+    }
+
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidth}`}>
+                    <Notification
+                        theme={theme}
+                        data={notification}
+                        show={show}
+                        setShow={setShow}
+                    />
 
                     {
                         forbiden === 'strict' ?
@@ -137,17 +179,50 @@ const Watch = ({ user, theme }) => {
                             <div className='grid md:grid-cols-3 grid-cols-1 gap-5 place-content-start mt-8'>
                                 <div className="md:col-span-2">
                                     <div className="relative w-full overflow-hidden pb-[56.25%] rounded-md">
-                                        <div className={`animate-pulse absolute top-0 left-0 w-full h-full ${theme === 'light' ? light.background : dark.background} border ${theme === 'light' ? light.border : dark.border}`}>
-
+                                        {
+                                            loading ?
+                                                <div className={`animate-pulse absolute top-0 left-0 w-full h-full ${theme === 'light' ? light.background : dark.background} border ${theme === 'light' ? light.border : dark.border}`}></div>
+                                            :
+                                            <>
+                                                {
+                                                    videoData?.video?.downloadUrl ?
+                                                        <video 
+                                                            src={videoData.video?.downloadUrl}
+                                                            poster={videoData.video?.thumbnail}
+                                                            className={`absolute top-0 left-0 w-full h-full ${theme === 'light' ? light.background : dark.background} border ${theme === 'light' ? light.border : dark.border}`}
+                                                            controls 
+                                                            controlsList="nodownload" 
+                                                        >
+                                                        </video>
+                                                    :
+                                                        <iframe 
+                                                            src={videoData?.video?.link}
+                                                            className={`absolute top-0 left-0 w-full h-full ${theme === 'light' ? light.background : dark.background} border ${theme === 'light' ? light.border : dark.border}`}
+                                                            allow="autoplay"
+                                                            sandbox="allow-scripts allow-same-origin"
+                                                            allowFullScreen
+                                                        >
+                                                        </iframe>
+                                                }
+                                            </>
+                                        }                       
+                                    </div>
+                                    
+                                    <div className={`mt-4 rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                        <div className='flex xs:items-center items-start xs:flex-row flex-col '>
+                                            <Link to="" className='flex items-center'>
+                                                <img
+                                                    className='rounded-full w-11 h-11 border border-solid border-[#1C1B19] object-cover'
+                                                    src={ videoData?.avatar }
+                                                    alt="user profile"
+                                                />
+                                                <div className='flex flex-col text-xs justify-between'>
+                                                    <p className='ml-2 break-all font-semibold mb-1 text-sm'>{ videoData?.username }</p>
+                                                    <p className={`ml-2 break-all ${theme === 'light' ? light.text : dark.text}`}>0 Subscriber</p>
+                                                </div>
+                                            </Link>
+                                        
                                         </div>
-                                        {/* <iframe 
-                                            src="https://drive.google.com/file/d/1TWGGc50TAU8nNGnFmmZUTi2zkHtcpM7Y/preview"
-                                            className={`absolute top-0 left-0 w-full h-full ${theme === 'light' ? light.background : dark.background} border ${theme === 'light' ? light.border : dark.border}`}
-                                            allow="autoplay"
-                                            sandbox="allow-scripts allow-same-origin"
-                                            allowFullScreen
-                                        >
-                                        </iframe> */}
                                     </div>
 
                                     <div className={`mt-4 rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
@@ -346,6 +421,7 @@ const Watch = ({ user, theme }) => {
                                                                 theme={theme}
                                                                 data={item}
                                                                 handleSubmit={handleComment}
+                                                                deleteComment={deleteComment}
                                                             />
                                                         )
                                                     })
@@ -356,37 +432,65 @@ const Watch = ({ user, theme }) => {
 
                                 </div>
                                 <div className='flex flex-col gap-4'>
-                                    <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                        <h1 className="text-lg font-medium">Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</h1>
-                                        <p className={`truncate w-full mt-2 mb-8 ${theme === 'light' ? light.text : dark.text}`}>2024 • 12 Episodes</p>
-                                    
-                                        <div className='md:flex md:flex-col sm:grid sm:grid-cols-2 flex flex-col gap-4 max-h-[500px] overflow-y-auto'>
-                                            <Link to={`/`} className='w-full flex items-start cursor-pointer transition-all'>
-                                                <div className={`rounded-md overflow-hidden md:w-48 md:max-w-48 xs:w-36 xs:max-w-36 w-56 max-w-32 h-20 mr-2 relative border ${theme === 'light' ? light.border : dark.border}`}>
+                                    {
+                                        Object.keys(videoList).length > 0 ?
+                                            <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                                <h1 className="text-lg font-medium">{ videoList?.group_name }</h1>
+                                                <p className={`truncate w-full mt-2 mb-6 ${theme === 'light' ? light.text : dark.text}`}>{ videoList?.description ?? 'No Description' }</p>
+                                                <div className='md:flex md:flex-col sm:grid sm:grid-cols-2 flex flex-col gap-4 max-h-[500px] overflow-y-auto'>
+                                                    {
+                                                        videoList.videos.map((item, i) => {
+                                                            return (
+                                                                <Link key={i} to={`/watch/${item._id}`} className='w-full flex items-start cursor-pointer transition-all'>
+                                                                    <div className={`bg-black rounded-md overflow-hidden md:w-48 md:max-w-48 xs:w-36 xs:max-w-36 w-56 max-w-32 h-20 mr-2 relative border ${theme === 'light' ? light.border : dark.border}`}>
+                                                                        {
+                                                                            id === item._id &&
+                                                                                <p style={{backgroundColor: 'rgb(0, 0, 0, 0.8'}} className='w-full text-white text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 text-xs py-1'>Watching</p>
+                                                                        }
 
-                                                    <p style={{backgroundColor: 'rgb(0, 0, 0, 0.8'}} className='w-full text-white text-center absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 text-xs py-1'>Watching</p>
+                                                                        <img 
+                                                                            src={item?.thumbnail} alt="Video Thumbnail" 
+                                                                            className='mx-auto object-cover h-20'
+                                                                        />
+                                                                        <div className='absolute top-1 right-1 rounded-sm text-white bg-blue-700 border border-solid border-blue-600' title={item.downloadUrl ? 'Video' : 'Embed'}>
+                                                                            <p className='font-semibold p-1 px-1 py-0 text-xs'><FontAwesomeIcon icon={item.downloadUrl ? faFilm : faCode} /></p>
+                                                                        </div>
+                                                                        <div className='absolute bottom-1 right-1 rounded-sm text-white bg-blue-700 border border-solid border-blue-600'>
+                                                                            <p className='p-1 px-1 py-0 text-xs'>{item.duration ? millisToTimeString(item.duration) : '00:00'}</p>
+                                                                        </div>
+                                                                    </div>
 
-                                                    <img 
-                                                        src={`https://img.bunnyccdn.co/_r/300x400/100/28/a6/28a6148a40022320436d20ea91e2800d/28a6148a40022320436d20ea91e2800d.jpg`} alt="Video Thumbnail" 
-                                                        className='w-full mx-auto object-cover h-20'
-                                                    />
-                                                    <div className='absolute top-1 right-1 rounded-sm text-white bg-blue-700 border border-solid border-blue-600' title={'Video'}>
-                                                        <p className='font-semibold p-1 px-1 py-0 text-xs'><FontAwesomeIcon icon={faFilm} /></p>
-                                                    </div>
-                                                    <div className='absolute bottom-1 right-1 rounded-sm text-white bg-blue-700 border border-solid border-blue-600'>
-                                                        <p className='p-1 px-1 py-0 text-xs'>{'00:00'}</p>
+                                                                    <div className='flex flex-col w-60 max-w-60 overflow-x-hidden'>
+                                                                        <p className='truncate w-full mt-2'>
+                                                                            {item.title}
+                                                                        </p>
+                                                                        <p className={`text-xs truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}> {/*<FontAwesomeIcon icon={faEye} />*/} {item.views.length} views</p>
+                                                                    </div>
+                                                                </Link>
+                                                            )
+                                                        })
+                                                    }
+                                                </div>
+                                            </div> 
+                                            :
+                                            <div className={` overflow-x-hidden rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                                <div className={`w-full h-5 animate-pulse ${theme === 'light' ? light.focusbackground : dark.focusbackground}`}></div>
+                                                <div className={`w-48 mt-2 mb-8 h-5 animate-pulse ${theme === 'light' ? light.focusbackground : dark.focusbackground}`}></div>
+
+                                                <div className='md:flex md:flex-col sm:grid sm:grid-cols-2 flex flex-col gap-4 max-h-[500px] overflow-y-auto'>
+                                                    <div className='w-full flex items-start cursor-pointer transition-all'>
+                                                        <div className={`rounded-md overflow-hidden md:w-48 md:max-w-48 xs:w-36 xs:max-w-36 w-56 max-w-32 h-20 mr-2 relative border ${theme === 'light' ? light.border : dark.border}`}>
+                                                            <div className={`w-full h-20 animate-pulse ${theme === 'light' ? light.focusbackground : dark.focusbackground}`}></div>
+                                                        </div>
+
+                                                        <div className='flex flex-col w-60 max-w-60 overflow-x-hidden'>
+                                                            <div className={`w-32 mt-2 h-5 animate-pulse ${theme === 'light' ? light.focusbackground : dark.focusbackground}`}></div>
+                                                            <div className={`w-16 mt-2 h-5 animate-pulse ${theme === 'light' ? light.focusbackground : dark.focusbackground}`}></div>
+                                                        </div>
                                                     </div>
                                                 </div>
-
-                                                <div className='flex flex-col w-60 max-w-60 overflow-x-hidden'>
-                                                    <p className='truncate w-full mt-2'>
-                                                        Episode 1
-                                                    </p>
-                                                    <p className={`text-xs truncate w-full mt-2 ${theme === 'light' ? light.text : dark.text}`}><FontAwesomeIcon icon={faEye} /> 80</p>
-                                                </div>
-                                            </Link>
-                                        </div>
-                                    </div>
+                                            </div> 
+                                    }
 
                                     <div className={`rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                         <div className='flex justify-between items-center mb-6'>

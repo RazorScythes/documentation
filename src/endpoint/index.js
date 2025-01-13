@@ -75,7 +75,8 @@ export const deleteMultipleVideos               = (formData) => endpoint.patch(`
     PUBLIC
 */
 export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, options)
+export const getVideoList                      = (id) => endpoint.get(`/watch/getVideoList/${id}`, options)
 export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, options)
 export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, options) 
 export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, options)
-
+export const deleteVideoComment                = (id, video_id) => endpoint.delete(`/watch/deleteVideoComment/${id}/${video_id}`, options)
