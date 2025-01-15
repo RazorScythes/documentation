@@ -46,6 +46,7 @@ export const dark = {
     button              : "bg-white hover:bg-blue-600 border border-white hover:border-blue-600 text-[#0e0e0e] hover:text-white font-medium py-1.5 px-4 transition-colors duration-300 ease-in-out",
     button_transparent  : "text-white hover:text-blue-400 font-medium hover:underline transition-all",
     button_secondary    : "bg-blue-600 hover:bg-blue-700 transition-all",
+    button_third        : "bg-[#1C1C1C] hover:bg-blue-600 border border-[#1C1C1C] hover:border-blue-600 text-white hover:text-white py-1.5 px-4 transition-colors duration-300 ease-in-out",
     list_button         : "bg-[#0e0e0e] hover:bg-blue-600 text-white",
     active_list_button  : "bg-blue-600 text-white",
     paginate_btn        : "p-2 px-3.5 hover:bg-blue-600 bg-[#0e0e0e] hover:text-white rounded-md transition-all disabled:cursor-not-allowed cursor-pointers",

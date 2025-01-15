@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom';
 
-import { faCode, faEye, faFilm, faSearch, faThumbsDown, faThumbsUp, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faCode, faDownload, faEllipsisVertical, faEye, faFilm, faListSquares, faSearch, faThumbsDown, faThumbsUp, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useScreenSize } from '../Tools';
 import { Comments, CommentField } from '../Custom/Comments'
@@ -209,19 +209,44 @@ const Watch = ({ user, theme }) => {
                                     </div>
                                     
                                     <div className={`mt-4 rounded-md p-4 px-6 ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                        <div className='flex xs:items-center items-start xs:flex-row flex-col '>
-                                            <Link to="" className='flex items-center'>
-                                                <img
-                                                    className='rounded-full w-11 h-11 border border-solid border-[#1C1B19] object-cover'
-                                                    src={ videoData?.avatar }
-                                                    alt="user profile"
-                                                />
-                                                <div className='flex flex-col text-xs justify-between'>
-                                                    <p className='ml-2 break-all font-semibold mb-1 text-sm'>{ videoData?.username }</p>
-                                                    <p className={`ml-2 break-all ${theme === 'light' ? light.text : dark.text}`}>0 Subscriber</p>
+                                        <div className='grid sm:grid-cols-2 grid-cols-1'>
+                                            <div className='flex xs:items-center items-start xs:flex-row flex-col '>
+                                                <div className='flex items-center'>
+                                                    <img
+                                                        className='rounded-full w-11 h-11 border border-solid border-[#1C1B19] object-cover'
+                                                        src={ videoData?.avatar }
+                                                        alt="user profile"
+                                                    />
+                                                    <div className='flex flex-col text-xs justify-between'>
+                                                        <p className='ml-2 break-all font-semibold mb-1 text-sm'>{ videoData?.username }</p>
+                                                        <p className={`ml-2 break-all ${theme === 'light' ? light.text : dark.text}`}>0 Subscriber</p>
+                                                    </div>
+
+                                                    <button className={`disabled:cursor-not-allowed ml-4 ${theme === 'light' ? light.button : dark.button} rounded-full`}>
+                                                        Subscribe
+                                                    </button>
                                                 </div>
-                                            </Link>
-                                        
+                                            </div>
+
+                                            <div className='flex flex-wrap items-center sm:justify-end gap-2'>
+                                                <div className='flex items-center'>
+                                                    <button className={`disabled:cursor-not-allowed ${theme === 'light' ? light.active_list_button : dark.active_list_button} ${theme === 'light' ? light.button : dark.button_third} rounded-l-full mr-[0.5px]`}>
+                                                        <FontAwesomeIcon icon={faThumbsUp} className='ml-1'/>
+                                                    </button>
+                                                    <button className={`disabled:cursor-not-allowed ${theme === 'light' ? light.button : dark.button_third} rounded-r-full`}>
+                                                        <FontAwesomeIcon icon={faThumbsDown} className='mr-1'/>
+                                                    </button>
+                                                </div>
+                                                <button className={`disabled:cursor-not-allowed ${theme === 'light' ? light.button : dark.button_third} rounded-full`}>
+                                                    <FontAwesomeIcon icon={faListSquares} className='mr-1'/> Playlists
+                                                </button>
+                                                <button className={`disabled:cursor-not-allowed ${theme === 'light' ? light.button : dark.button_third} rounded-full`}>
+                                                    <FontAwesomeIcon icon={faDownload} className='mr-1'/> Download
+                                                </button>
+                                                <button className={`disabled:cursor-not-allowed ${theme === 'light' ? light.button : dark.button_third} rounded-full`}>
+                                                    <FontAwesomeIcon icon={faEllipsisVertical} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
