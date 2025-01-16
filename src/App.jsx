@@ -21,6 +21,8 @@ import Footer from './components/Custom/Footer';
 import Account from './components/Pages/Account';
 import Profile from './components/Pages/Profile';
 
+import Documentation from './components/Pages/Documentation';
+
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
 const App = () => {
@@ -67,6 +69,7 @@ const App = () => {
                     <Route path='/anime/watch/:id' element={<><AnimeWatch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/documentation' element={<><Documentation user={user} theme={theme}/></>} />
                 </Route>
 
                 <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>

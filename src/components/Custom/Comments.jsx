@@ -176,7 +176,8 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) =>
                 {
                     !toggle.comment ?
                         <div>
-                            <p className={`w-full text-xs leading-5 mt-4 ${theme === 'light' ? light.text : dark.text}`}>
+                            
+                            <p className={`whitespace-pre-wrap w-full text-xs leading-5 mt-4 ${theme === 'light' ? light.text : dark.text}`}>
                                 { data.text }
                             </p>
 
