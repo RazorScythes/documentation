@@ -247,16 +247,16 @@ Happy API integration!`;
 
                                 <h1 className="text-2xl font-medium">My Profile</h1>
                                 
-                                <div className={`w-full truncate my-4 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                    <span className='mr-2 text-purple-600 font-semibold'>POST</span> 
-                                    <span className={`${theme === 'light' ? light.link : dark.link}`}>http://localhost:5011/total_complexibility</span>
-                                </div>
-                                
                                 <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
                                     {text}
                                 </p>
 
-                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCode} className='mr-1'/> Requests</h1>
+                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCode} className='mr-1'/> Request</h1>
+
+                                <div className={`w-full truncate my-4 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                    <span className='mr-2 text-purple-600 font-semibold'>POST</span> 
+                                    <span className={`${theme === 'light' ? light.link : dark.link}`}>http://localhost:5011/total_complexibility</span>
+                                </div>
 
                                 <div className={`sm:w-52 w-full my-4 px-6 py-3 rounded-full bg-red-600`}>
                                     <FontAwesomeIcon icon={faTriangleExclamation} className='mr-2'/>
@@ -287,17 +287,19 @@ Happy API integration!`;
                                         handleFormChange={handleFormChange}
                                     /> 
                                 </div>
-                                <div className={`${toggle.response ? 'block' : 'hidden'} relative w-full mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                <div className={`${toggle.response ? 'block' : 'hidden'} overflow-x-auto custom-scroll relative mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <button
                                         onClick={handleCopy}
                                         className="absolute top-4 right-4 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
                                     >
                                         Copy
                                     </button>
-                                    <pre className="text-sm font-mono leading-6 text-white">
+                                    <pre
+                                        className="text-sm font-mono leading-6 text-white overflow-x-auto whitespace-pre-wrap max-w-full"
+                                    >
                                         {"{"}
                                         <div className="pl-8">{highlightJson(form)}</div>
-                                        <br/>
+                                        <br />
                                         {"}"}
                                     </pre>
                                 </div>           
@@ -322,7 +324,7 @@ Happy API integration!`;
                             </div>
 
                             <div className="md:w-52 w-full flex-shrink-0 mr-4 transition-all">
-                                
+
                             </div>
                         </div>
 
