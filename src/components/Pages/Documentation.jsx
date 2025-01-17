@@ -20,6 +20,7 @@ const Documentation = ({ user, theme }) => {
     const [formFields, setFormFields] = useState([]);
     const [selected, setSelected] = useState({})
     const [selectedIndex, setSelectedIndex] = useState(0)
+    const [selectedMethod, setSelectedMethod] = useState('');
     const [toggle, setToggle] = useState({
         response: false
     })
@@ -138,6 +139,7 @@ Happy API integration!`,
                 setInitialValues({});
                 setForm({})
             }
+            setSelectedMethod(result?.method.toUpperCase() ?? 'get')
             setSelectedIndex(parentIndex);
             setSelected(result);
         }
@@ -186,6 +188,7 @@ Happy API integration!`,
             setForm({})
         }
 
+        setSelectedMethod(result?.method.toUpperCase() ?? 'GET')
         setUpdateForm(true);
         setSelectedIndex(index);
         setSelected(result);
@@ -265,9 +268,15 @@ Happy API integration!`,
         setForm(formData)
     }
 
+    const handleMethodChange = (method) => {
+        setSelectedMethod(method);
+        setSelected({ ...selected, method });
+    };
 
     const [openModal, setOpenModal]         = useState(false)
     const [confirm, setConfirm]             = useState(false)
+
+    const httpMethods = ['GET', 'POST', 'PATCH', 'DELETE'];
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
@@ -376,15 +385,63 @@ Happy API integration!`,
                                     <span className={`${theme === 'light' ? light.link : dark.link}`}> My Profile</span>
                                 </p> */}
 
-                                <h1 className="text-2xl mt-4 font-medium"> { selected?.name } </h1>
+                                {/* <h1 className="text-2xl mt-4 font-medium"> { selected?.name } </h1> */}
+
+                                <input
+                                    type="text" 
+                                    className="text-2xl mt-4 font-medium bg-transparent outline-none" 
+                                    value={ selected?.name }
+                                    onChange={(e) => setSelected({ ...selected, name: e.target.value })}
+                                />
                                 
-                                <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
+                                {/* <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
                                     { selected?.description ?? 'No Description.' }
-                                </p>
+                                </p> */}
+
+                                <textarea 
+                                    className={`w-full bg-transparent outline-none mt-4 mb-4 custom-scroll ${theme === 'light' ? light.text : dark.text}`}
+                                    rows={4}
+                                    value={selected?.description ?? 'Description Here'}
+                                    onChange={(e) => setSelected({ ...selected, description: e.target.value })}
+                                >
+                          
+                                </textarea>
 
                                 <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCode} className='mr-1'/> Request</h1>
+                                
+                                <div className="flex items-center mt-4">
+                                    <input
+                                        id='token'
+                                        type={"checkbox"}
+                                        checked={selected?.token_required}
+                                        onChange={() => setSelected({...selected, token_required: !selected.token_required })}
+                                        className={`w-4 h-4 mr-2 outline-none`}
+                                    />
+                                    <label htmlFor={'token'} className="">Token Required</label>
+                                </div>
 
-                                <div className={`w-full truncate my-4 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                <div className="flex flex-row flex-wrap gap-4 mt-4">
+                                    {httpMethods.map((method) => (
+                                        <div key={method} className="flex items-center gap-1">
+                                        <input
+                                            type="radio"
+                                            id={method}
+                                            value={method}
+                                            checked={selectedMethod === method}
+                                            onChange={() => handleMethodChange(method)}
+                                            className="outline-none"
+                                        />
+                                        <label
+                                            htmlFor={method}
+                                            className="font-medium cursor-pointer"
+                                        >
+                                            {method}
+                                        </label>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className={`w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     {
                                         selected?.method?.toLowerCase() === 'get' ?
                                             <span className='mr-2 text-green-600 font-semibold'>GET</span> 
