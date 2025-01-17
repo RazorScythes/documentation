@@ -32,6 +32,7 @@ const DocumentForm = ({
 
     useEffect(() => {
         if(update) {
+            setField(fields ?? []);
             setFormValues(initialValues ?? {});
             setUpdate(false)
         }
