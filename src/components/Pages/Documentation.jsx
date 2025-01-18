@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { main, dark, light } from '../../style';
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronUp, faCode, faCodePullRequest, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faPlus, faThumbsDown, faThumbsUp, faTriangleExclamation, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
 import DocumentForm from '../Custom/DocumentForm';
 import NewDocumentationModal from '../Custom/NewDocumentationModal';
+import CodeEditor from '../Custom/CodeEditor';
 import styles from "../../style";
 
 const Documentation = ({ user, theme }) => {
@@ -87,6 +88,7 @@ Happy API integration!`,
                     endpoint: '/total_complexibility',
                     token_required: true,
                     payload: [],
+                    response_result: "const formData = {\n    blog_id: 30,\n    featured: 1\n}\n\nconst response = await axios.patch(API+'/blog/set_featured_blog', formData);\nconsole.log(response.data)",
                     type: 'sub'
                 },
                 { name: 'Change Password', path: 'profile/password', method: 'get' },
@@ -115,35 +117,39 @@ Happy API integration!`,
         const result = parent?.dropdown?.find(sub => sub.path === path);
 
         if(result) {
-            if(result.payload?.length > 0) {
-                const values = {};
-                const fields = result.payload.map((field) => {
-                    return {
-                        label: field.label,
-                        name: field.name,
-                        type: field.type
-                    }
-                })
-
-                result.payload.map((field) => {
-                    values[field.name] = field.value;
-                })
-
-                setFormFields(fields);
-                setInitialValues(values);
-                setForm(values)
-                setUpdateForm(true);
-            }
-            else {
-                setFormFields([]);
-                setInitialValues({});
-                setForm({})
-            }
             setSelectedMethod(result?.method.toUpperCase() ?? 'get')
             setSelectedIndex(parentIndex);
             setSelected(result);
         }
     }, [menuItems])
+
+    useEffect(() => {
+        if(selected.payload?.length > 0) {
+            const values = {};
+            const fields = selected.payload.map((field) => {
+                return {
+                    label: field.label,
+                    name: field.name,
+                    type: field.type
+                }
+            })
+
+            selected.payload.map((field) => {
+                values[field.name] = field.value;
+            })
+
+            setFormFields(fields);
+            setInitialValues(values);
+            setForm(values)
+            setUpdateForm(true);
+        }
+        else {
+            setFormFields([]);
+            setInitialValues({});
+            setForm({})
+            setUpdateForm(true);
+        }
+    }, [selected])
 
     const activePage = (type) => {
         const relativePath = location.pathname;
@@ -164,32 +170,7 @@ Happy API integration!`,
 
         const result = menuItems[index].dropdown.find(item => item.path && item.path === path);
 
-        if(result.payload?.length > 0) {
-            const values = {};
-            const fields = result.payload.map((field) => {
-                return {
-                    label: field.label,
-                    name: field.name,
-                    type: field.type
-                }
-            })
-
-            result.payload.map((field) => {
-                values[field.name] = field.value;
-            })
-
-            setFormFields(fields);
-            setInitialValues(values);
-            setForm(values)
-        }
-        else {
-            setFormFields([]);
-            setInitialValues({});
-            setForm({})
-        }
-
         setSelectedMethod(result?.method.toUpperCase() ?? 'GET')
-        setUpdateForm(true);
         setSelectedIndex(index);
         setSelected(result);
     }
@@ -277,6 +258,75 @@ Happy API integration!`,
     const [confirm, setConfirm]             = useState(false)
 
     const httpMethods = ['GET', 'POST', 'PATCH', 'DELETE'];
+
+    const [payloadForm, setPayloadForm] = useState([
+        {
+          label: "Label 1",
+          value: "",
+          name: "label_1",
+          type: "text"
+        },
+    ]);
+
+    const toSnakeCase = (str) =>
+        str
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .replace(/[^\w_]/g, ""); 
+
+    const handleLabelChange = (index, newLabel) => {
+        const updatedForms = payloadForm.map((form, i) =>
+            i === index
+            ? {
+                ...form,
+                    label: newLabel,
+                    name: toSnakeCase(newLabel),
+                }
+            : form
+        );
+        setPayloadForm(updatedForms);
+    };
+
+    const handleTypeChange = (index, type) => {
+        const updatedForms = payloadForm.map((form, i) =>
+            i === index
+            ? {
+                ...form,
+                type: type,
+                value: ''
+            }
+            : form
+        );
+        setPayloadForm(updatedForms);
+    };
+
+    const handleAddForm = () => {
+        const nextIndex = payloadForm.length + 1;
+        setPayloadForm([
+            ...payloadForm,
+            { label: `Label ${nextIndex}`, value: "", name: `label_${nextIndex}` },
+        ]);
+    };
+
+    const handleInputChange = (index, value) => {
+        const updatedForms = payloadForm.map((form, i) =>
+            i === index ? { ...form, value: value } : form
+        );
+        setPayloadForm(updatedForms);
+    };
+
+    const handleResponse = () => {
+        const formData = {...selected};
+        formData.payload = payloadForm;
+
+        console.log(formData)
+
+        setSelected({...selected, payload: payloadForm})
+    }
+
+    const handleResponseCode = (data) => {
+        setSelected({...selected, response_result: data})
+    }
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
@@ -441,7 +491,7 @@ Happy API integration!`,
                                     ))}
                                 </div>
                                 
-                                <div className={`w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                {/* <div className={`w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     {
                                         selected?.method?.toLowerCase() === 'get' ?
                                             <span className='mr-2 text-green-600 font-semibold'>GET</span> 
@@ -455,6 +505,30 @@ Happy API integration!`,
                                     <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={`${theme === 'light' ? light.link : dark.link}`}>
                                         {`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`}
                                     </a>
+                                </div> */}
+
+                                <div className={`flex w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                    {
+                                        selected?.method?.toLowerCase() === 'get' ?
+                                            <span className='mr-2 text-green-600 font-semibold'>GET</span> 
+                                        : selected?.method?.toLowerCase() === 'post' ?
+                                            <span className='mr-2 text-purple-600 font-semibold'>POST</span> 
+                                        : selected?.method?.toLowerCase() === 'patch' ?
+                                            <span className='mr-2 text-yellow-500 font-semibold'>PATCH</span> 
+                                        : selected?.method?.toLowerCase() === 'delete' &&
+                                            <span className='mr-2 text-red-600 font-semibold'>DELETE</span> 
+                                    }
+                                    <div className='flex'>
+                                        <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={``}>
+                                            {`${menuItems[selectedIndex]?.base_url}`}
+                                        </a>
+                                        <input
+                                            type="text" 
+                                            className="bg-transparent outline-none" 
+                                            value={ selected?.endpoint }
+                                            onChange={(e) => setSelected({ ...selected, endpoint: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                                 
                                 {
@@ -481,8 +555,55 @@ Happy API integration!`,
                                         }
                                     </div>
                                 </div>
+                                
+                                <div className="grid md:grid-cols-2 gap-2 mt-4">
+                                    <div>
+                                        {payloadForm.map((form, index) => (
+                                            <div key={index}>
+                                                <div className="pb-2.5">
+                                                    <input
+                                                        type={"text"}
+                                                        className="bg-transparent outline-none"
+                                                        value={form.label}
+                                                        onChange={(e) => handleLabelChange(index, e.target.value)}
+                                                    />
 
-                                <div className={`mt-4 ${!toggle.response ? 'block' : 'hidden'}`}>
+                                                    <div className="flex gap-[1px]">
+                                                    <select
+                                                        className={`text-white text-center block rounded-tl-sm rounded-bl-sm mt-2 mb-1 py-2 px-4 ${
+                                                            theme === "light" ? light.input : dark.input
+                                                        }`} 
+                                                        onChange={(e) => handleTypeChange(index, e.target.value)}
+                                                    >
+                                                        <option className="text-left" value="text">text</option>
+                                                        <option className="text-left" value="number">number</option>
+                                                        <option className="text-left" value="date">date</option>
+                                                        <option className="text-left" value="email">email</option>
+                                                    </select>
+                                                    <input
+                                                        type={form.type || "text"}
+                                                        placeholder={form.name}
+                                                        value={form.value}
+                                                        onChange={(e) => handleInputChange(index, e.target.value)}
+                                                            className={`block w-full rounded-tr-sm rounded-br-sm mt-2 mb-1 py-2 px-4 ${
+                                                            theme === "light" ? light.input : dark.input
+                                                        }`}
+                                                    />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            onClick={handleAddForm}
+                                            className={`w-full ${theme === "light" ? light.button : dark.button_third} rounded-full`}
+                                        >
+                                            New Field
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {/* <div className={`mt-4 ${!toggle.response ? 'block' : 'hidden'}`}>
                                     {
                                         formFields?.length > 0 ?
                                             <DocumentForm
@@ -501,8 +622,9 @@ Happy API integration!`,
                                         </p>
                                     }
                                     
-                                </div>
-                                <div className={`${toggle.response ? 'block' : 'hidden'} overflow-x-auto custom-scroll relative mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                </div> */}
+
+                                {/* <div className={`${toggle.response ? 'block' : 'hidden'} overflow-x-auto custom-scroll relative mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                     <button
                                         onClick={handleCopy}
                                         className="absolute top-4 right-4 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
@@ -517,25 +639,59 @@ Happy API integration!`,
                                         <br />
                                         {"}"}
                                     </pre>
-                                </div>           
-
-                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCodePullRequest} className='mr-1'/> Response</h1>
+                                </div>      */}
                                 
-                                <div className={`relative w-full mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                    {/* <button
+                                <div className={`${toggle.response ? 'block' : 'hidden'} mb-4 mt-2 relative`}>
+                                    <button
                                         onClick={handleCopy}
-                                        className="absolute top-4 right-4 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
+                                        className="absolute top-4 right-4 z-40 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
                                     >
                                         Copy
                                     </button>
-                                    <pre className="text-sm font-mono leading-6 text-white">
-                                        {"{"}
-                                        <div className="pl-8">{highlightJson(form)}</div>
-                                        <br/>
-                                        {"}"}
-                                    </pre> */}
-                                    No output available.
+                                    <CodeEditor
+                                        theme={theme}
+                                        inputValue={JSON.stringify(form, null, 2)}
+                                        readOnly={true}
+                                    />    
                                 </div>  
+
+                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCodePullRequest} className='mr-1'/> Response</h1>
+                                
+                                <div className="flex items-center mt-4">
+                                    <input
+                                        id='auto_response'
+                                        type={"checkbox"}
+                                        checked={selected?.auto_response}
+                                        onChange={() => setSelected({...selected, auto_response: !selected.auto_response })}
+                                        className={`w-4 h-4 mr-2 outline-none`}
+                                    />
+                                    <label htmlFor={'auto_response'} className="">Auto Response</label>
+                                </div>
+                                
+                                {
+                                    !selected?.auto_response &&
+                                        <div className='my-4'>
+                                            <CodeEditor
+                                                theme={theme}
+                                                onChange={handleResponseCode}
+                                                inputValue={selected.response_result || ""}
+                                            />
+                                        </div>
+                                }                     
+                                
+                                <div className="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        className={`disabled:cursor-not-allowed py-1.5 px-4 ${
+                                            theme === "light"
+                                                ? light.button_secondary
+                                                : dark.button_secondary
+                                        } rounded-full ml-2`}
+                                        onClick={handleResponse}
+                                    >
+                                        Save
+                                    </button> 
+                                </div>
                             </div>
 
                             <div className="md:w-52 w-full flex-shrink-0 mr-4 transition-all">
