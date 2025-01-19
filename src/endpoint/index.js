@@ -80,3 +80,14 @@ export const getVideoComment                   = (id) => endpoint.get(`/watch/ge
 export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, options) 
 export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, options)
 export const deleteVideoComment                = (id, video_id) => endpoint.delete(`/watch/deleteVideoComment/${id}/${video_id}`, options)
+
+
+/*
+    DOCUMENTATION
+*/ 
+export const getDocs                           = () => endpoint.get(`/documentation/getDocs`)
+export const newDocs                           = (formData) => endpoint.post(`/documentation/newDocs`, formData)
+export const updateDocsSettings                = (formData) => endpoint.patch('/documentation/updateDocsSettings', formData) 
+export const updateDocs                        = (formData) => endpoint.patch('/documentation/updateDocs', formData)
+export const deleteDocs                        = (id) => endpoint.delete(`/documentation/deleteDocs/${id}`)
+export const deleteMultipleDocs                = (formData) => endpoint.patch('/documentation/deleteMultipleDocs', formData)

@@ -144,7 +144,7 @@ Happy API integration!`,
 
         if(result) {
             setSelectedMethod(result?.method.toUpperCase() ?? 'get')
-            setSelectedIndex(parentIndex);
+            setSelectedIndex(parentIndex !== -1 ? parentIndex : 0);
             setSelected(result);
         }
     }, [menuItems])
