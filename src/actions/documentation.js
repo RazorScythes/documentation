@@ -2,6 +2,7 @@ import * as api from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 
 const initialState = {
+    docs        : {},
     data        : {},
     alert       : {},
     isLoading   : false,
@@ -12,6 +13,24 @@ const initialState = {
 export const getDocs = createAsyncThunk('docs/getDocs', async (data, thunkAPI) => {
     try {
         const response = await api.getDocs()
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({ 
+            variant: 'danger',
+            message: "409: there was a problem with the server."
+        })
+    }
+})
+
+export const getDocsById = createAsyncThunk('docs/getDocsById', async (data, thunkAPI) => {
+    try {
+        const { category } = data;
+
+        const response = await api.getDocsById(category)
         return response
     }
     catch (err) {
@@ -120,6 +139,18 @@ export const docsSlice = createSlice({
     name: 'docs',
     initialState,
     extraReducers: (builder) => {
+        builder.addCase(getDocsById.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.isLoading     = false
+        }),
+        builder.addCase(getDocsById.pending, (state, action) => {
+            state.notFound      = false
+            state.isLoading     = true
+        }),
+        builder.addCase(getDocsById.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+            state.isLoading     = false
+        }),
         builder.addCase(getDocs.fulfilled, (state, action) => {
             state.data          = action.payload.data.result
             state.isLoading     = false

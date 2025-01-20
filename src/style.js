@@ -52,6 +52,7 @@ export const dark = {
     paginate_btn        : "p-2 px-3.5 hover:bg-blue-600 bg-[#0e0e0e] hover:text-white rounded-md transition-all disabled:cursor-not-allowed cursor-pointers",
     input               : "bg-[#1C1C1C] border border-solid border-[#1C1C1C] text-gray-300 leading-tight focus:outline-none focus:bg-[#2B2B2B] transition-all outline-none autofill:bg-[#1C1C1C]",
     input_icon          : "text-gray-300",
+    view_button         : "text-green-600 hover:text-green-700 transition-all",
     edit_button         : "text-yellow-400 hover:text-yellow-500 transition-all",
     delete_button       : "text-red-600 hover:text-red-700 transition-all",
 }
@@ -80,6 +81,7 @@ export const light = {
     paginate_btn        : "p-2 px-3.5 rounded-md hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed cursor-pointers bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight transition-all outline-none",
     input               : "bg-[#F6F8FA] border border-solid border-[#D1D9E0] text-[#59636E] leading-tight focus:outline-none focus:bg-[#e0e6eb] transition-all outline-none",
     input_icon          : "text-[#59636E]",
+    view_button         : "text-green-600 hover:text-green-700 transition-all",
     edit_button         : "text-yellow-600 hover:text-yellow-700 transition-all",
     delete_button       : "text-red-600 hover:text-red-700 transition-all",
 }

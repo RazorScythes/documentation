@@ -86,6 +86,7 @@ export const deleteVideoComment                = (id, video_id) => endpoint.dele
     DOCUMENTATION
 */ 
 export const getDocs                           = () => endpoint.get(`/documentation/getDocs`)
+export const getDocsById                       = (doc_name) => endpoint.get(`/documentation/getDocsById/${doc_name}`)
 export const newDocs                           = (formData) => endpoint.post(`/documentation/newDocs`, formData)
 export const updateDocsSettings                = (formData) => endpoint.patch('/documentation/updateDocsSettings', formData) 
 export const updateDocs                        = (formData) => endpoint.patch('/documentation/updateDocs', formData)

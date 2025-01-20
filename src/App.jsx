@@ -71,9 +71,9 @@ const App = () => {
                     <Route path='/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/site' element={<><SiteDocs user={user} theme={theme}/></>} />
-                    <Route path='/documentation' element={<><Documentation user={user} theme={theme}/></>} />
-                    <Route path='/documentation/:page' element={<><Documentation user={user} theme={theme}/></>} />
-                    <Route path='/documentation/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
+                    <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
+                    <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
+                    <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
                 </Route>
 
                 <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>

@@ -1,17 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { dark, light } from '../../../style';
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { deleteDocs, deleteMultipleDocs, getDocs, newDocs, updateDocs, updateDocsSettings, clearAlert } from '../../../actions/documentation';
 
 import Table from '../../Custom/Table';
 import ConfirmModal from '../../Custom/ConfirmModal';
 import CustomForm from '../../Custom/CustomForm';
 import CheckBoxRequest from '../../Custom/CheckBoxRequest';
+import TokenModal from '../../Custom/TokenModal';
+import LinkModal from '../../Custom/LinkModal';
+import { faEye } from '@fortawesome/free-solid-svg-icons';
+import { Link } from 'react-router-dom';
 
 const Tags = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
+    const navigate  = useNavigate()
 
-    const tags = useSelector((state) => state.docs.data)
+    const docs = useSelector((state) => state.docs.data)
     const loading = useSelector((state) => state.docs.isLoading)
     const alert = useSelector((state) => state.docs.alert) 
 
@@ -25,6 +32,14 @@ const Tags = ({ user, theme, setNotification }) => {
     const [submitted, setSubmitted] = useState(false)
     const [edit, setEdit] = useState(false)
     const [updateForm, setUpdateForm] = useState(false)
+    const [linkOpenModal, setLinkOpenModal] = useState(false)
+    const [openListModal, setOpenListModal] = useState({
+        token: false
+    })
+    const [modalData, setModalData] = useState({
+        token: {},
+        base_url: {},
+    })
 
     const fields = [
         {
@@ -83,6 +98,10 @@ const Tags = ({ user, theme, setNotification }) => {
         setFormOpen(true)
     }
 
+    const viewMode = (data) => {
+        navigate(`/documentation/${data.doc_name}?edit=${import.meta.env.VITE_EDIT_KEY}`)
+    }
+
     const handleSubmit = (formData) => {
         if(!submitted) {
             setSubmitted(true)
@@ -120,8 +139,8 @@ const Tags = ({ user, theme, setNotification }) => {
         setFormOpen(false)
         setEdit(false)
         setInitialValues({})
-        setTableData(tags)
-    }, [tags])
+        setTableData(docs)
+    }, [docs])
 
     useEffect(() => {
         if(Object.keys(alert).length > 0) {
@@ -146,6 +165,20 @@ const Tags = ({ user, theme, setNotification }) => {
                 openModal={openModal}
                 setOpenModal={setOpenModal}
                 setConfirm={setConfirm}
+            />
+
+            <TokenModal
+                theme={theme}
+                openModal={openListModal}
+                setOpenModal={setOpenListModal}
+                data={modalData.token}
+            />
+
+            <LinkModal
+                theme={theme}
+                openModal={linkOpenModal}
+                setOpenModal={setLinkOpenModal}
+                data={modalData.base_url}
             />
 
             <div className='mb-8 mt-4 flex xs:flex-row flex-col justify-start items-start gap-2'>
@@ -183,7 +216,27 @@ const Tags = ({ user, theme, setNotification }) => {
                     theme={theme}
                     title=""
                     header={[
-                        { key: 'doc_name', label: 'Doc Name' },
+                        { key: 'doc_name', label: 'Doc Name', render: (item, index) => 
+                            <Link to={`/documentation/${tableData[index].doc_name}`} className={`${theme === 'light' ? light.link : dark.link}`}>{tableData[index].doc_name}</Link>
+                        },
+                        { key: 'token_url', label: 'Token URL', render: (item, index) => 
+                            <button
+                                onClick={() => {
+                                    setOpenListModal({
+                                        ...openModal,
+                                        token: true
+                                    })
+                                    setModalData({
+                                        ...modalData,
+                                        token: { ...tableData[index], label: 'Token URL' }
+                                    })
+                                }}
+                                title="view"
+                                className={`p-[0.35rem] text-base px-2 rounded-md ${theme === 'light' ? light.link : dark.link}`}
+                            >
+                                <FontAwesomeIcon icon={faEye} />
+                            </button>
+                        },
                         { key: 'private', label: 'Private', render: (item, index) => 
                             <CheckBoxRequest 
                                 theme={theme}
@@ -197,10 +250,25 @@ const Tags = ({ user, theme, setNotification }) => {
                             />
                         },
                         { key: 'categoryCount', label: 'Categories' },
-                        { key: 'base_url', label: 'Base URL' },
+                        { key: 'base_url', label: 'Base URL', render: (item, index) => 
+                            <button
+                                onClick={() => {
+                                    setLinkOpenModal(true)
+                                    setModalData({
+                                        ...modalData,
+                                        base_url: { ...tableData[index], label: 'Base URL', link: `${tableData[index].base_url}` }
+                                    })
+                                }}
+                                title="view"
+                                className={`p-[0.35rem] text-base px-2 rounded-md ${theme === 'light' ? light.link : dark.link}`}
+                            >
+                                <FontAwesomeIcon icon={faEye} />
+                            </button> 
+                        },
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
+                        { label: 'View', color: `${theme === 'light' ? light.view_button : dark.view_button}`, onClick: (item) => viewMode(item) },
                         { label: 'Edit', color: `${theme === 'light' ? light.edit_button : dark.edit_button}`, onClick: (item) => editMode(item) },
                         { label: 'Delete', color: `${theme === 'light' ? light.delete_button : dark.delete_button}`, onClick: (item) => { setDeleteId(item._id); setOpenModal(true)} },
                     ]}

@@ -3,17 +3,25 @@ import { main, dark, light } from '../../style';
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useDispatch, useSelector } from 'react-redux'
 import { faChevronDown, faChevronUp, faCode, faCodePullRequest, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faPlus, faThumbsDown, faThumbsUp, faTriangleExclamation, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
+import { getDocsById, clearAlert } from '../../actions/documentation';
 import DocumentForm from '../Custom/DocumentForm';
 import NewDocumentationModal from '../Custom/NewDocumentationModal';
 import CodeEditor from '../Custom/CodeEditor';
+import Notification from '../Custom/Notification';
 import styles from "../../style";
 
 const Documentation = ({ user, theme }) => {
+    const dispatch = useDispatch()
     const navigate  = useNavigate()
     const location = useLocation();
 
-    const { page, subpage } = useParams();
+    const docs = useSelector((state) => state.docs.docs)
+    const loading = useSelector((state) => state.docs.isLoading)
+    const alert = useSelector((state) => state.docs.alert) 
+
+    const { category, page, subpage } = useParams();
 
     const [searchParams, setSearchParams] = useSearchParams();
     const [initialValues, setInitialValues] = useState({})
@@ -25,21 +33,12 @@ const Documentation = ({ user, theme }) => {
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [selectedMethod, setSelectedMethod] = useState('');
     const [editMode, setEditMode] = useState(false)
+    const [show, setShow] = useState(true)
+    const [notification, setNotification] = useState({})
     const [toggle, setToggle] = useState({
         response: false
     })
     
-    const key = searchParams.get('edit')
-
-    useEffect(() => {
-        if(key === import.meta.env.VITE_EDIT_KEY) {
-            setEditMode(true);
-        }
-        else {
-            setEditMode(false);
-        }
-    }, [key])
-
     const [menuItems, setMenuItems] = useState([
         { 
             name: 'Overview', 
@@ -111,7 +110,38 @@ Happy API integration!`,
             ] 
         }
     ])
+
+    const key = searchParams.get('edit')
     
+    useEffect(() => {
+        dispatch(getDocsById({category}))
+    }, [category])
+
+    useEffect(() => {
+        if(docs.length) {
+            setMenuItems(docs)
+        }
+        else {
+            setMenuItems([])
+        }
+    }, [docs])
+
+    useEffect(() => {
+        if(key === import.meta.env.VITE_EDIT_KEY) {
+            setEditMode(true);
+        }
+        else {
+            setEditMode(false);
+        }
+    }, [key])
+    
+    useEffect(() => {
+        if(Object.keys(alert).length > 0) {
+            dispatch(clearAlert())
+            setNotification(alert)
+        }
+    }, [alert])
+
     const [openDropdown, setOpenDropdown] = useState(null); 
 
     const toggleDropdown = (itemPath) => {
@@ -196,6 +226,7 @@ Happy API integration!`,
 
         const result = menuItems[index].dropdown.find(item => item.path && item.path === path);
 
+        setToggle({ ...toggle, response: false })
         setSelectedMethod(result?.method.toUpperCase() ?? 'GET')
         setSelectedIndex(index);
         setSelected(result);
@@ -355,7 +386,7 @@ Happy API integration!`,
     }
 
     return (
-        <div className={`relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
+        <div className={`h-screen relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidthEx}`}>
                     <div className={`file:lg:px-8 relative px-0 my-12`}>
@@ -369,8 +400,15 @@ Happy API integration!`,
                             setConfirm={setConfirm}
                         />
 
+                        <Notification
+                            theme={theme}
+                            data={notification}
+                            show={show}
+                            setShow={setShow}
+                        />
+
                         <div className='mb-4 flex items-center gap-2'>
-                            <h1 className="text-xl font-medium">HRIS Core Documentation</h1>
+                            <h1 className="text-xl font-medium">{category}</h1>
                             {
                                 editMode &&
                                     <button
@@ -386,148 +424,183 @@ Happy API integration!`,
                             }
                             
                         </div>
-                        {/* <div className='w-full md:flex items-start transition-all'>
-                            <div className={`md:w-72 w-full py-3 flex-shrink-0 mr-4 transition-all rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-
-                            </div>
-
-                            <div className={`w-full px-4 py-3 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                            
-                            </div>
-
-                            <div className="md:w-52 w-full flex-shrink-0 mr-4 transition-all">
-
-                            </div>
-                        </div> */}
-
+                        
                         <div className='w-full md:flex items-start transition-all'>
                             <div className="md:w-72 w-full flex-shrink-0 mr-4 transition-all">
-                                <div className={`mt-4 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                    <ul>
-                                        {menuItems.map((item, i) => (
-                                            <li key={item.path} className="">
-                                                <div
-                                                    className={`px-6 py-3 ${
-                                                        activePage(item.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
-                                                    } transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} ${item.dropdown.length > 0 && 'flex justify-between items-center'}
-                                                    ${ (i+1) !== menuItems.length && 'border-b' } border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
-                                                    onClick={() => ((item.dropdown.length && mainDropdown(item)) > 0 ? toggleDropdown(item.path) : redirect(item.path, i))}
-                                                >
-                                                    <div className="flex items-center">
-                                                        {item.name}
-                                                    </div>
-                                                    {(item.dropdown.length > 0 && mainDropdown(item)) && (
-                                                        <FontAwesomeIcon icon={openDropdown === item.path ? faChevronUp : faChevronDown} />
-                                                    )}
-                                                </div>
+                                {
+                                    loading ?
+                                        <div className={`mt-4 px-6 py-3 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                            <p className='text-center'>Loading Categories</p>
+                                        </div>
+                                    :
+                                    (menuItems.length === 0 && !loading) ?
+                                        <div className={`mt-4 px-6 py-3 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                            <p className='text-center'>No Category Available</p>
+                                        </div>
+                                    :
+                                        <div className={`mt-4 rounded-sm overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                            <ul>
+                                                {menuItems.map((item, i) => (
+                                                    <li key={item.path} className="">
+                                                        <div
+                                                            className={`px-6 py-3 ${
+                                                                activePage(item.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
+                                                            } transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} ${item.dropdown.length > 0 && 'flex justify-between items-center'}
+                                                            ${ (i+1) !== menuItems.length && 'border-b' } border-solid ${theme === 'light' ? light.border : dark.semiborder}`}
+                                                            onClick={() => ((item.dropdown.length && mainDropdown(item)) > 0 ? toggleDropdown(item.path) : redirect(item.path, i))}
+                                                        >
+                                                            <div className="flex items-center">
+                                                                {item.name}
+                                                            </div>
+                                                            {(item.dropdown.length > 0 && mainDropdown(item)) && (
+                                                                <FontAwesomeIcon icon={openDropdown === item.path ? faChevronUp : faChevronDown} />
+                                                            )}
+                                                        </div>
 
-                                                <div
-                                                    className={`overflow-hidden transition-all duration-300`}
-                                                    style={{
-                                                        maxHeight: openDropdown === item.path ? `${item.dropdown.length * 40}px` : '0px',
-                                                    }}
-                                                >
-                                                    <ul className="">
-                                                        {item.dropdown.map((subItem, si) => (
-                                                            <li
-                                                                key={si}
-                                                                onClick={() => redirect(subItem.path, i)}
-                                                                className={`px-6 py-2 ${
-                                                                    activeSubPage(item.path, subItem.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
-                                                                } cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button}
-                                                                ${ (si+1) !== subItem.length && 'border-b' } ${ si === 0 && 'border-y' } border-solid ${theme === 'light' ? light.border : dark.semiborder} truncate`}
-                                                            >
-                                                                {
-                                                                    subItem.method?.toLowerCase() === 'get' ?
-                                                                        <span className='mr-2 text-green-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>GET</span> 
-                                                                    : subItem.method?.toLowerCase() === 'post' ?
-                                                                        <span className='mr-2 text-purple-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>POST</span> 
-                                                                    : subItem.method?.toLowerCase() === 'patch' ?
-                                                                        <span className='mr-2 text-yellow-500 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>PATCH</span> 
-                                                                    : subItem.method?.toLowerCase() === 'delete' &&
-                                                                        <span className='mr-2 text-red-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>DELETE</span> 
-                                                                }
-                                                                {subItem.name}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                                                        <div
+                                                            className={`overflow-hidden transition-all duration-300`}
+                                                            style={{
+                                                                maxHeight: openDropdown === item.path ? `${item.dropdown.length * 40}px` : '0px',
+                                                            }}
+                                                        >
+                                                            <ul className="">
+                                                                {item.dropdown.map((subItem, si) => (
+                                                                    <li
+                                                                        key={si}
+                                                                        onClick={() => redirect(subItem.path, i)}
+                                                                        className={`px-6 py-2 ${
+                                                                            activeSubPage(item.path, subItem.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
+                                                                        } cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button}
+                                                                        ${ (si+1) !== subItem.length && 'border-b' } ${ si === 0 && 'border-y' } border-solid ${theme === 'light' ? light.border : dark.semiborder} truncate`}
+                                                                    >
+                                                                        {
+                                                                            subItem.method?.toLowerCase() === 'get' ?
+                                                                                <span className='mr-2 text-green-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>GET</span> 
+                                                                            : subItem.method?.toLowerCase() === 'post' ?
+                                                                                <span className='mr-2 text-purple-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>POST</span> 
+                                                                            : subItem.method?.toLowerCase() === 'patch' ?
+                                                                                <span className='mr-2 text-yellow-500 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>PATCH</span> 
+                                                                            : subItem.method?.toLowerCase() === 'delete' &&
+                                                                                <span className='mr-2 text-red-600 font-semibold drop-shadow-[0_1.1px_0.1px_rgba(0,0,0,1)]'>DELETE</span> 
+                                                                        }
+                                                                        {subItem.name}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                }          
                             </div>
+                            
+                            {
+                                loading ?
+                                <div className={`w-full mt-4 px-6 py-3 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                        <p>Loading data...</p>
+                                </div>
+                                :
+                                (menuItems.length === 0 && !loading) ?
+                                <div className={`w-full mt-4 px-6 py-3 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                        <p>No data...</p>
+                                </div>
+                                :
+                                <div className={`w-full mt-4 px-6 py-3 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                    {/* <p className={`truncate w-full mt-2 mb-8 ${theme === 'light' ? light.text : dark.text}`}>
+                                        <span className={`${theme === 'light' ? light.link : dark.link}`}>Personal Website</span> / 
+                                        <span className={`${theme === 'light' ? light.link : dark.link}`}> Overview</span> / 
+                                        <span className={`${theme === 'light' ? light.link : dark.link}`}> My Profile</span>
+                                    </p> */}
 
-                            <div className={`w-full mt-4 px-6 py-3 pb-5 rounded-sm ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                {/* <p className={`truncate w-full mt-2 mb-8 ${theme === 'light' ? light.text : dark.text}`}>
-                                    <span className={`${theme === 'light' ? light.link : dark.link}`}>Personal Website</span> / 
-                                    <span className={`${theme === 'light' ? light.link : dark.link}`}> Overview</span> / 
-                                    <span className={`${theme === 'light' ? light.link : dark.link}`}> My Profile</span>
-                                </p> */}
-
-                                {
-                                    editMode ?
-                                        <input
-                                            type="text" 
-                                            className="text-2xl mt-4 font-medium bg-transparent outline-none" 
-                                            value={ selected?.name }
-                                            onChange={(e) => setSelected({ ...selected, name: e.target.value })}
-                                        />
-                                    : <h1 className="text-2xl mt-4 font-medium"> { selected?.name } </h1>
-                                }
-                                
-                                {
-                                    editMode ?
-                                        <textarea 
-                                            className={`w-full bg-transparent outline-none mt-4 mb-4 custom-scroll ${theme === 'light' ? light.text : dark.text}`}
-                                            rows={4}
-                                            value={selected?.description ?? 'Description Here'}
-                                            onChange={(e) => setSelected({ ...selected, description: e.target.value })}
-                                        ></textarea>
-                                    :   
-                                    <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
-                                        { selected?.description ?? 'No Description.' }
-                                    </p>
-                                }
-
-                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCode} className='mr-1'/> Request</h1>
-                                
-                                {
-                                    editMode ?
-                                    <>
-                                        <div className="flex items-center mt-4">
+                                    {
+                                        editMode ?
                                             <input
-                                                id='token'
-                                                type={"checkbox"}
-                                                checked={selected?.token_required}
-                                                onChange={() => setSelected({...selected, token_required: !selected.token_required })}
-                                                className={`w-4 h-4 mr-2 outline-none`}
+                                                type="text" 
+                                                className="text-2xl mt-4 font-medium bg-transparent outline-none" 
+                                                value={ selected?.name }
+                                                onChange={(e) => setSelected({ ...selected, name: e.target.value })}
                                             />
-                                            <label htmlFor={'token'} className="">Token Required</label>
-                                        </div>
+                                        : <h1 className="text-2xl mt-4 font-medium"> { selected?.name } </h1>
+                                    }
+                                    
+                                    {
+                                        editMode ?
+                                            <textarea 
+                                                className={`w-full bg-transparent outline-none mt-4 mb-4 custom-scroll ${theme === 'light' ? light.text : dark.text}`}
+                                                rows={4}
+                                                value={selected?.description ?? 'Description Here'}
+                                                onChange={(e) => setSelected({ ...selected, description: e.target.value })}
+                                            ></textarea>
+                                        :   
+                                        <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
+                                            { selected?.description ?? 'No Description.' }
+                                        </p>
+                                    }
 
-                                        <div className="flex flex-row flex-wrap gap-4 mt-4">
-                                            {httpMethods.map((method) => (
-                                                <div key={method} className="flex items-center gap-1">
+                                    <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCode} className='mr-1'/> Request</h1>
+                                    
+                                    {
+                                        editMode ?
+                                        <>
+                                            <div className="flex items-center mt-4">
                                                 <input
-                                                    type="radio"
-                                                    id={method}
-                                                    value={method}
-                                                    checked={selectedMethod === method}
-                                                    onChange={() => handleMethodChange(method)}
-                                                    className="outline-none"
+                                                    id='token'
+                                                    type={"checkbox"}
+                                                    checked={selected?.token_required}
+                                                    onChange={() => setSelected({...selected, token_required: !selected.token_required })}
+                                                    className={`w-4 h-4 mr-2 outline-none`}
                                                 />
-                                                <label
-                                                    htmlFor={method}
-                                                    className="font-medium cursor-pointer"
-                                                >
-                                                    {method}
-                                                </label>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                <label htmlFor={'token'} className="">Token Required</label>
+                                            </div>
 
-                                        <div className={`flex w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                            <div className="flex flex-row flex-wrap gap-4 mt-4">
+                                                {httpMethods.map((method) => (
+                                                    <div key={method} className="flex items-center gap-1">
+                                                    <input
+                                                        type="radio"
+                                                        id={method}
+                                                        value={method}
+                                                        checked={selectedMethod === method}
+                                                        onChange={() => handleMethodChange(method)}
+                                                        className="outline-none"
+                                                    />
+                                                    <label
+                                                        htmlFor={method}
+                                                        className="font-medium cursor-pointer"
+                                                    >
+                                                        {method}
+                                                    </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className={`flex w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                                {
+                                                    selected?.method?.toLowerCase() === 'get' ?
+                                                        <span className='mr-2 text-green-600 font-semibold'>GET</span> 
+                                                    : selected?.method?.toLowerCase() === 'post' ?
+                                                        <span className='mr-2 text-purple-600 font-semibold'>POST</span> 
+                                                    : selected?.method?.toLowerCase() === 'patch' ?
+                                                        <span className='mr-2 text-yellow-500 font-semibold'>PATCH</span> 
+                                                    : selected?.method?.toLowerCase() === 'delete' &&
+                                                        <span className='mr-2 text-red-600 font-semibold'>DELETE</span> 
+                                                }
+                                                <div className='flex'>
+                                                    <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={``}>
+                                                        {`${menuItems[selectedIndex]?.base_url}`}
+                                                    </a>
+                                                    <input
+                                                        type="text" 
+                                                        className="bg-transparent outline-none" 
+                                                        value={ selected?.endpoint }
+                                                        onChange={(e) => setSelected({ ...selected, endpoint: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                        :
+                                        <div className={`w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
                                             {
                                                 selected?.method?.toLowerCase() === 'get' ?
                                                     <span className='mr-2 text-green-600 font-semibold'>GET</span> 
@@ -538,210 +611,186 @@ Happy API integration!`,
                                                 : selected?.method?.toLowerCase() === 'delete' &&
                                                     <span className='mr-2 text-red-600 font-semibold'>DELETE</span> 
                                             }
-                                            <div className='flex'>
-                                                <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={``}>
-                                                    {`${menuItems[selectedIndex]?.base_url}`}
-                                                </a>
-                                                <input
-                                                    type="text" 
-                                                    className="bg-transparent outline-none" 
-                                                    value={ selected?.endpoint }
-                                                    onChange={(e) => setSelected({ ...selected, endpoint: e.target.value })}
-                                                />
-                                            </div>
+                                            <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={`${theme === 'light' ? light.link : dark.link}`}>
+                                                {`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`}
+                                            </a>
                                         </div>
-                                    </>
-                                    :
-                                    <div className={`w-full truncate my-4 mt-2 px-6 py-3 rounded-full ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                        {
-                                            selected?.method?.toLowerCase() === 'get' ?
-                                                <span className='mr-2 text-green-600 font-semibold'>GET</span> 
-                                            : selected?.method?.toLowerCase() === 'post' ?
-                                                <span className='mr-2 text-purple-600 font-semibold'>POST</span> 
-                                            : selected?.method?.toLowerCase() === 'patch' ?
-                                                <span className='mr-2 text-yellow-500 font-semibold'>PATCH</span> 
-                                            : selected?.method?.toLowerCase() === 'delete' &&
-                                                <span className='mr-2 text-red-600 font-semibold'>DELETE</span> 
-                                        }
-                                        <a href={`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`} target='_blank' className={`${theme === 'light' ? light.link : dark.link}`}>
-                                            {`${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`}
-                                        </a>
-                                    </div>
-                                }
-                                
-                                {
-                                    !editMode &&
-                                        (selected?.token_required && !menuItems[selectedIndex]?.token) &&
-                                            <div className={`sm:w-52 w-full my-4 px-6 py-3 rounded-full bg-red-600`}>
-                                                <FontAwesomeIcon icon={faTriangleExclamation} className='mr-2'/>
-                                                <span>Token is required!</span>
-                                            </div>
-                                }
+                                    }
+                                    
+                                    {
+                                        !editMode &&
+                                            (selected?.token_required && !menuItems[selectedIndex]?.token) &&
+                                                <div className={`sm:w-52 w-full my-4 px-6 py-3 rounded-full bg-red-600`}>
+                                                    <FontAwesomeIcon icon={faTriangleExclamation} className='mr-2'/>
+                                                    <span>Token is required!</span>
+                                                </div>
+                                    }
 
-                                <div className='flex justify-between items-center'>
-                                    <h1 className="text-base font-medium">Request Payload</h1>
-                                    <div className='flex items-center'>
-                                        {
-                                            (!editMode && formFields?.length > 0) &&
-                                            <>
-                                                <button onClick={() => setToggle({ ...toggle, response: false })} className={`pr-2 disabled:cursor-not-allowed ${!toggle.response && (theme === 'light' ? light.active_list_button : dark.active_list_button)} ${theme === 'light' ? light.button : dark.button_third} rounded-l-full mr-[0.5px]`}>
-                                                    Form
-                                                </button>
-                                                <button onClick={() => setToggle({ ...toggle, response: true })} className={`pl-2 disabled:cursor-not-allowed ${toggle.response && (theme === 'light' ? light.active_list_button : dark.active_list_button)} ${theme === 'light' ? light.button : dark.button_third} rounded-r-full`}>
-                                                    Raw
-                                                </button>
-                                            </>
-                                        }
+                                    <div className='flex justify-between items-center'>
+                                        <h1 className="text-base font-medium">Request Payload</h1>
+                                        <div className='flex items-center'>
+                                            {
+                                                (!editMode && formFields?.length > 0) &&
+                                                <>
+                                                    <button onClick={() => setToggle({ ...toggle, response: false })} className={`pr-2 disabled:cursor-not-allowed ${!toggle.response && (theme === 'light' ? light.active_list_button : dark.active_list_button)} ${theme === 'light' ? light.button : dark.button_third} rounded-l-full mr-[0.5px]`}>
+                                                        Form
+                                                    </button>
+                                                    <button onClick={() => setToggle({ ...toggle, response: true })} className={`pl-2 disabled:cursor-not-allowed ${toggle.response && (theme === 'light' ? light.active_list_button : dark.active_list_button)} ${theme === 'light' ? light.button : dark.button_third} rounded-r-full`}>
+                                                        Raw
+                                                    </button>
+                                                </>
+                                            }
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                {
-                                    editMode ?
-                                        <div className="grid md:grid-cols-2 gap-2 mt-4">
-                                            <div>
-                                                {payloadForm.map((form, index) => (
-                                                    <div key={index}>
-                                                        <div className="pb-2.5">
-                                                            <input
-                                                                type={"text"}
-                                                                className="bg-transparent outline-none"
-                                                                value={form.label}
-                                                                onChange={(e) => handleLabelChange(index, e.target.value)}
-                                                            />
+                                    
+                                    {
+                                        editMode ?
+                                            <div className="grid md:grid-cols-2 gap-2 mt-4">
+                                                <div>
+                                                    {payloadForm.map((form, index) => (
+                                                        <div key={index}>
+                                                            <div className="pb-2.5">
+                                                                <input
+                                                                    type={"text"}
+                                                                    className="bg-transparent outline-none"
+                                                                    value={form.label}
+                                                                    onChange={(e) => handleLabelChange(index, e.target.value)}
+                                                                />
 
-                                                            <div className="flex gap-[1px]">
-                                                            <select
-                                                                className={`text-white text-center block rounded-tl-sm rounded-bl-sm mt-2 mb-1 py-2 px-4 ${
-                                                                    theme === "light" ? light.input : dark.input
-                                                                }`} 
-                                                                onChange={(e) => handleTypeChange(index, e.target.value)}
-                                                            >
-                                                                <option className="text-left" value="text">text</option>
-                                                                <option className="text-left" value="number">number</option>
-                                                                <option className="text-left" value="date">date</option>
-                                                                <option className="text-left" value="email">email</option>
-                                                            </select>
-                                                            <input
-                                                                type={form.type || "text"}
-                                                                placeholder={form.name}
-                                                                value={form.value}
-                                                                onChange={(e) => handleInputChange(index, e.target.value)}
-                                                                    className={`block w-full rounded-tr-sm rounded-br-sm mt-2 mb-1 py-2 px-4 ${
-                                                                    theme === "light" ? light.input : dark.input
-                                                                }`}
-                                                            />
+                                                                <div className="flex gap-[1px]">
+                                                                <select
+                                                                    className={`text-white text-center block rounded-tl-sm rounded-bl-sm mt-2 mb-1 py-2 px-4 ${
+                                                                        theme === "light" ? light.input : dark.input
+                                                                    }`} 
+                                                                    onChange={(e) => handleTypeChange(index, e.target.value)}
+                                                                >
+                                                                    <option className="text-left" value="text">text</option>
+                                                                    <option className="text-left" value="number">number</option>
+                                                                    <option className="text-left" value="date">date</option>
+                                                                    <option className="text-left" value="email">email</option>
+                                                                </select>
+                                                                <input
+                                                                    type={form.type || "text"}
+                                                                    placeholder={form.name}
+                                                                    value={form.value}
+                                                                    onChange={(e) => handleInputChange(index, e.target.value)}
+                                                                        className={`block w-full rounded-tr-sm rounded-br-sm mt-2 mb-1 py-2 px-4 ${
+                                                                        theme === "light" ? light.input : dark.input
+                                                                    }`}
+                                                                />
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
 
-                                                <button
-                                                    onClick={handleAddForm}
-                                                    className={`w-full ${theme === "light" ? light.button : dark.button_third} rounded-full`}
-                                                >
-                                                    New Field
-                                                </button>
+                                                    <button
+                                                        onClick={handleAddForm}
+                                                        className={`w-full ${theme === "light" ? light.button : dark.button_third} rounded-full`}
+                                                    >
+                                                        New Field
+                                                    </button>
+                                                </div>
                                             </div>
+                                        :
+                                        <div className={`mt-4 ${!toggle.response ? 'block' : 'hidden'}`}>
+                                            {
+                                                formFields?.length > 0 ?
+                                                    <DocumentForm
+                                                        theme={theme}
+                                                        fields={formFields}
+                                                        onSubmit={handleSubmit}
+                                                        initialValues={initialValues}
+                                                        update={updateForm}
+                                                        setUpdate={setUpdateForm}
+                                                        disabled={submitted}
+                                                        handleFormChange={handleFormChange}
+                                                    /> 
+                                                : 
+                                                <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
+                                                    No payload available.
+                                                </p>
+                                            }
+                                            
                                         </div>
-                                    :
-                                    <div className={`mt-4 ${!toggle.response ? 'block' : 'hidden'}`}>
-                                        {
-                                            formFields?.length > 0 ?
-                                                <DocumentForm
-                                                    theme={theme}
-                                                    fields={formFields}
-                                                    onSubmit={handleSubmit}
-                                                    initialValues={initialValues}
-                                                    update={updateForm}
-                                                    setUpdate={setUpdateForm}
-                                                    disabled={submitted}
-                                                    handleFormChange={handleFormChange}
-                                                /> 
-                                            : 
-                                            <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
-                                                No payload available.
-                                            </p>
-                                        }
-                                        
-                                    </div>
-                                }
+                                    }
 
-                                {/* <div className={`${toggle.response ? 'block' : 'hidden'} overflow-x-auto custom-scroll relative mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                    <button
-                                        onClick={handleCopy}
-                                        className="absolute top-4 right-4 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
-                                    >
-                                        Copy
-                                    </button>
-                                    <pre
-                                        className="text-sm font-mono leading-6 text-white overflow-x-auto whitespace-pre-wrap max-w-full"
-                                    >
-                                        {"{"}
-                                        <div className="pl-8">{highlightJson(form)}</div>
-                                        <br />
-                                        {"}"}
-                                    </pre>
-                                </div>      */}
-                                
-                                <div className={`${toggle.response ? 'block' : 'hidden'} mb-4 mt-2 relative`}>
-                                    <button
-                                        onClick={handleCopy}
-                                        className="absolute top-4 right-4 z-40 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
-                                    >
-                                        Copy
-                                    </button>
-                                    <CodeEditor
-                                        theme={theme}
-                                        inputValue={JSON.stringify(form, null, 2)}
-                                        readOnly={true}
-                                    />    
-                                </div>  
+                                    {/* <div className={`${toggle.response ? 'block' : 'hidden'} overflow-x-auto custom-scroll relative mb-4 mt-2 px-6 py-3 rounded-sm ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                        <button
+                                            onClick={handleCopy}
+                                            className="absolute top-4 right-4 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
+                                        >
+                                            Copy
+                                        </button>
+                                        <pre
+                                            className="text-sm font-mono leading-6 text-white overflow-x-auto whitespace-pre-wrap max-w-full"
+                                        >
+                                            {"{"}
+                                            <div className="pl-8">{highlightJson(form)}</div>
+                                            <br />
+                                            {"}"}
+                                        </pre>
+                                    </div>      */}
+                                    
+                                    <div className={`${toggle.response ? 'block' : 'hidden'} mb-4 mt-2 relative`}>
+                                        <button
+                                            onClick={handleCopy}
+                                            className="absolute top-4 right-4 z-40 bg-[#0e0e0e] text-white px-3 py-1 rounded-sm text-xs hover:bg-blue-600 focus:outline-none transition-all"
+                                        >
+                                            Copy
+                                        </button>
+                                        <CodeEditor
+                                            theme={theme}
+                                            inputValue={JSON.stringify(form, null, 2)}
+                                            readOnly={true}
+                                        />    
+                                    </div>  
 
-                                <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCodePullRequest} className='mr-1'/> Response</h1>
-                                
-                                {
-                                    editMode && 
-                                    <div className="flex items-center mt-4">
-                                        <input
-                                            id='auto_response'
-                                            type={"checkbox"}
-                                            checked={selected?.auto_response}
-                                            onChange={() => setSelected({...selected, auto_response: !selected.auto_response })}
-                                            className={`w-4 h-4 mr-2 outline-none`}
-                                        />
-                                        <label htmlFor={'auto_response'} className="">Auto Response</label>
-                                    </div>
-                                }
-                                
-                                {
-                                    !selected?.auto_response &&
-                                        <div className='my-4'>
-                                            <CodeEditor
-                                                theme={theme}
-                                                onChange={handleResponseCode}
-                                                inputValue={selected.response_result || ""}
-                                                readOnly={!editMode}
+                                    <h1 className="text-lg font-medium mt-8"><FontAwesomeIcon icon={faCodePullRequest} className='mr-1'/> Response</h1>
+                                    
+                                    {
+                                        editMode && 
+                                        <div className="flex items-center mt-4">
+                                            <input
+                                                id='auto_response'
+                                                type={"checkbox"}
+                                                checked={selected?.auto_response}
+                                                onChange={() => setSelected({...selected, auto_response: !selected.auto_response })}
+                                                className={`w-4 h-4 mr-2 outline-none`}
                                             />
+                                            <label htmlFor={'auto_response'} className="">Auto Response</label>
                                         </div>
-                                }                     
-                                
-                                {
-                                    editMode && 
-                                        <div className="flex justify-end">
-                                            <button
-                                                type="submit"
-                                                className={`disabled:cursor-not-allowed py-1.5 px-4 ${
-                                                    theme === "light"
-                                                        ? light.button_secondary
-                                                        : dark.button_secondary
-                                                } rounded-full ml-2`}
-                                                onClick={handleResponse}
-                                            >
-                                                Save
-                                            </button> 
-                                        </div>
-                                }
-                            </div>
+                                    }
+                                    
+                                    {
+                                        !selected?.auto_response &&
+                                            <div className='my-4'>
+                                                <CodeEditor
+                                                    theme={theme}
+                                                    onChange={handleResponseCode}
+                                                    inputValue={selected.response_result || ""}
+                                                    readOnly={!editMode}
+                                                />
+                                            </div>
+                                    }                     
+                                    
+                                    {
+                                        editMode && 
+                                            <div className="flex justify-end">
+                                                <button
+                                                    type="submit"
+                                                    className={`disabled:cursor-not-allowed py-1.5 px-4 ${
+                                                        theme === "light"
+                                                            ? light.button_secondary
+                                                            : dark.button_secondary
+                                                    } rounded-full ml-2`}
+                                                    onClick={handleResponse}
+                                                >
+                                                    Save
+                                                </button> 
+                                            </div>
+                                    }
+                                </div>
+                            }
 
                             <div className="md:w-52 w-full flex-shrink-0 mr-4 transition-all">
 

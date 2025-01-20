@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSort, faEdit, faList, faQuestion, faTrashAlt, faSortUp, faSortDown, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faSort, faEdit, faList, faQuestion, faTrashAlt, faSortUp, faSortDown, faSearch, faEye } from '@fortawesome/free-solid-svg-icons';
 import { dark, light } from '../../style';
 
 import Avatar from './Avatar';
@@ -217,6 +217,9 @@ const Table = ({ theme, title, header, data, limit, multipleSelect, actions, set
                                                             className={`p-[0.35rem] text-base px-2 rounded-md ${action.color ? action.color : (theme === 'light' ? light.icon : dark.icon)}`}
                                                         >
                                                             {
+                                                                action.label.toLowerCase() === 'view' ?
+                                                                    <FontAwesomeIcon icon={faEye} />
+                                                                :
                                                                 action.label.toLowerCase() === 'edit' ?
                                                                     <FontAwesomeIcon icon={faEdit} />
                                                                 : action.label.toLowerCase() === 'delete' ?
