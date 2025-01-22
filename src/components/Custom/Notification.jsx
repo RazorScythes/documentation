@@ -24,7 +24,7 @@ const Notification = ({ data, duration = 3000, show = true, setShow }) => {
             onClick={() => setShow(false)}
             className={`fixed left-16 z-50 cursor-pointer max-w-lg transition-transform duration-300 ease-in-out ${
                 isAnimating ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-            }`}
+            } z-[110]`}
             style={{ bottom: '2rem' }} 
         >
             {

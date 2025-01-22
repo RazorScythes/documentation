@@ -62,6 +62,24 @@ export const newDocs = createAsyncThunk('docs/newDocs', async (form, thunkAPI) =
     }
 })
 
+export const newDocCategory = createAsyncThunk('docs/newDocCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.newDocCategory(form)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
 export const updateDocsSettings = createAsyncThunk('docs/updateDocsSettings', async (form, thunkAPI) => {
     try {
         const response = await api.updateDocsSettings(form)
@@ -135,6 +153,43 @@ export const deleteMultipleDocs = createAsyncThunk('docs/deleteMultipleDocs', as
     }
 })
 
+export const updateDocCategory = createAsyncThunk('docs/updateDocCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.updateDocCategory(form)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
+export const deleteDocCategory = createAsyncThunk('docs/deleteDocCategory', async (data, thunkAPI) => {
+    try {
+        const { category, id } = data
+        const response = await api.deleteDocCategory(id, category)
+        return response
+    }
+    catch (err) {
+        if(err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return({
+            alert : {
+                variant: 'danger',
+                message: "There was a problem with the server."
+            }
+        })
+    }
+})
+
 export const docsSlice = createSlice({
     name: 'docs',
     initialState,
@@ -171,6 +226,16 @@ export const docsSlice = createSlice({
             state.notFound      = false
         }),
         builder.addCase(newDocs.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(newDocCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(newDocCategory.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(newDocCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         }),
         builder.addCase(updateDocsSettings.fulfilled, (state, action) => {
@@ -216,6 +281,26 @@ export const docsSlice = createSlice({
             state.notFound      = false
         }),
         builder.addCase(deleteMultipleDocs.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(deleteDocCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(deleteDocCategory.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(deleteDocCategory.rejected, (state, action) => {
+            state.alert         = action.payload.alert
+        }),
+        builder.addCase(updateDocCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(updateDocCategory.pending, (state, action) => {
+            state.notFound      = false
+        }),
+        builder.addCase(updateDocCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
         })
     },

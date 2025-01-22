@@ -5,12 +5,14 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useDispatch, useSelector } from 'react-redux'
 import { faChevronDown, faChevronUp, faCode, faCodePullRequest, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faPlus, faThumbsDown, faThumbsUp, faTriangleExclamation, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
-import { getDocsById, clearAlert } from '../../actions/documentation';
+import { getDocsById, clearAlert, newDocCategory, deleteDocCategory, updateDocCategory } from '../../actions/documentation';
 import DocumentForm from '../Custom/DocumentForm';
 import NewDocumentationModal from '../Custom/NewDocumentationModal';
 import CodeEditor from '../Custom/CodeEditor';
 import Notification from '../Custom/Notification';
+import ConfirmModal from '../Custom/ConfirmModal';
 import styles from "../../style";
+import axios from 'axios';
 
 const Documentation = ({ user, theme }) => {
     const dispatch = useDispatch()
@@ -39,77 +41,7 @@ const Documentation = ({ user, theme }) => {
         response: false
     })
     
-    const [menuItems, setMenuItems] = useState([
-        { 
-            name: 'Overview', 
-            icon: faHome, 
-            path: 'overview', 
-            token: '',
-            base_url: 'http://localhost:5011',
-            dropdown: [
-                { 
-                    _id: 1122,
-                    name: 'Overview', 
-                    path: 'overview', 
-                    method: 'post',
-                    description: `Please refer to the API documentation for more information about available endpoints, request formats, and response formats.
-            
-Happy API integration!`,
-                    method: 'get',
-                    endpoint: '/total',
-                    token_required: true,
-                    payload: [
-                        {
-                            label: 'Name',
-                            name: 'name',
-                            type: 'text',
-                            value: 'James Arvie Maderas'
-                        },
-                        {
-                            label: 'Age',
-                            name: 'age',
-                            type: 'number',
-                            value: 19
-                        },
-                        {
-                            label: 'Birthday',
-                            name: 'birthday',
-                            type: 'date',
-                            value: ''
-                        },
-                    ],
-                    type: 'main'
-                }
-            ] 
-        },
-        { 
-            _id: 111,
-            name: 'Profile', 
-            path: 'profile', 
-            token: '',
-            base_url: 'http://localhost:5011',
-            dropdown: [
-                { 
-                    _id: 1122,
-                    name: 'Profile', 
-                    path: 'profile', 
-                    method: 'post',
-                    description: `Please refer to the API documentation for more information about available endpoints, request formats, and response formats.
-            
-Happy API integration!`,
-                    method: 'post',
-                    endpoint: '/total_complexibility',
-                    token_required: true,
-                    payload: [],
-                    response_result: "const formData = {\n    blog_id: 30,\n    featured: 1\n}\n\nconst response = await axios.patch(API+'/blog/set_featured_blog', formData);\nconsole.log(response.data)",
-                    type: 'sub'
-                },
-                { name: 'Change Password', path: 'profile/password', method: 'get' },
-                { name: 'Activity Logs', path: 'profile/logs', method: 'patch' },
-                { name: 'Methods', path: 'profile/method', method: 'delete' },
-            ] 
-        }
-    ])
+    const [menuItems, setMenuItems] = useState([])
 
     const key = searchParams.get('edit')
     
@@ -124,6 +56,9 @@ Happy API integration!`,
         else {
             setMenuItems([])
         }
+
+        setDeleteConfirm(false)
+        setSave(false)
     }, [docs])
 
     useEffect(() => {
@@ -137,8 +72,13 @@ Happy API integration!`,
     
     useEffect(() => {
         if(Object.keys(alert).length > 0) {
+            if(alert.variant === 'success') {
+                setOpenModal(false);
+            }
+
             dispatch(clearAlert())
             setNotification(alert)
+            setShow(true)
         }
     }, [alert])
 
@@ -179,6 +119,29 @@ Happy API integration!`,
         }
     }, [menuItems])
 
+    const [responseData, setResponseData] = useState({})
+
+    const getResponse = async () => {
+        try {
+            const url = `${menuItems[selectedIndex]?.base_url}${selected?.endpoint ?? ''}`;
+            const response = await axios.get(url);
+
+            const data = response.data;
+
+            if(data) {
+                setResponseData(data)
+            }
+        } catch (err) {
+            const data = {
+                status: err.response.status,
+                statusText: err.response.statusText,
+                data: err.response.data
+            }
+
+            setResponseData(data)
+        }
+    }
+
     useEffect(() => {
         if(selected.payload?.length > 0) {
             const values = {};
@@ -194,6 +157,10 @@ Happy API integration!`,
                 values[field.name] = field.value;
             })
 
+            if(selected.auto_response) {
+                getResponse()
+            }
+            
             setFormFields(fields);
             setInitialValues(values);
             setForm(values)
@@ -222,7 +189,9 @@ Happy API integration!`,
     }
 
     const redirect = (path, index) => {
-        navigate(`/documentation/${path}`)
+        const queryParams = location.search;
+
+        navigate(`/documentation/${category}/${path}${queryParams}`);
 
         const result = menuItems[index].dropdown.find(item => item.path && item.path === path);
 
@@ -311,8 +280,10 @@ Happy API integration!`,
         setSelected({ ...selected, method });
     };
 
-    const [openModal, setOpenModal]         = useState(false)
-    const [confirm, setConfirm]             = useState(false)
+    const [openModal, setOpenModal]                 = useState(false)
+    const [confirm, setConfirm]                     = useState(false)
+    const [openDeleteModal, setDeleteOpenModal]     = useState(false)
+    const [deleteConfirm, setDeleteConfirm]         = useState(false)
 
     const httpMethods = ['GET', 'POST', 'PATCH', 'DELETE'];
 
@@ -372,21 +343,45 @@ Happy API integration!`,
         setPayloadForm(updatedForms);
     };
 
+    const [save, setSave] = useState(false)
     const handleResponse = () => {
-        const formData = {...selected};
-        formData.payload = payloadForm;
+        if(!save) {
+            const formData = {...selected};
+            formData.payload = payloadForm;
 
-        console.log(formData)
+            setSelected({...selected, payload: payloadForm})
 
-        setSelected({...selected, payload: payloadForm})
+            dispatch(updateDocCategory({
+                category,
+                data: formData
+            }))
+
+            setSave(true);
+        }
     }
 
     const handleResponseCode = (data) => {
         setSelected({...selected, response_result: data})
     }
 
+    const handleNewCategory = (formData) => {
+        dispatch(newDocCategory({
+            category,
+            formData
+        }))
+    }
+
+    useEffect(() => {
+        if(deleteConfirm) {
+            dispatch(deleteDocCategory({
+                category,
+                id: selected._id
+            }))
+        }
+    }, [deleteConfirm])
+
     return (
-        <div className={`h-screen relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
+        <div className={`${(menuItems.length === 0 || loading) && 'h-screen'} relative overflow-hidden ${main.font} ${theme === 'light' ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidthEx}`}>
                     <div className={`file:lg:px-8 relative px-0 my-12`}>
@@ -398,6 +393,8 @@ Happy API integration!`,
                             openModal={openModal}
                             setOpenModal={setOpenModal}
                             setConfirm={setConfirm}
+                            category={category}
+                            handleNewCategory={handleNewCategory}
                         />
 
                         <Notification
@@ -405,6 +402,15 @@ Happy API integration!`,
                             data={notification}
                             show={show}
                             setShow={setShow}
+                        />
+
+                        <ConfirmModal 
+                            theme={theme}
+                            title="Confirm Tag Deletion"
+                            description={`Are you sure you want to delete this documentation?`}
+                            openModal={openDeleteModal}
+                            setOpenModal={setDeleteOpenModal}
+                            setConfirm={setDeleteConfirm}
                         />
 
                         <div className='mb-4 flex items-center gap-2'>
@@ -520,6 +526,7 @@ Happy API integration!`,
                                                 className="text-2xl mt-4 font-medium bg-transparent outline-none" 
                                                 value={ selected?.name }
                                                 onChange={(e) => setSelected({ ...selected, name: e.target.value })}
+                                                placeholder='Title'
                                             />
                                         : <h1 className="text-2xl mt-4 font-medium"> { selected?.name } </h1>
                                     }
@@ -531,6 +538,7 @@ Happy API integration!`,
                                                 rows={4}
                                                 value={selected?.description ?? 'Description Here'}
                                                 onChange={(e) => setSelected({ ...selected, description: e.target.value })}
+                                                placeholder='Description'
                                             ></textarea>
                                         :   
                                         <p className={`whitespace-pre-wrap mt-4 mb-4 ${theme === 'light' ? light.text : dark.text}`}>
@@ -762,12 +770,12 @@ Happy API integration!`,
                                     }
                                     
                                     {
-                                        !selected?.auto_response &&
+                                        !selected?.auto_response || !editMode &&
                                             <div className='my-4'>
                                                 <CodeEditor
                                                     theme={theme}
                                                     onChange={handleResponseCode}
-                                                    inputValue={selected.response_result || ""}
+                                                    inputValue={selected.response_result || JSON.stringify(responseData, null, 2)}
                                                     readOnly={!editMode}
                                                 />
                                             </div>
@@ -782,10 +790,22 @@ Happy API integration!`,
                                                         theme === "light"
                                                             ? light.button_secondary
                                                             : dark.button_secondary
+                                                    }
+                                                    bg-red-600 hover:bg-red-700 rounded-full ml-2`}
+                                                    onClick={() => setDeleteOpenModal(true)}
+                                                >
+                                                    Delete
+                                                </button> 
+                                                <button
+                                                    type="submit"
+                                                    className={`disabled:cursor-not-allowed py-1.5 px-4 ${
+                                                        theme === "light"
+                                                            ? light.button_secondary
+                                                            : dark.button_secondary
                                                     } rounded-full ml-2`}
                                                     onClick={handleResponse}
                                                 >
-                                                    Save
+                                                    {save ? 'Saving' : 'Save'}
                                                 </button> 
                                             </div>
                                     }

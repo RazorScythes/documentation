@@ -217,18 +217,18 @@ const Tags = ({ user, theme, setNotification }) => {
                     title=""
                     header={[
                         { key: 'doc_name', label: 'Doc Name', render: (item, index) => 
-                            <Link to={`/documentation/${tableData[index].doc_name}`} className={`${theme === 'light' ? light.link : dark.link}`}>{tableData[index].doc_name}</Link>
+                            <Link to={`/documentation/${tableData[index]?.doc_name}`} className={`${theme === 'light' ? light.link : dark.link}`}>{tableData[index]?.doc_name}</Link>
                         },
                         { key: 'token_url', label: 'Token URL', render: (item, index) => 
                             <button
                                 onClick={() => {
-                                    setOpenListModal({
-                                        ...openModal,
-                                        token: true
-                                    })
                                     setModalData({
                                         ...modalData,
                                         token: { ...tableData[index], label: 'Token URL' }
+                                    })
+                                    setOpenListModal({
+                                        ...openModal,
+                                        token: true
                                     })
                                 }}
                                 title="view"
@@ -253,11 +253,11 @@ const Tags = ({ user, theme, setNotification }) => {
                         { key: 'base_url', label: 'Base URL', render: (item, index) => 
                             <button
                                 onClick={() => {
-                                    setLinkOpenModal(true)
                                     setModalData({
                                         ...modalData,
-                                        base_url: { ...tableData[index], label: 'Base URL', link: `${tableData[index].base_url}` }
+                                        base_url: { ...tableData[index], label: 'Base URL', link: `${tableData[index]?.base_url}` }
                                     })
+                                    setLinkOpenModal(true)
                                 }}
                                 title="view"
                                 className={`p-[0.35rem] text-base px-2 rounded-md ${theme === 'light' ? light.link : dark.link}`}

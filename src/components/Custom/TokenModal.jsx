@@ -13,6 +13,7 @@ const TokenModal = ({ theme, openModal, setOpenModal, data }) => {
     const [initialData, setInitalData] = useState({})
     const [response, setResponse] = useState({})
     const [showResponse, setShowResponse] = useState(false)
+    const [update, setUpdate] = useState(false)
 
     useEffect(() => {
         setShowResponse(false)
@@ -20,6 +21,7 @@ const TokenModal = ({ theme, openModal, setOpenModal, data }) => {
         setError(false);
         if(data) {
             setInitalData({ token_url: data.token_url })
+            setUpdate(true)
         }
     }, [data])
 
@@ -111,6 +113,8 @@ const TokenModal = ({ theme, openModal, setOpenModal, data }) => {
                                             onSubmit={handleSubmit}
                                             initialValues={initialData}
                                             fullWidth={true}
+                                            setUpdate={setUpdate}
+                                            update={update}
                                         />
 
                                         {

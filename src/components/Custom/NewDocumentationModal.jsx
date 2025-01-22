@@ -3,12 +3,9 @@ import { dark, light } from '../../style';
 import { faClose } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MotionAnimate } from 'react-motion-animate';
-
 import CustomForm from './CustomForm';
 
-const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, description, setConfirm }) => {
-    const [error, setError] = useState(false)
-
+const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, handleNewCategory }) => {
     const fields = [
         { label: "Category Name", name: "category", type: "text", required: true },
         { label: "Sub Category", name: "sub", type: "list" },
@@ -17,14 +14,9 @@ const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, descript
     const closeModal = () => {
         setOpenModal(false)
     }
-
-    const confirm = () => {
-        setConfirm(true)
-        setOpenModal(false)
-    }
-
+    
     const handleSubmit = async (formData) => {
-        console.log(formData)
+        handleNewCategory(formData);
     };
 
     return (
@@ -69,8 +61,6 @@ const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, descript
                                     {/*body*/}
                                     
                                     <div className="p-5 pb-8 font-normal">
-                                        { error && <div className='pb-2'><span className="text-red-600 font-medium">Something went wrong.</span></div> }
-
                                         <CustomForm
                                             theme={theme}
                                             fields={fields}

@@ -5,7 +5,7 @@ const cookies   = new Cookies();
 
 const baseURL   = import.meta.env.VITE_DEVELOPMENT == "true" ? 
                     `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`
-                    : `https://endpoint-rho-six.vercel.app/`
+                    : import.meta.env.VITE_APP_BASE_URL
 
 const endpoint  = axios.create({ baseURL })
 
@@ -92,3 +92,6 @@ export const updateDocsSettings                = (formData) => endpoint.patch('/
 export const updateDocs                        = (formData) => endpoint.patch('/documentation/updateDocs', formData)
 export const deleteDocs                        = (id) => endpoint.delete(`/documentation/deleteDocs/${id}`)
 export const deleteMultipleDocs                = (formData) => endpoint.patch('/documentation/deleteMultipleDocs', formData)
+export const newDocCategory                    = (formData) => endpoint.post(`/documentation/newDocCategory`, formData)
+export const deleteDocCategory                 = (id, category) => endpoint.delete(`/documentation/deleteDocCategory/${id}/${category}`) 
+export const updateDocCategory                 = (formData) => endpoint.patch('/documentation/updateDocCategory', formData)
