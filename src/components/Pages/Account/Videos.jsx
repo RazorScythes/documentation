@@ -270,7 +270,7 @@ const Videos = ({ user, theme, setNotification }) => {
     }, [confirm])
 
     return (
-        <div>   
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">   
             <ConfirmModal 
                 theme={theme}
                 title="Confirm Video Deletion"
@@ -303,40 +303,63 @@ const Videos = ({ user, theme, setNotification }) => {
                 link={videoRecord}
             />
 
-            <div className='mb-8 mt-4 flex items-center gap-2'>
-                <h1 className="text-xl font-medium mb-1">Your Videos</h1>
-                <button
-                    onClick={() => {
-                        setFormOpen(!formOpen)
-                        setInitialValues({})
-                        setUpdateFormValue(true)
-                        setEdit(false)
-                    }}
-                    className={`py-1.5 px-4 ${
-                        theme === "light"
-                            ? light.button_secondary
-                            : dark.button_secondary
-                    } rounded-full`}
-                >
-                    { formOpen ? 'Cancel' : 'Upload' } 
-                </button>
-                { (formOpen && !edit) && <button onClick={() => setOpenVideoModal(!openVideoModal)} className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}>Import</button> }
+            {/* Header Section */}
+            <div className='mb-8 flex xs:flex-row flex-col justify-between items-start gap-4'>
+                <div>
+                    <h1 className={`text-3xl font-semibold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                        Your Videos
+                    </h1>
+                    <p className={`text-sm ${theme === 'light' ? light.text : dark.text}`}>
+                        Manage and organize your video content
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => {
+                            setFormOpen(!formOpen)
+                            setInitialValues({})
+                            setUpdateFormValue(true)
+                            setEdit(false)
+                        }}
+                        className={`py-1.5 px-4 ${
+                            theme === "light"
+                                ? light.button_secondary
+                                : dark.button_secondary
+                        } rounded-full`}
+                    >
+                        { formOpen ? 'Cancel' : 'Upload' } 
+                    </button>
+                    { (formOpen && !edit) && (
+                        <button 
+                            onClick={() => setOpenVideoModal(!openVideoModal)} 
+                            className={`py-1.5 px-4 rounded-full ${theme === 'light' ? light.button_secondary : dark.button_secondary}`}
+                        >
+                            Import
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className={`${formOpen ? 'block' : 'hidden'}`}>
-                <CustomForm
-                    theme={theme}
-                    fields={fields}
-                    onSubmit={handleSubmit}
-                    setUpdate={setUpdateFormValue}
-                    update={updateFormValue}
-                    initialValues={initialValues}
-                    disabled={submitted}
-                />
+                <div className={`max-w-2xl rounded-xl p-6 md:p-8 border ${
+                    theme === 'light'
+                        ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md'
+                        : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg'
+                }`}>
+                    <CustomForm
+                        theme={theme}
+                        fields={fields}
+                        onSubmit={handleSubmit}
+                        setUpdate={setUpdateFormValue}
+                        update={updateFormValue}
+                        initialValues={initialValues}
+                        disabled={submitted}
+                    />
+                </div>
             </div>
             
             <div className={`${formOpen ? 'hidden' : 'block'}`}>
-                <Table 
+                <Table
                     theme={theme}
                     title=""
                     header={[

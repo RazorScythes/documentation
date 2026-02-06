@@ -24,10 +24,16 @@ const CustomForm = ({
     const [dropdownVisible, setDropdownVisible] = useState({});
     const [inputFocus, setInputFocus] = useState({})
     const [removedImage, setRemovedImage] = useState([])
+    const [isVisible, setIsVisible] = useState(false)
 
     useEffect(() => {
         setField(fields ?? []);
     }, [fields]);
+
+    useEffect(() => {
+        // Trigger animation on mount
+        setIsVisible(true)
+    }, [])
 
     useEffect(() => {
         if(update) {
@@ -250,12 +256,26 @@ const CustomForm = ({
     };
     
     return (
-        <div className={`${!fullWidth && 'grid md:grid-cols-2 gap-2'}`}>
-            <form onSubmit={handleSubmit}>
-                {field.map(({ label, name, type, placeholder, options, readOnly, required }) => (
+        <div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+                {field.map(({ label, name, type, placeholder, options, readOnly, required }, index) => (
                     
-                    <div key={name} className="pb-2.5">
-                        { type !== "checkbox" && <label htmlFor={name}>{label}:</label> }
+                    <div 
+                        key={name}
+                        className={`transition-all duration-500 ease-out ${
+                            isVisible 
+                                ? 'opacity-100 translate-y-0' 
+                                : 'opacity-0 translate-y-4'
+                        }`}
+                        style={{
+                            transitionDelay: `${index * 50}ms`
+                        }}
+                    >
+                        { type !== "checkbox" && type !== "labelOnly" && (
+                            <label htmlFor={name} className={`block text-sm font-semibold mb-2 ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
+                                {label}
+                            </label>
+                        )}
                         {
                             type === "labelOnly" ? <></>
                             : type === "list" ? (
@@ -321,7 +341,7 @@ const CustomForm = ({
                                     placeholder={placeholder || ""}
                                     value={formValues[name] || ""}
                                     onChange={handleChange}
-                                    className={`block custom-scroll w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                    className={`block custom-scroll w-full rounded-lg border transition-all duration-200 py-3 px-4 appearance-none ${theme === "light" ? light.input : dark.input}`}
                                 >
                                     <option value="">Select option</option>
                                     {
@@ -342,13 +362,13 @@ const CustomForm = ({
                                     placeholder={placeholder || ""}
                                     value={formValues[name] || ""}
                                     onChange={handleChange}
-                                    className={`block custom-scroll w-full rounded-sm mt-2 mb-1 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
-                                    rows={8}
+                                    className={`block custom-scroll w-full rounded-lg border transition-all duration-200 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                    rows={6}
                                     autoSave="false"
                                 />
                             )
                             : type === "multi_select" ? (
-                                <div className="relative">
+                                <div className="relative z-[9999]">
                                     <div
                                         onClick={() => handleInputFocus(name)}
                                         className={`relative flex flex-wrap items-center gap-3 w-full rounded-sm mt-2 mb-1 py-1 px-4 ${
@@ -385,7 +405,7 @@ const CustomForm = ({
                                     </div>
                                     {(dropdownVisible[name] && inputFocus[name]) && (
                                         <div
-                                            className={`absolute z-70 top-[105%] left-0 w-full border border-solid ${
+                                            className={`relative z-70 top-[105%] left-0 w-full border border-solid ${
                                                 theme === "light"
                                                     ? light.border
                                                     : dark.semiborder
@@ -424,47 +444,63 @@ const CustomForm = ({
                                 {
                                     formValues[name]?.preview ? (
                                         loadingImages[name] === true ? ( 
-                                            <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
-                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
+                                            <div className={`p-8 py-16 w-full border-2 border-dashed rounded-lg flex justify-center items-center transition-all duration-200 ${
+                                                theme === "light" 
+                                                    ? 'border-blue-300 bg-blue-50/50' 
+                                                    : 'border-[#2B2B2B] bg-[#2B2B2B]/30'
+                                            }`}>
+                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${theme === "light" ? 'border-blue-500' : 'border-blue-400'}`}></div>
                                             </div>
                                         ) : (
                                             <div
-                                                className={`mt-2.5 w-full border border-solid ${theme === "light" ? light.semiborder : dark.semiborder} rounded-md`}
+                                                className={`w-full border rounded-lg overflow-hidden transition-all duration-200 ${
+                                                    theme === "light" 
+                                                        ? 'border-blue-200/60' 
+                                                        : 'border-[#2B2B2B]'
+                                                }`}
                                                 onClick={() => handleFileClick(name)}
                                                 style={{ cursor: "pointer" }}
                                             >
                                                 <img
                                                     src={formValues[name]?.preview}
                                                     alt="Uploaded Thumbnail"
-                                                    className="w-full h-full object-fit rounded-md"
+                                                    className="w-full h-full object-cover"
                                                 />
                                             </div>
                                         )
                                     )
                                     : (formValues[name] || loadingImages[name] === true) ? (
                                         loadingImages[name] === true ? ( 
-                                            <div className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed ${theme === "light" ? light.border : dark.semiborder} rounded-md flex justify-center items-center`}>
-                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400`}></div>
+                                            <div className={`p-8 py-16 w-full border-2 border-dashed rounded-lg flex justify-center items-center transition-all duration-200 ${
+                                                theme === "light" 
+                                                    ? 'border-blue-300 bg-blue-50/50' 
+                                                    : 'border-[#2B2B2B] bg-[#2B2B2B]/30'
+                                            }`}>
+                                                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${theme === "light" ? 'border-blue-500' : 'border-blue-400'}`}></div>
                                             </div>
                                         ) : (
                                             <div
-                                                className={`mt-2.5 w-full border border-solid ${theme === "light" ? light.semiborder : dark.semiborder} rounded-md`}
+                                                className={`w-full border rounded-lg overflow-hidden transition-all duration-200 ${
+                                                    theme === "light" 
+                                                        ? 'border-blue-200/60' 
+                                                        : 'border-[#2B2B2B]'
+                                                }`}
                                                 onClick={() => handleFileClick(name)}
                                                 style={{ cursor: "pointer" }}
                                             >
                                                 <img
                                                     src={URL.createObjectURL(formValues[name])}
                                                     alt="Uploaded Thumbnail"
-                                                    className="w-full h-full object-fit rounded-md"
+                                                    className="w-full h-full object-cover"
                                                 />
                                             </div>
                                         )
                                     ) :  (
                                         <div
-                                            className={`p-8 py-16 mt-2.5 w-full border-2 border-dashed rounded-md ${
+                                            className={`p-8 py-16 w-full border-2 border-dashed rounded-lg transition-all duration-200 ${
                                                 theme === "light"
-                                                    ? light.border
-                                                    : dark.semiborder
+                                                    ? 'border-blue-300 bg-blue-50/50 hover:bg-blue-100/60'
+                                                    : 'border-[#2B2B2B] bg-[#2B2B2B]/30 hover:bg-[#2B2B2B]/50'
                                             }`}
                                             onClick={() => handleFileClick(name)}
                                             style={{ cursor: "pointer" }}
@@ -505,11 +541,13 @@ const CustomForm = ({
                             </>
                         ) : 
                             readOnly ? 
-                                <div className="relative mt-2 mb-1">
-                                    <span className={`absolute inset-y-0 left-0 flex items-center p-4 ${theme === 'light' ? light.active_list_button : dark.active_list_button}`}> <FontAwesomeIcon icon={faLock} /> </span>
+                                <div className="relative">
+                                    <span className={`absolute left-0 top-0 bottom-0 flex items-center justify-center w-12 z-10 ${theme === 'light' ? 'bg-gradient-to-r from-blue-500 to-sky-500 text-white rounded-l-lg' : 'bg-blue-600 text-white rounded-l-lg'}`}> 
+                                        <FontAwesomeIcon icon={faLock} className="text-white text-sm" /> 
+                                    </span>
                                     <input 
                                         value={formValues[name] || ""}
-                                        className={`block w-full rounded-sm py-2 px-4 pl-14 ${theme === 'light' ? light.input : dark.input}`} 
+                                        className={`block w-full rounded-lg border transition-all duration-200 py-3 px-4 pl-14 relative z-0 ${theme === 'light' ? light.input : dark.input}`} 
                                         type={type || "text"}
                                         placeholder={placeholder || ""}
                                         readOnly
@@ -525,37 +563,30 @@ const CustomForm = ({
                                 placeholder={placeholder || ""}
                                 value={formValues[name] || ""}
                                 onChange={handleChange}
-                                className={`block w-full rounded-sm mt-2 mb-1 py-2 px-4 ${theme === "light" ? light.input : dark.input}`}
+                                className={`block w-full rounded-lg border transition-all duration-200 py-3 px-4 ${theme === "light" ? light.input : dark.input}`}
                                 autoSave="false"
                                 readOnly={readOnly}
                             />
                         }
-                        {errors[name] && <span className="text-red-600">{errors[name]}</span>}
+                        {errors[name] && (
+                            <p className="mt-1 text-sm text-red-500">
+                                {errors[name]}
+                            </p>
+                        )}
                     </div>
                 ))}
 
-                <div className="flex justify-end mt-2">
-                    {showReset && (
-                        <button
-                            onClick={handleClear}
-                            type="button"
-                            className={`${
-                                theme === "light" ? light.button : dark.button
-                            } rounded-full ml-2`}
-                        >
-                            Clear
-                        </button>
-                    )}
+                <div className="pt-2">
                     <button
                         type="submit"
-                        className={`disabled:cursor-not-allowed py-1.5 px-4 ${
+                        className={`w-full disabled:cursor-not-allowed py-3 px-6 rounded-lg font-semibold transition-all duration-300 ${
                             theme === "light"
                                 ? light.button_secondary
                                 : dark.button_secondary
-                        } rounded-full ml-2`}
+                        } disabled:opacity-50`}
                         disabled={disabled}
                     >
-                        { disabled ? 'Submitting' : 'Submit' }
+                        { disabled ? 'Submitting...' : 'Update Profile' }
                     </button>
                 </div>
             </form>

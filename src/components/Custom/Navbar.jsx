@@ -1,6 +1,6 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faSearch, faStarAndCrescent, faSun, faUser, faGear, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { video_links } from "../../constants";
@@ -9,6 +9,7 @@ import { convertDriveImageLink } from '../Tools'
 import { useDispatch, useSelector } from 'react-redux'
 import { Menu } from "lucide-react";
 import { main, dark, light } from "../../style";
+import NotificationDropdown from './NotificationDropdown';
 
 import Logo from '../../assets/logo.png'
 import Avatar from '../../assets/avatar.webp'
@@ -32,6 +33,7 @@ const Navbar = ({ theme, setTheme }) => {
     const [avatar, setAvatar] = useState()
     const [firstPath, setFirstPath] = useState('')
     const [searchKey, setSearchKey] = useState('')
+    const [notifications, setNotifications] = useState([])
 
     const sign_out = () => {
         dispatch(logout())
@@ -80,16 +82,21 @@ const Navbar = ({ theme, setTheme }) => {
     }
 
     return (
-        <header className={`${main.font} w-full border-b border-solid ${theme === 'light' ? light.border : dark.border} shadow-lg transition-all relative`}>
+        <header className={`${main.font} w-full border-b border-solid ${theme === 'light' ? light.border : dark.border} shadow-lg transition-all relative z-50`}>
             {
                 isActive ?
-                <div className={`xs:px-6 absolute left-0 z-40 top-10 py-6  lg:flex-grow text-left lg:hidden block tranisition-all ${theme === 'light' ? light.background : dark.background} w-full`}>
+                <div className={`xs:px-6 absolute left-0 z-40 top-14 py-4 lg:flex-grow text-left lg:hidden block transition-all duration-300 ${theme === 'light' ? 'bg-white/98 backdrop-blur-md border-b-2 border-blue-200/80' : 'bg-[#1C1C1C]/98 backdrop-blur-md border-b-2 border-[#2B2B2B]'} w-full shadow-2xl`}>
                     <div className={`${main.container}`}>
                     {
                         video_links.map((link, i) => {
                             return (
-                                <a key={i} href={`/${link.path}`} className={`block mt-4 lg:inline-block lg:mt-0 ${theme === 'light' ? light.link : dark.link}`} onClick={() => setIsActive(!isActive)}>
-                                    { link.icon && <FontAwesomeIcon icon={link.icon} className="mr-2" /> }
+                                <a 
+                                    key={i} 
+                                    href={`/${link.path}`} 
+                                    className={`block px-4 py-3 rounded-xl mb-2 transition-all duration-200 border ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-sky-50 hover:text-blue-800 border-blue-100/50 hover:border-blue-200/80 hover:shadow-md' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white border-[#2B2B2B]/50 hover:border-[#3B3B3B] hover:shadow-lg'} font-medium shadow-sm`} 
+                                    onClick={() => setIsActive(!isActive)}
+                                >
+                                    { link.icon && <FontAwesomeIcon icon={link.icon} className="mr-3" /> }
                                     {link.name}
                                 </a>
                             )
@@ -148,35 +155,97 @@ const Navbar = ({ theme, setTheme }) => {
                             setIsActive(false)
                             setToggle(false)
                         }}><FontAwesomeIcon icon={faSearch} /></button>
-                        { user && <button className={`p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}><FontAwesomeIcon icon={faBell} /></button> }
-                        <button onClick={() => changeTheme()} className={`lg:hidden block p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}> { theme === 'light' ? <FontAwesomeIcon icon={faSun} /> : <FontAwesomeIcon icon={faStarAndCrescent} /> } </button>
+                        { user && (
+                            <div className="relative">
+                                <button 
+                                    className={`p-[0.35rem] px-3 rounded-md relative ${theme === 'light' ? light.icon : dark.icon}`}
+                                    onClick={() => {
+                                        setOpen({...open, search: false, notification: !open.notification})
+                                        setIsActive(false)
+                                        setToggle(false)
+                                    }}
+                                >
+                                    <FontAwesomeIcon icon={faBell} />
+                                    {notifications.filter(n => !n.read).length > 0 && (
+                                        <span className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                                    )}
+                                </button>
+                                {open.notification && (
+                                    <div className="fixed inset-0 top-16 sm:top-0 z-40" onClick={() => setOpen({...open, notification: false})}></div>
+                                )}
+                                {open.notification && (
+                                    <div className="fixed sm:absolute inset-x-0 top-16 sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 flex justify-center sm:block z-50 p-4 sm:p-0">
+                                        <NotificationDropdown
+                                            theme={theme}
+                                            notifications={notifications}
+                                            onClose={() => setOpen({...open, notification: false})}
+                                            onNotificationClick={(notification) => {
+                                                // Handle notification click
+                                                console.log('Notification clicked:', notification)
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <button onClick={() => changeTheme()} className={`lg:hidden block p-[0.35rem] px-3 rounded-md transition-all duration-200 ${theme === 'light' ? light.icon : dark.icon}`}> 
+                            { theme === 'light' ? (
+                                <FontAwesomeIcon icon={faSun} />
+                            ) : (
+                                <FontAwesomeIcon icon={faMoon} />
+                            )} 
+                        </button>
                     </div>
 
                     {
                         user ?
-                            <div>
-                                <img className={`h-8 w-8 rounded-full ml-4 cursor-pointer object-cover border border-gray-500 bg-white`} src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile" onClick={() => {
+                            <div className="relative">
+                                <img className="h-8 w-8 rounded-full ml-4 cursor-pointer object-cover border border-gray-500 bg-white shadow-md hover:shadow-lg transition-all" src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile" onClick={() => {
                                     setToggle(!toggle)
                                     setIsActive(false)
                                     setOpen({...open, search: false, notification: false})
                                 }} />
+                                {toggle && (
+                                    <div className="fixed inset-0 z-40" onClick={() => setToggle(false)}></div>
+                                )}
                                 <div
+                                    onClick={(e) => e.stopPropagation()}
                                     className={`${
                                     !toggle ? "hidden" : "flex"
-                                    } p-6 ${theme === 'light' ? light.background : dark.background} absolute z-60 top-16 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar border border-solid ${theme === 'light' ? light.border : dark.semiborder} shadow-md`}
+                                    } flex-col ${theme === 'light' ? 'bg-white/98 backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C]/98 backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-16 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
                                 >
-                                    <ul className="list-none flex justify-end items-start flex-1 flex-col">
-                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-4`}>
-                                            <FontAwesomeIcon icon={faUser} className="mr-2" />
-                                            <a href={`/account`}>My Account</a>
+                                    <ul className="list-none flex flex-col py-2">
+                                        <li>
+                                            <a 
+                                                href={`/account`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faUser} className="mr-3 w-4" />
+                                                <span className="font-medium">My Account</span>
+                                            </a>
                                         </li>
-                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-4`}>
-                                            <FontAwesomeIcon icon={faGear} className="mr-2" />
-                                            <a href={`/account/settings`}>Settings</a>
+                                        <li>
+                                            <a 
+                                                href={`/account/settings`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faGear} className="mr-3 w-4" />
+                                                <span className="font-medium">Settings</span>
+                                            </a>
                                         </li>
-                                        <li className={`cursor-pointer ${theme === 'light' ? light.link : dark.link} mb-0`}>
-                                            <FontAwesomeIcon icon={faRightFromBracket} className="mr-2" />
-                                            <button onClick={() => sign_out()}>Logout</button>
+                                        <li className={`border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
+                                            <button 
+                                                onClick={() => {
+                                                    sign_out()
+                                                    setToggle(false)
+                                                }}
+                                                className={`w-full flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-rose-600 hover:bg-gradient-to-r hover:from-rose-50/50 hover:to-red-50/50 hover:text-rose-700 hover:border-rose-400 hover:shadow-sm' : 'text-red-400 hover:bg-red-900/20 hover:text-red-300 hover:border-red-500'}`}
+                                            >
+                                                <FontAwesomeIcon icon={faRightFromBracket} className="mr-3 w-4" />
+                                                <span className="font-medium">Logout</span>
+                                            </button>
                                         </li>
                                     </ul>
                                 </div>
@@ -198,39 +267,101 @@ const Navbar = ({ theme, setTheme }) => {
                         </div>
                     </form>
 
-                    <button onClick={() => changeTheme()} className={`lg:block hidden p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}> { theme === 'light' ? <FontAwesomeIcon icon={faSun} /> : <FontAwesomeIcon icon={faStarAndCrescent} /> } </button>
+                    <button onClick={() => changeTheme()} className={`lg:block hidden p-[0.35rem] px-3 rounded-md transition-all duration-200 hover:scale-110 ${theme === 'light' ? light.icon : dark.icon}`}> 
+                        { theme === 'light' ? (
+                            <FontAwesomeIcon icon={faSun} />
+                        ) : (
+                            <FontAwesomeIcon icon={faMoon} />
+                        )} 
+                    </button>
 
                     <div className="hidden lg:block ">
                     {
                         user ?
-                            <div className="flex">  
-                                <div className="flex gap-2 mr-4"></div>
+                            <div className="flex items-center gap-3">  
+                                <div className="relative">
+                                    <button 
+                                        className={`p-[0.35rem] px-3 rounded-md relative ${theme === 'light' ? light.icon : dark.icon}`}
+                                        onClick={() => {
+                                            setOpen({...open, search: false, notification: !open.notification})
+                                            setIsActive(false)
+                                            setToggle(false)
+                                        }}
+                                    >
+                                        <FontAwesomeIcon icon={faBell} />
+                                        {notifications.filter(n => !n.read).length > 0 && (
+                                            <span className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                                        )}
+                                    </button>
+                                    {open.notification && (
+                                        <div className="fixed inset-0 z-40" onClick={() => setOpen({...open, notification: false})}></div>
+                                    )}
+                                    {open.notification && (
+                                        <div className="absolute right-0 top-full mt-2 z-50">
+                                            <NotificationDropdown
+                                                theme={theme}
+                                                notifications={notifications}
+                                                onClose={() => setOpen({...open, notification: false})}
+                                                onNotificationClick={(notification) => {
+                                                    // Handle notification click
+                                                    console.log('Notification clicked:', notification)
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
 
-                                <button className="flex items-center" onClick={() => {
-                                        setToggle(!toggle)
-                                        setIsActive(false)
-                                        setOpen({...open, search: false, notification: false})
-                                }} >
-                                    <img className="h-9 w-9 rounded-full mr-2 cursor-pointer object-cover border border-gray-500 bg-white" src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile"/>
-                                </button>
+                                <div className="relative">
+                                    <button className="flex items-center" onClick={() => {
+                                            setToggle(!toggle)
+                                            setIsActive(false)
+                                            setOpen({...open, search: false, notification: false})
+                                    }} >
+                                        <img className="h-9 w-9 rounded-full mr-2 cursor-pointer object-cover border border-gray-500 bg-white shadow-md hover:shadow-lg transition-all" src={avatar ? convertDriveImageLink(avatar) : Avatar} alt="Profile"/>
+                                    </button>
 
-                                <div
-                                    className={`${!toggle ? "hidden" : "flex"} flex-col p-6 ${theme === 'light' ? light.background : dark.background} absolute z-60 top-14 right-0 mx-4 my-2 min-w-[140px] rounded-md sidebar  border border-solid ${theme === 'light' ? light.border : dark.semiborder} shadow-md`}
-                                >
-                                    <ul className="list-none flex justify-end items-start flex-1 flex-col">
-                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-4`}>
-                                            <FontAwesomeIcon icon={faUser} className="mr-2" />
-                                            <a href={`/account`}>My Account</a>
+                                    {toggle && (
+                                        <div className="fixed inset-0 z-40" onClick={() => setToggle(false)}></div>
+                                    )}
+                                    <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`${!toggle ? "hidden" : "flex"} flex-col ${theme === 'light' ? 'bg-white/98 backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C]/98 backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-14 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
+                                    >
+                                    <ul className="list-none flex flex-col py-2">
+                                        <li>
+                                            <a 
+                                                href={`/account`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faUser} className="mr-3 w-4" />
+                                                <span className="font-medium">My Account</span>
+                                            </a>
                                         </li>
-                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-4`}>
-                                            <FontAwesomeIcon icon={faGear} className="mr-2" />
-                                            <a href={`/account/settings`}>Settings</a>
+                                        <li>
+                                            <a 
+                                                href={`/account/settings`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faGear} className="mr-3 w-4" />
+                                                <span className="font-medium">Settings</span>
+                                            </a>
                                         </li>
-                                        <li className={`cursor-pointer  ${theme === 'light' ? light.link : dark.link} mb-0`}>
-                                            <FontAwesomeIcon icon={faRightFromBracket} className="mr-2" />
-                                            <button onClick={() => sign_out()}>Logout</button>
+                                        <li className={`border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
+                                            <button 
+                                                onClick={() => {
+                                                    sign_out()
+                                                    setToggle(false)
+                                                }}
+                                                className={`w-full flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-rose-600 hover:bg-gradient-to-r hover:from-rose-50/50 hover:to-red-50/50 hover:text-rose-700 hover:border-rose-400 hover:shadow-sm' : 'text-red-400 hover:bg-red-900/20 hover:text-red-300 hover:border-red-500'}`}
+                                            >
+                                                <FontAwesomeIcon icon={faRightFromBracket} className="mr-3 w-4" />
+                                                <span className="font-medium">Logout</span>
+                                            </button>
                                         </li>
                                     </ul>
+                                    </div>
                                 </div>
                             </div>
                             :

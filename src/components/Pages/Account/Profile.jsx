@@ -104,21 +104,33 @@ const Profile = ({ user, theme, setNotification }) => {
     }
 
     return (
-        <div>
-            <div className='mb-8 mt-4'>
-                <h1 className="text-xl font-medium mb-1">Your Information </h1>
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+            {/* Header Section */}
+            <div className='mb-8'>
+                <h1 className={`text-3xl font-semibold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                    My Profile
+                </h1>
+                <p className={`text-sm ${theme === 'light' ? light.text : dark.text}`}>
+                    Update your personal information and profile details
+                </p>
             </div>
-            
-            <CustomForm
-                theme={theme}
-                fields={fields}
-                onSubmit={handleSubmit}
-                setUpdate={setUpdateFormValue}
-                update={updateFormValue}
-                initialValues={initialValues}
-                disabled={submitted}
-            />
 
+            {/* Profile Form Card */}
+            <div className={`max-w-2xl rounded-xl p-6 md:p-8 border ${
+                theme === 'light'
+                    ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md'
+                    : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg'
+            }`}>
+                <CustomForm
+                    theme={theme}
+                    fields={fields}
+                    onSubmit={handleSubmit}
+                    setUpdate={setUpdateFormValue}
+                    update={updateFormValue}
+                    initialValues={initialValues}
+                    disabled={submitted}
+                />
+            </div>
         </div>
     )
 }

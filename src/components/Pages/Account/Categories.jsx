@@ -195,7 +195,7 @@ const Categories = ({ user, theme, setNotification }) => {
     }, [])
 
     return (
-        <div>
+        <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6">
             <ConfirmModal 
                 theme={theme}
                 title="Confirm Category Deletion"
@@ -205,8 +205,16 @@ const Categories = ({ user, theme, setNotification }) => {
                 setConfirm={setConfirm}
             />
 
-            <div className='mb-8 mt-4 flex xs:flex-row flex-col justify-start items-start gap-2'>
-                <h1 className="text-xl font-medium mb-1">Category Lists</h1>
+            {/* Header Section */}
+            <div className='mb-8 flex xs:flex-row flex-col justify-between items-start gap-4'>
+                <div>
+                    <h1 className={`text-3xl font-semibold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                        Category Lists
+                    </h1>
+                    <p className={`text-sm ${theme === 'light' ? light.text : dark.text}`}>
+                        Organize your content with categories
+                    </p>
+                </div>
                 <button
                     onClick={() => {
                         setFormOpen(!formOpen)
@@ -224,15 +232,21 @@ const Categories = ({ user, theme, setNotification }) => {
             </div>
 
             <div className={`${formOpen ? 'block' : 'hidden'}`}>
-                <CustomForm
-                    theme={theme}
-                    fields={fields}
-                    onSubmit={handleSubmit}
-                    initialValues={initialValues}
-                    update={updateForm}
-                    setUpdate={setUpdateForm}
-                    disabled={submitted}
-                />
+                <div className={`max-w-2xl rounded-xl p-6 md:p-8 border ${
+                    theme === 'light'
+                        ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md'
+                        : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg'
+                }`}>
+                    <CustomForm
+                        theme={theme}
+                        fields={fields}
+                        onSubmit={handleSubmit}
+                        initialValues={initialValues}
+                        update={updateForm}
+                        setUpdate={setUpdateForm}
+                        disabled={submitted}
+                    />
+                </div>
             </div>
             
             <div className={`${formOpen ? 'hidden' : 'block'}`}>
@@ -255,7 +269,31 @@ const Categories = ({ user, theme, setNotification }) => {
                                 })}
                             />
                         },
-                        { key: 'createdAt', label: 'Timestamp' },
+                        { 
+                            key: 'createdAt', 
+                            label: 'Date Created', 
+                            render: (item) => {
+                                if (!item) return 'N/A'
+                                const date = new Date(item)
+                                return (
+                                    <div>
+                                        <p>
+                                            {date.toLocaleDateString('en-US', { 
+                                                month: 'short', 
+                                                day: 'numeric', 
+                                                year: 'numeric'
+                                            })}
+                                        </p>
+                                        <p>
+                                            {date.toLocaleTimeString('en-US', { 
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </p>
+                                    </div>
+                                )
+                            }
+                        },
                         { key: 'actions', label: 'Action' },
                     ]}
                     actions={[
