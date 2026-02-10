@@ -188,13 +188,6 @@ const Navbar = ({ theme, setTheme }) => {
                                 )}
                             </div>
                         )}
-                        <button onClick={() => changeTheme()} className={`lg:hidden block p-[0.35rem] px-3 rounded-md transition-all duration-200 ${theme === 'light' ? light.icon : dark.icon}`}> 
-                            { theme === 'light' ? (
-                                <FontAwesomeIcon icon={faSun} />
-                            ) : (
-                                <FontAwesomeIcon icon={faMoon} />
-                            )} 
-                        </button>
                     </div>
 
                     {
@@ -235,6 +228,22 @@ const Navbar = ({ theme, setTheme }) => {
                                                 <span className="font-medium">Settings</span>
                                             </a>
                                         </li>
+                                        <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
+                                            <span className={`flex items-center font-medium ${theme === 'light' ? 'text-blue-700' : 'text-gray-300'}`}>
+                                                <FontAwesomeIcon icon={faCircleHalfStroke} className="mr-3 w-4" />
+                                                Theme
+                                            </span>
+                                            <button
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={theme === 'dark'}
+                                                aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                                                onClick={() => changeTheme()}
+                                                className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === 'light' ? 'border-blue-300 bg-blue-100 focus:ring-blue-400' : 'border-gray-600 bg-gray-700 focus:ring-gray-500'}`}
+                                            >
+                                                <span className="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-out" style={{ transform: theme === 'dark' ? 'translateX(1.25rem)' : 'translateX(0.125rem)', marginTop: '1px' }} />
+                                            </button>
+                                        </li>
                                         <li className={`border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
                                             <button 
                                                 onClick={() => {
@@ -266,14 +275,6 @@ const Navbar = ({ theme, setTheme }) => {
                             <input value={searchKey} onChange={(e) => setSearchKey(e.target.value)} className={`block w-full rounded-full py-2 px-8 pr-10 ${theme === 'light' ? light.input : dark.input}`} type="text" placeholder={`Search`} />
                         </div>
                     </form>
-
-                    <button onClick={() => changeTheme()} className={`lg:block hidden p-[0.35rem] px-3 rounded-md transition-all duration-200 hover:scale-110 ${theme === 'light' ? light.icon : dark.icon}`}> 
-                        { theme === 'light' ? (
-                            <FontAwesomeIcon icon={faSun} />
-                        ) : (
-                            <FontAwesomeIcon icon={faMoon} />
-                        )} 
-                    </button>
 
                     <div className="hidden lg:block ">
                     {
@@ -347,6 +348,22 @@ const Navbar = ({ theme, setTheme }) => {
                                                 <FontAwesomeIcon icon={faGear} className="mr-3 w-4" />
                                                 <span className="font-medium">Settings</span>
                                             </a>
+                                        </li>
+                                        <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
+                                            <span className={`flex items-center font-medium ${theme === 'light' ? 'text-blue-700' : 'text-gray-300'}`}>
+                                                <FontAwesomeIcon icon={faCircleHalfStroke} className="mr-3 w-4" />
+                                                Theme
+                                            </span>
+                                            <button
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={theme === 'dark'}
+                                                aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                                                onClick={() => changeTheme()}
+                                                className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 ${theme === 'light' ? 'border-blue-300 bg-blue-100 focus:ring-blue-400' : 'border-gray-600 bg-gray-700 focus:ring-gray-500'}`}
+                                            >
+                                                <span className="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-out" style={{ transform: theme === 'dark' ? 'translateX(1.25rem)' : 'translateX(0.125rem)', marginTop: '1px' }} />
+                                            </button>
                                         </li>
                                         <li className={`border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
                                             <button 

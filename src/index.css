@@ -115,6 +115,22 @@
   }
 }
 
+/* Watch page: content fade-in when skeleton is replaced */
+@keyframes watch-content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.watch-content-loaded {
+  animation: watch-content-fade-in 0.4s ease-out forwards;
+}
+
 .star {
   font-size: 24px;
   color: #ccc;

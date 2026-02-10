@@ -2,21 +2,36 @@ import React, { useState } from "react";
 import { main, dark, light } from "../../style";
 import { MotionAnimate } from "react-motion-animate";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlayCircle } from "@fortawesome/free-solid-svg-icons";
+import { faPlayCircle, faFilm } from "@fortawesome/free-solid-svg-icons";
 const Poster = ({ data, theme }) => {
     const [hover, setHover] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
     return (
         <div className='w-full relative cursor-pointer transition-all' onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
             { data?.type && <div className="absolute top-0 right-[1px] z-20 text-white bg-blue-700 px-2 rounded-tr-md">{ data.type }</div> }
             <div className="relative">
-                <img 
-                    className={`max-h-64 xs:w-52 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
-                    src={data?.thumbnail}
-                />
+                {imageError || !data?.thumbnail ? (
+                    <div className={`sm:max-h-52 max-h-48 w-full rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2 flex items-center justify-center ${
+                        theme === 'light' 
+                            ? 'bg-gradient-to-br from-blue-100 to-sky-100' 
+                            : 'bg-gradient-to-br from-gray-800 to-gray-900'
+                    }`} style={{ aspectRatio: 'auto', height: '256px' }}>
+                        <FontAwesomeIcon icon={faFilm} className={`text-4xl ${
+                            theme === 'light' ? 'text-blue-400' : 'text-gray-500'
+                        }`} />
+                    </div>
+                ) : (
+                    <img 
+                        className={`sm:max-h-52 max-h-48 w-full object-cover rounded-md border border-solid ${theme === 'light' ? light.border : dark.semiborder} mb-2`}
+                        src={data?.thumbnail}
+                        alt={data?.title || 'Poster'}
+                        onError={() => setImageError(true)}
+                    />
+                )}
 
                 {
-                    hover && (
+                    hover && !imageError && data?.thumbnail && (
                         <div className="absolute inset-0 bg-black opacity-60 rounded-md flex items-center justify-center">
                             <div className="text-white">
                                 <MotionAnimate variant={{

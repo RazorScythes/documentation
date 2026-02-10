@@ -31,7 +31,7 @@ const removeReply = (replies, targetId) => {
         .filter(reply => reply.comment_id !== targetId);
 }
 
-const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) => {
+const Template = ({ theme, data, token, user, image, setTrigger, setRemove, onReport }) => {
     const [childTrigger, setChildTrigger]   = useState(false)
     const [comment, setComment]             = useState('')
     const [activeLike, setActiveLike]       = useState(false)
@@ -168,8 +168,13 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) =>
                     </div>
 
                     <div className="flex gap-5">
-                        <FontAwesomeIcon title={toggle.comment ? 'Expand' : 'Collapse'} onClick={() => setToggle({...toggle, comment: !toggle.comment})} icon={toggle.comment ? faPlus : faMinus} className={`${theme === 'light' ? light.link : dark.link}`}/>
-                        <FontAwesomeIcon title="Flag as inappropriate" icon={faFlag} className={`${theme === 'light' ? light.link : dark.link}`}/>
+                        <FontAwesomeIcon title={toggle.comment ? 'Expand' : 'Collapse'} onClick={() => setToggle({...toggle, comment: !toggle.comment})} icon={toggle.comment ? faPlus : faMinus} className={`cursor-pointer ${theme === 'light' ? light.link : dark.link}`}/>
+                        <FontAwesomeIcon 
+                            title="Flag as inappropriate" 
+                            icon={faFlag} 
+                            onClick={() => onReport && onReport(data.comment_id || data._id, 'comment')}
+                            className={`cursor-pointer hover:opacity-70 transition-opacity ${theme === 'light' ? light.link : dark.link}`}
+                        />
                     </div>
                 </div>
 
@@ -247,6 +252,7 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) =>
                                                         setTrigger={setChildTrigger}
                                                         setRemove={setRemove}
                                                         index={index}
+                                                        onReport={onReport}
                                                     />
                                                 </MotionAnimate>
                                             )
@@ -268,7 +274,7 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove }) =>
     )
 }
 
-export const Comments = ({ theme, data, handleSubmit, deleteComment }) => {
+export const Comments = ({ theme, data, handleSubmit, deleteComment, onReport }) => {
     const [trigger, setTrigger]     = useState(false);
     const [remove, setRemove]       = useState(null);
     const [token, setToken]         = useState(cookies.get('token'))
@@ -311,6 +317,7 @@ export const Comments = ({ theme, data, handleSubmit, deleteComment }) => {
                 image={image}
                 setTrigger={setTrigger}
                 setRemove={setRemove}
+                onReport={onReport}
             />
         </MotionAnimate>
     )
