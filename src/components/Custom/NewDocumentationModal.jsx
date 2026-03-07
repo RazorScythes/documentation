@@ -67,6 +67,7 @@ const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, handleNe
                                             onSubmit={handleSubmit}
                                             initialValues={{}}
                                             fullWidth={true}
+                                            submitText="Create Category"
                                         />
                                     </div>
                                     

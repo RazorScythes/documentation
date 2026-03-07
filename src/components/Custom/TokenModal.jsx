@@ -115,6 +115,7 @@ const TokenModal = ({ theme, openModal, setOpenModal, data }) => {
                                             fullWidth={true}
                                             setUpdate={setUpdate}
                                             update={update}
+                                            submitText="Fetch Token"
                                         />
 
                                         {

@@ -14,7 +14,8 @@ const CustomForm = ({
     disabled,
     setUpdateFormValue,
     updateFormValue,
-    fullWidth
+    fullWidth,
+    submitText = 'Update Profile',
 }) => {
     const [field, setField] = useState([]);
     const [formValues, setFormValues] = useState(initialValues);
@@ -586,7 +587,7 @@ const CustomForm = ({
                         } disabled:opacity-50`}
                         disabled={disabled}
                     >
-                        { disabled ? 'Submitting...' : 'Update Profile' }
+                        { disabled ? 'Submitting...' : submitText}
                     </button>
                 </div>
             </form>
