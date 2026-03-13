@@ -17,6 +17,19 @@ endpoint.interceptors.request.use((config) => {
     return config;
 });
 
+endpoint.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 403 && error.response?.data?.alert?.type === 'banned') {
+            cookies.remove('token');
+            localStorage.removeItem('profile');
+            localStorage.removeItem('avatar');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
 const options   = {
     headers: {
         Authorization: `Bearer ${cookies.get('token')}`,
@@ -32,6 +45,11 @@ export const register                           = (formData) => endpoint.post('/
 export const googleLogin                        = (formData) => endpoint.post('/user/googleLogin', formData)
 export const getProfile                         = () => endpoint.get(`/user/getProfile`, options)
 export const updateProfile                      = (formData) => endpoint.post(`/user/updateProfile`, formData, options)
+export const getAllUsers                         = () => endpoint.get('/user/getAllUsers', options)
+export const updateUserRole                     = (formData) => endpoint.patch('/user/updateRole', formData, options)
+export const deleteUser                         = (id) => endpoint.delete(`/user/deleteUser/${id}`, options)
+export const banUser                            = (formData) => endpoint.post('/user/banUser', formData, options)
+export const unbanUser                          = (id) => endpoint.delete(`/user/unbanUser/${id}`, options)
 
 /*
     GROUPS

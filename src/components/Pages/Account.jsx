@@ -5,7 +5,7 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faVideo } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUser, faUserCircle, faUserEdit, faUsers, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -22,8 +22,15 @@ import Logs from './Account/Logs';
 import Author from './Account/Author';
 import Tags from './Account/Tags';
 import Categories from './Account/Categories';
+import ManageUsers from './Account/ManageUsers';
 
 import Notification from '../Custom/Notification';
+
+const RedirectOverview = () => {
+    const navigate = useNavigate()
+    useEffect(() => { navigate('/account', { replace: true }) }, [])
+    return null
+}
 
 const Account = ({ user, theme }) => {
     const navigate  = useNavigate()
@@ -85,6 +92,7 @@ const Account = ({ user, theme }) => {
         },
         { name: 'Favorites', icon: faHeart, path: 'favorites', dropdown: [] },
         { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
+        ...(['Admin', 'Moderator'].includes(user?.role) ? [{ name: 'Users', icon: faUsers, path: 'users', dropdown: [] }] : []),
         { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
     ];
     
@@ -281,6 +289,14 @@ const Account = ({ user, theme }) => {
                                             user={user}
                                             theme={theme}
                                         />
+                                    : activePage('users') ?
+                                        (['Admin', 'Moderator'].includes(user?.role) ?
+                                            <ManageUsers
+                                                user={user}
+                                                theme={theme}
+                                                setNotification={setNotification}
+                                            />
+                                        : <RedirectOverview />)
                                     : activePage('settings') ?
                                         <Settings
                                             user={user}

@@ -50,7 +50,14 @@ function LoginForm({ path, setUser }) {
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 {
-                  auth.error && <span className="text-red-600 font-semibold">Invalid Credentials</span>
+                  auth.error && (
+                    <div className="mb-2">
+                      <span className="text-red-600 font-semibold">{auth.error?.message || 'Invalid Credentials'}</span>
+                      {auth.error?.reason && (
+                        <p className="text-red-600 font-semibold mt-1">Reason: {auth.error.reason}</p>
+                      )}
+                    </div>
+                  )
                 }
                 <label htmlFor="email" className="sr-only">
                   Email address

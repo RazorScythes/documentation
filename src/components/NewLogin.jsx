@@ -129,6 +129,9 @@ const NewLogin = () => {
                                 <p className="text-red-400 text-sm font-medium">
                                     {auth.error?.message || 'Unknown username or password'}
                                 </p>
+                                {auth.error?.reason && (
+                                    <p className="text-red-400 text-sm font-medium mt-1">Reason: {auth.error.reason}</p>
+                                )}
                             </div>
                         )}
 
