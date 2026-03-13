@@ -269,6 +269,7 @@ const Account = ({ user, theme }) => {
                                         <Playlist
                                             user={user}
                                             theme={theme}
+                                            setNotification={setNotification}
                                         />
                                     : activePage('favorites') ?
                                         <Favorites

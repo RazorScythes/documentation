@@ -466,6 +466,7 @@ const CustomForm = ({
                                                     src={formValues[name]?.preview}
                                                     alt="Uploaded Thumbnail"
                                                     className="w-full h-full object-cover"
+                                                    referrerPolicy="no-referrer"
                                                 />
                                             </div>
                                         )

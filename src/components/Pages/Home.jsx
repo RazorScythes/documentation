@@ -114,6 +114,7 @@ const Home = ({ user, theme }) => {
                                         theme={theme}
                                     />
                                 </div>
+
                             </div>
 
                             <div className=''>

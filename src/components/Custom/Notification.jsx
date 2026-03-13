@@ -4,32 +4,32 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const variantStyles = {
     success: {
-        light: 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-emerald-100/50',
-        dark: 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200',
+        light: 'bg-white border-l-emerald-500 text-emerald-800 shadow-lg',
+        dark: 'bg-[#1C1C1C] border-l-emerald-500 text-emerald-200 shadow-lg',
         icon: faCheckCircle,
         iconLight: 'text-emerald-600',
         iconDark: 'text-emerald-400',
         bar: 'bg-emerald-500',
     },
     info: {
-        light: 'bg-blue-50 border-blue-200 text-blue-800 shadow-blue-100/50',
-        dark: 'bg-blue-950/40 border-blue-800/60 text-blue-200',
+        light: 'bg-white border-l-blue-500 text-blue-800 shadow-lg',
+        dark: 'bg-[#1C1C1C] border-l-blue-500 text-blue-200 shadow-lg',
         icon: faInfoCircle,
         iconLight: 'text-blue-600',
         iconDark: 'text-blue-400',
         bar: 'bg-blue-500',
     },
     warning: {
-        light: 'bg-amber-50 border-amber-200 text-amber-900 shadow-amber-100/50',
-        dark: 'bg-amber-950/40 border-amber-800/60 text-amber-200',
+        light: 'bg-white border-l-amber-500 text-amber-900 shadow-lg',
+        dark: 'bg-[#1C1C1C] border-l-amber-500 text-amber-200 shadow-lg',
         icon: faExclamationCircle,
         iconLight: 'text-amber-600',
         iconDark: 'text-amber-400',
         bar: 'bg-amber-500',
     },
     danger: {
-        light: 'bg-red-50 border-red-200 text-red-800 shadow-red-100/50',
-        dark: 'bg-red-950/40 border-red-800/60 text-red-200',
+        light: 'bg-white border-l-red-500 text-red-800 shadow-lg',
+        dark: 'bg-[#1C1C1C] border-l-red-500 text-red-200 shadow-lg',
         icon: faTriangleExclamation,
         iconLight: 'text-red-600',
         iconDark: 'text-red-400',
@@ -109,22 +109,23 @@ const Notification = ({ data, theme = 'light', duration = 4000, show = true, set
         >
             <div
                 className={`
-                    relative overflow-hidden rounded-xl border-2 shadow-xl
+                    relative overflow-hidden rounded-xl border border-l-4 shadow-lg
                     ${isLight ? styles.light : styles.dark}
+                    ${isLight ? 'border-gray-200' : 'border-[#2B2B2B]'}
                 `}
             >
-                <div className="flex items-start gap-3 p-4 sm:p-5">
-                    <span className={`flex-shrink-0 mt-0.5 ${isLight ? styles.iconLight : styles.iconDark}`}>
-                        <FontAwesomeIcon icon={styles.icon} className="text-lg" />
+                <div className="flex items-center gap-3 px-5 py-4">
+                    <span className={`flex-shrink-0 ${isLight ? styles.iconLight : styles.iconDark}`}>
+                        <FontAwesomeIcon icon={styles.icon} className="text-xl" />
                     </span>
-                    <p className="text-sm sm:text-base font-medium leading-snug flex-1 min-w-0 pr-1">
+                    <p className="text-sm sm:text-base font-medium leading-snug flex-1 min-w-0">
                         {data?.message}
                     </p>
                     <button
                         type="button"
                         onClick={handleClose}
                         aria-label="Dismiss"
-                        className={`flex-shrink-0 p-2 -m-1 rounded-lg transition-colors ${
+                        className={`flex-shrink-0 p-1.5 rounded-lg transition-colors ${
                             isLight 
                                 ? 'hover:bg-black/5 text-gray-500 hover:text-gray-700' 
                                 : 'hover:bg-white/10 text-gray-400 hover:text-gray-200'

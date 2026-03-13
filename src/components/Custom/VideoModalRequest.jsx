@@ -20,12 +20,28 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, importedData
         { label: "Video Url", name: "link", type: "text", required: true },
     ];
 
+    const getVideoDuration = (url) => {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement("video");
+            video.preload = "metadata";
+        
+            video.onloadedmetadata = () => {
+                resolve(video.duration); // seconds
+            };
+        
+            video.onerror = reject;
+        
+            video.src = url;
+        });
+    };
+
     const driveRequest = async (link) => {
         try {
             const url = `https://www.googleapis.com/drive/v2/files/${getLinkId(link)}?key=${import.meta.env.VITE_DRIVE_API_KEY}`;
             const response = await axios.get(url);
 
             const data = response.data;
+            const duration = await getVideoDuration(data.downloadUrl);
 
             return {
                 title: data.title,
@@ -36,11 +52,11 @@ const VideoModalRequest = ({ theme, openModal, setOpenModal, title, importedData
                 fileExtension: data.fileExtension,
                 fileSize: data.fileSize,
                 thumbnail: {
-                    preview: data.thumbnailLink,
-                    save: data.thumbnailLink
+                    preview: `https://drive.google.com/thumbnail?id=${getLinkId(link)}&sz=w220`,
+                    save: `https://drive.google.com/thumbnail?id=${getLinkId(link)}&sz=w220`,
                 },
                 webContentLink: data.webContentLink,
-                duration: data.videoMediaMetadata.durationMillis,
+                duration: duration * 1000,
                 ownerNames: data.ownerNames
             }
         } catch (err) {

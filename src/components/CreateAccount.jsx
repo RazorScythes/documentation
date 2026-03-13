@@ -1,159 +1,321 @@
 import React, { useState, useEffect } from 'react'
-
-import { Link, useNavigate  } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import heroBackgroundImage from '../assets/hero-bg.jpg';
+import { register, googleLogin } from "../actions/auth";
+import { useGoogleLogin } from '@react-oauth/google';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash, faSpinner, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
 
 const CreateAccount = ({ path, setUser }) => {
-
-    const navigate  = useNavigate()
+    const navigate = useNavigate()
     const dispatch = useDispatch()
 
     const auth = useSelector((state) => state.auth)
     const user = JSON.parse(localStorage.getItem('profile'))
 
+    const [submitted, setSubmitted] = useState(false)
+    const [googleLoading, setGoogleLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirm, setShowConfirm] = useState(false)
     const [form, setForm] = useState({
         username: '',
-        password: ''
+        email: '',
+        password: '',
+        confirmPassword: ''
     })
+    const [errors, setErrors] = useState({})
 
     useEffect(() => {
-        document.title = "Login"
-        if(!user) return
+        document.title = "Create Account"
+        if (!user) return
 
-        setUser(user)
-        navigate(`${path}/`)
+        if (setUser) setUser(user)
+        navigate(path ? `${path}/` : '/')
     }, [user])
 
-    const handleSubmit = () => {
-        return true
+    useEffect(() => {
+        if (auth.error) {
+            setSubmitted(false)
+            setGoogleLoading(false)
+        }
+    }, [auth])
+
+    const passwordChecks = {
+        length: form.password.length >= 8,
+        uppercase: /[A-Z]/.test(form.password),
+        number: /[0-9]/.test(form.password),
     }
 
+    const validate = () => {
+        const newErrors = {}
+
+        if (!form.username.trim()) newErrors.username = 'Username is required'
+        else if (form.username.length < 3) newErrors.username = 'At least 3 characters'
+        else if (!/^[a-zA-Z0-9_]+$/.test(form.username)) newErrors.username = 'Letters, numbers, underscores only'
+
+        if (!form.email.trim()) newErrors.email = 'Email is required'
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email format'
+
+        if (!form.password) newErrors.password = 'Password is required'
+        else if (!passwordChecks.length || !passwordChecks.uppercase || !passwordChecks.number) newErrors.password = 'Password does not meet requirements'
+
+        if (!form.confirmPassword) newErrors.confirmPassword = 'Please confirm your password'
+        else if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match'
+
+        setErrors(newErrors)
+        return Object.keys(newErrors).length === 0
+    }
+
+    const handleSubmit = (e) => {
+        e.preventDefault()
+
+        if (!submitted && validate()) {
+            dispatch(register({
+                username: form.username,
+                email: form.email,
+                password: form.password,
+            }))
+            setSubmitted(true)
+        }
+    }
+
+    const handleGoogleRegister = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            setGoogleLoading(true)
+            try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const userInfo = await res.json();
+
+                dispatch(googleLogin({
+                    credential: tokenResponse.access_token,
+                    email: userInfo.email,
+                    given_name: userInfo.given_name,
+                    family_name: userInfo.family_name,
+                    picture: userInfo.picture,
+                    googleId: userInfo.sub,
+                }))
+            } catch {
+                setGoogleLoading(false)
+            }
+        },
+        onError: () => {
+            setGoogleLoading(false)
+        },
+    });
+
+    const isLoading = submitted || googleLoading
+
+    const PasswordCheck = ({ passed, label }) => (
+        <div className={`flex items-center gap-2 text-xs transition-colors ${passed ? 'text-emerald-400' : 'text-gray-500'}`}>
+            <FontAwesomeIcon icon={passed ? faCheck : faXmark} className={`text-[10px] ${passed ? 'text-emerald-400' : 'text-gray-600'}`} />
+            {label}
+        </div>
+    )
+
     return (
-        <div className="flex items-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-            {
-                !user &&
-                <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-xl dark:bg-gray-800">
-                    <div className="flex flex-col overflow-y-auto sm:flex-row">
-                        <div className="h-48 sm:h-auto sm:w-1/2">
-                            <img
-                            aria-hidden="true"
-                            className="object-cover w-full h-full dark:hidden"
-                            src={heroBackgroundImage}
-                            alt="Image"
-                            />
-                            <img
-                            aria-hidden="true"
-                            className="hidden object-cover w-full h-full dark:block"
-                            src={heroBackgroundImage}
-                            alt="Image"
-                            />
+        <div className="font-poppins min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]">
+            <div className="absolute inset-0">
+                <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/10 blur-[120px]" />
+                <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full bg-blue-600/10 blur-[120px]" />
+                <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[600px] h-[600px] rounded-full bg-violet-600/5 blur-[100px]" />
+            </div>
+
+            {!user && (
+                <div className="relative z-10 w-full max-w-md mx-4 my-8">
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 mb-4 shadow-lg shadow-indigo-500/25">
+                            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
                         </div>
-                        <div className="flex items-center justify-center p-6 sm:p-12 sm:w-1/2">
-                            <div className="w-full">
-                                <h1 className="mb-2 text-xl font-semibold text-gray-700 dark:text-gray-200">
-                                    Create Account
-                                </h1>
-                                {
-                                    auth.error && <span className="text-red-600 font-semibold text-sm">Invalid Credentials</span>
-                                }
-                                <form onSubmit={handleSubmit}>
-                                    <label for="website-admin" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white mt-2">Username</label>
-                                    <div class="flex">
-                                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M10 0a10 10 0 1 0 10 10A10.011 10.011 0 0 0 10 0Zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm0 13a8.949 8.949 0 0 1-4.951-1.488A3.987 3.987 0 0 1 9 13h2a3.987 3.987 0 0 1 3.951 3.512A8.949 8.949 0 0 1 10 18Z"/>
-                                            </svg>
-                                        </span>
-                                        <input 
-                                            type="text" 
-                                            id="username"
-                                            name="username"
-                                            autoComplete="username"
-                                            className="focus:outline-none rounded-none rounded-r-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-                                            placeholder="Enter Username"
-                                        />
-                                    </div>
-                                    <label for="website-admin" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white mt-2">Email</label>
-                                    <div class="flex">
-                                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16">
-                                                <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
-                                            </svg>
-                                        </span>
-                                        <input 
-                                            type="email" 
-                                            id="email"
-                                            name="email"
-                                            autoComplete="email"
-                                            className="focus:outline-none rounded-none rounded-r-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-                                            placeholder="Enter Email"
-                                        />
-                                    </div>
-                                    <label for="website-admin" className="block my-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
-                                    <div class="flex">
-                                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-key" viewBox="0 0 16 16">
-                                                <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8zm4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5z"/>
-                                                <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-                                            </svg>
-                                        </span>
-                                        <input 
-                                            id="password"
-                                            name="password"
-                                            type="password" 
-                                            autoComplete="current-password"
-                                            className="focus:outline-none rounded-none rounded-r-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-                                            placeholder="Enter Password"
-                                        />
-                                    </div>
-                                    <label for="website-admin" className="block my-2 text-sm font-medium text-gray-900 dark:text-white">Confirm Password</label>
-                                    <div class="flex">
-                                        <span class="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check" viewBox="0 0 16 16">
-                                                <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/>
-                                            </svg>
-                                        </span>
-                                        <input 
-                                            id="confirm_password"
-                                            name="confirm_password"
-                                            type="password" 
-                                            autoComplete="current-password"
-                                            className="focus:outline-none rounded-none rounded-r-lg bg-gray-50 border border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500 block flex-1 min-w-0 w-full text-sm p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-                                            placeholder="Confirm Password"
-                                        />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center text-white transition-colors duration-150 bg-blue-600 border border-transparent rounded-lg active:bg-blue-600 hover:bg-blue-700 focus:outline-none focus:shadow-outline-purple"
-                                    >
-                                        Create Account
-                                    </button>
-                                </form>
-                                <hr className="my-8" />
+                        <h1 className="text-2xl font-bold text-white tracking-tight">Create your account</h1>
+                        <p className="text-gray-400 text-sm mt-1.5">Get started in just a few seconds</p>
+                    </div>
 
-                                <button
-                                    className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium leading-5 text-blue-700 transition-colors duration-150 border border-blue-300 rounded-lg dark:text-blue-400 active:bg-transparent hover:border-blue-500 focus:border-blue-500 active:text-blue-500 focus:outline-none focus:shadow-outline-blue"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-google mr-2" viewBox="0 0 16 16">
-                                        <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/>
-                                    </svg>
-                                    Google
-                                </button>
-
-                                <p className="mt-4">
-                                <Link
-                                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                                    to="/login"
-                                >
-                                    Already have an account? Login
-                                </Link>
+                    <div className="bg-[#141414] border border-[#252525] rounded-2xl p-7 shadow-2xl shadow-black/40">
+                        {auth.error && (
+                            <div className="mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                                <p className="text-red-400 text-sm font-medium">
+                                    {auth.error?.message || 'Registration failed. Please try again.'}
                                 </p>
                             </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Username
+                                </label>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    autoComplete="username"
+                                    value={form.username}
+                                    onChange={(e) => { setForm({ ...form, username: e.target.value }); setErrors({ ...errors, username: '' }) }}
+                                    placeholder="Choose a username"
+                                    className={`w-full px-4 py-3 rounded-xl bg-[#1c1c1c] border text-white text-sm placeholder-gray-500 outline-none focus:ring-2 transition-all duration-200 ${
+                                        errors.username
+                                            ? 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
+                                            : 'border-[#2a2a2a] focus:border-blue-500/60 focus:ring-blue-500/20'
+                                    }`}
+                                />
+                                {errors.username && <p className="mt-1.5 text-xs text-red-400">{errors.username}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    name="email"
+                                    autoComplete="email"
+                                    value={form.email}
+                                    onChange={(e) => { setForm({ ...form, email: e.target.value }); setErrors({ ...errors, email: '' }) }}
+                                    placeholder="you@example.com"
+                                    className={`w-full px-4 py-3 rounded-xl bg-[#1c1c1c] border text-white text-sm placeholder-gray-500 outline-none focus:ring-2 transition-all duration-200 ${
+                                        errors.email
+                                            ? 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
+                                            : 'border-[#2a2a2a] focus:border-blue-500/60 focus:ring-blue-500/20'
+                                    }`}
+                                />
+                                {errors.email && <p className="mt-1.5 text-xs text-red-400">{errors.email}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        autoComplete="new-password"
+                                        value={form.password}
+                                        onChange={(e) => { setForm({ ...form, password: e.target.value }); setErrors({ ...errors, password: '' }) }}
+                                        placeholder="Create a password"
+                                        className={`w-full px-4 py-3 pr-11 rounded-xl bg-[#1c1c1c] border text-white text-sm placeholder-gray-500 outline-none focus:ring-2 transition-all duration-200 ${
+                                            errors.password
+                                                ? 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
+                                                : 'border-[#2a2a2a] focus:border-blue-500/60 focus:ring-blue-500/20'
+                                        }`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                                    >
+                                        <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="text-sm" />
+                                    </button>
+                                </div>
+                                {form.password && (
+                                    <div className="mt-2.5 flex flex-col gap-1">
+                                        <PasswordCheck passed={passwordChecks.length} label="At least 8 characters" />
+                                        <PasswordCheck passed={passwordChecks.uppercase} label="One uppercase letter" />
+                                        <PasswordCheck passed={passwordChecks.number} label="One number" />
+                                    </div>
+                                )}
+                                {errors.password && !form.password && <p className="mt-1.5 text-xs text-red-400">{errors.password}</p>}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                    Confirm Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="confirm_password"
+                                        name="confirm_password"
+                                        type={showConfirm ? 'text' : 'password'}
+                                        autoComplete="new-password"
+                                        value={form.confirmPassword}
+                                        onChange={(e) => { setForm({ ...form, confirmPassword: e.target.value }); setErrors({ ...errors, confirmPassword: '' }) }}
+                                        placeholder="Confirm your password"
+                                        className={`w-full px-4 py-3 pr-11 rounded-xl bg-[#1c1c1c] border text-white text-sm placeholder-gray-500 outline-none focus:ring-2 transition-all duration-200 ${
+                                            errors.confirmPassword
+                                                ? 'border-red-500/50 focus:border-red-500/60 focus:ring-red-500/20'
+                                                : form.confirmPassword && form.password === form.confirmPassword
+                                                    ? 'border-emerald-500/50 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                                                    : 'border-[#2a2a2a] focus:border-blue-500/60 focus:ring-blue-500/20'
+                                        }`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirm(!showConfirm)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                                    >
+                                        <FontAwesomeIcon icon={showConfirm ? faEyeSlash : faEye} className="text-sm" />
+                                    </button>
+                                </div>
+                                {errors.confirmPassword && <p className="mt-1.5 text-xs text-red-400">{errors.confirmPassword}</p>}
+                                {!errors.confirmPassword && form.confirmPassword && form.password === form.confirmPassword && (
+                                    <p className="mt-1.5 text-xs text-emerald-400 flex items-center gap-1.5">
+                                        <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                                        Passwords match
+                                    </p>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/25 hover:shadow-indigo-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 mt-2"
+                            >
+                                {submitted ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                                        Creating account...
+                                    </span>
+                                ) : 'Create account'}
+                            </button>
+                        </form>
+
+                        <div className="relative my-6">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-[#252525]" />
+                            </div>
+                            <div className="relative flex justify-center">
+                                <span className="bg-[#141414] px-4 text-xs text-gray-500 uppercase tracking-wider">or sign up with</span>
+                            </div>
                         </div>
-                    </div>  
+
+                        <button
+                            onClick={() => handleGoogleRegister()}
+                            disabled={isLoading}
+                            className="w-full py-3 rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] hover:border-[#3a3a3a] hover:bg-[#222222] text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-3"
+                        >
+                            {googleLoading ? (
+                                <span className="flex items-center gap-2">
+                                    <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                                    Connecting...
+                                </span>
+                            ) : (
+                                <>
+                                    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                                        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
+                                    </svg>
+                                    Continue with Google
+                                </>
+                            )}
+                        </button>
+                    </div>
+
+                    <p className="text-center mt-6 text-sm text-gray-500">
+                        Already have an account?{' '}
+                        <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                            Sign in
+                        </Link>
+                    </p>
                 </div>
-            }
+            )}
         </div>
     )
 }

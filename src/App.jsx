@@ -10,8 +10,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { main, dark, light } from "./style";
 
 import Cookies from 'universal-cookie';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import Anime from './components/Pages/Anime';
+import Hanime from './components/Pages/Hanime';
 import Watch from './components/Pages/Watch';
 import AnimeWatch from './components/Pages/AnimeWatch';
 
@@ -23,6 +25,7 @@ import Profile from './components/Pages/Profile';
 
 import Documentation from './components/Pages/Documentation';
 import SiteDocs from './components/Pages/SiteDocs';
+import ChatWidget from './components/Custom/ChatWidget';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
@@ -59,14 +62,16 @@ const App = () => {
   // }, [settings])
 
   return (
-    <div className={`w-full ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} text-sm`}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+    <div data-theme={theme === 'light' ? 'light' : 'dark'} className={`w-full ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} text-sm`}>
         <BrowserRouter>
             <Routes>
                 <Route path="custom" element={<Custom user={user} path={URI_PATH_HOME}/>} />
 
-                <Route path='/' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
+                <Route path='/' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
                     <Route index element={<><Home user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime' element={<><Anime user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/hanime' element={<><Hanime user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime/watch/:id' element={<><AnimeWatch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
@@ -76,7 +81,7 @@ const App = () => {
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
                 </Route>
 
-                <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/></>}>
+                <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
                     <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/:page' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/profile/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
@@ -94,6 +99,7 @@ const App = () => {
             </Routes>
         </BrowserRouter>
     </div>
+    </GoogleOAuthProvider>
   )
 }
 

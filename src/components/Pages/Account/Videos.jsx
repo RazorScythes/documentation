@@ -188,6 +188,7 @@ const Videos = ({ user, theme, setNotification }) => {
 
     const editMode = (data) => {
         const obj = { ...data };
+        console.log(data)
 
         if(data?.thumbnail) {
             obj.thumbnail = {

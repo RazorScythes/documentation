@@ -18,6 +18,9 @@ import categorySlice from '../actions/category'
 import authorSlice from '../actions/author'
 import watchSlice from '../actions/watch'
 import docsSlice from '../actions/documentation'
+import playlistSlice from '../actions/playlist'
+import reportSlice from '../actions/report'
+import chatSlice from '../actions/chat'
 
 export const store = configureStore({
     reducer: {
@@ -39,7 +42,10 @@ export const store = configureStore({
         category    : categorySlice,
         author      : authorSlice,
         watch       : watchSlice,
-        docs        : docsSlice
+        docs        : docsSlice,
+        playlist    : playlistSlice,
+        report      : reportSlice,
+        chat        : chatSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({
