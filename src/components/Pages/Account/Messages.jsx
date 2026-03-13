@@ -704,7 +704,7 @@ const Messages = ({ user, theme }) => {
                                 </div>
 
                                 {/* Messages */}
-                                <div className="flex-1 overflow-y-auto px-5 py-4">
+                                <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col">
                                     {messagesLoading ? (
                                         <div className="flex items-center justify-center h-full">
                                             <div className={`animate-spin rounded-full h-7 w-7 border-2 border-t-transparent ${isDark ? 'border-blue-400' : 'border-blue-500'}`} />
@@ -722,7 +722,7 @@ const Messages = ({ user, theme }) => {
                                             <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Send a message to start the conversation</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-1">
+                                        <div className="space-y-1 mt-auto">
                                             {messages.map((msg, idx) => {
                                                 const isMine = msg.sender?._id?.toString() === userId
 

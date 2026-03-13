@@ -492,7 +492,7 @@ const ChatWidget = ({ theme }) => {
                     ) : (
                         <>
                             {/* Messages */}
-                            <div className={`flex-1 overflow-y-auto px-3 py-2.5 ${isDark ? 'bg-[#161616]' : 'bg-gray-50/50'}`}>
+                            <div className={`flex-1 overflow-y-auto px-3 py-2.5 flex flex-col ${isDark ? 'bg-[#161616]' : 'bg-gray-50/50'}`}>
                                 {messagesLoading ? (
                                     <div className="flex items-center justify-center h-full">
                                         <div className={`animate-spin rounded-full h-6 w-6 border-2 border-t-transparent ${isDark ? 'border-blue-400' : 'border-blue-500'}`} />
@@ -502,7 +502,7 @@ const ChatWidget = ({ theme }) => {
                                         <p className="text-xs">Send a message to start chatting</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-1">
+                                    <div className="space-y-1 mt-auto">
                                         {messages.map((msg) => {
                                             const isMine = msg.sender?._id?.toString() === userId
                                             return (
