@@ -62,7 +62,7 @@ const App = () => {
   // }, [settings])
 
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'disabled'}>
     <div data-theme={theme === 'light' ? 'light' : 'dark'} className={`w-full ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} text-sm`}>
         <BrowserRouter>
             <Routes>
@@ -81,7 +81,10 @@ const App = () => {
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
                 </Route>
 
-                <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
+                    <Route path='/user/:username' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><Profile theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
+                    <Route path='/user/:username/:tab' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><Profile theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
+
+                    <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
                     <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/:page' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/profile/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />

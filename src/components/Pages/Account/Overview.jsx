@@ -1,17 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getUserVideos } from '../../../actions/videos';
 import { getTags } from '../../../actions/tags';
 import { getCategory } from '../../../actions/category';
 import { getAuthor } from '../../../actions/author';
+import { getAllUsers } from '../../../actions/manageUsers';
 
 import Table from '../../Custom/Table';
-import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faVideo, faTag, faFolder, faUser, faEye, faChartLine, faClock, faArrowUp, faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { faVideo, faTag, faFolder, faEye, faUserPen, faUsers, faUserShield, faGavel, faBan, faCircleCheck, faShieldHalved, faUserSlash } from '@fortawesome/free-solid-svg-icons';
 import CountUp from 'react-countup';
-import moment from 'moment';
 
 const Overview = ({ user, theme }) => {
     const dispatch = useDispatch()
@@ -21,462 +20,342 @@ const Overview = ({ user, theme }) => {
     const category = useSelector((state) => state.category.data)
     const author = useSelector((state) => state.author.data)
     const loading = useSelector((state) => state.videos.isLoading)
+    const allUsers = useSelector((state) => state.manageUsers.data)
 
     const [tableData, setTableData] = useState([])
     const [selectedData, setSelectedData] = useState(null)
-    const [overviewData, setOverviewData] = useState([])
     const [isVisible, setIsVisible] = useState(false)
+
+    const isLight = theme === 'light'
+    const role = user?.role || 'User'
+    const isAdmin = role === 'Admin'
+    const isMod = role === 'Moderator'
+    const isStaff = isAdmin || isMod
 
     useEffect(() => {
         if(user) {
-            dispatch(getUserVideos({
-                id: user._id,
-                type: 'video'
-            }))
-            dispatch(getTags({
-                type: 'video'
-            }))
-            dispatch(getCategory({
-                type: 'video'
-            }))
-            dispatch(getAuthor({
-                type: 'video'
-            }))
+            dispatch(getUserVideos({ id: user._id, type: 'video' }))
+            dispatch(getTags({ type: 'video' }))
+            dispatch(getCategory({ type: 'video' }))
+            dispatch(getAuthor({ type: 'video' }))
+            if(isStaff) dispatch(getAllUsers())
         }
     }, [user])
 
-    useEffect(() => {
-        // Trigger animation on mount
-        setIsVisible(true)
-    }, [])
+    useEffect(() => { setIsVisible(true) }, [])
+
+    const videosArray = useMemo(() => Array.isArray(videos) ? videos : [], [videos])
+    const tagsArray = useMemo(() => Array.isArray(tags) ? tags : [], [tags])
+    const categoryArray = useMemo(() => Array.isArray(category) ? category : [], [category])
+    const authorArray = useMemo(() => Array.isArray(author) ? author : [], [author])
+    const usersArray = useMemo(() => Array.isArray(allUsers) ? allUsers : [], [allUsers])
 
     useEffect(() => {
-        // Combine recent items from different sources
         const recentItems = []
-        
-        // Add recent videos
-        if(Array.isArray(videos) && videos.length > 0) {
-            videos.slice(0, 5).forEach(video => {
-                recentItems.push({
-                    _id: video._id,
-                    type: 'Video',
-                    name: video.title || video.name,
-                    icon: faVideo,
-                    count: video.views?.length || 0,
-                    createdAt: video.createdAt,
-                    link: `/account/videos`
-                })
-            })
-        }
 
-        // Add recent tags
-        if(Array.isArray(tags) && tags.length > 0) {
-            tags.slice(0, 3).forEach(tag => {
-                recentItems.push({
-                    _id: tag._id,
-                    type: 'Tag',
-                    name: tag.name,
-                    icon: faTag,
-                    count: tag.count || 0,
-                    createdAt: tag.createdAt,
-                    link: `/account/globallist`
-                })
+        videosArray.slice(0, 5).forEach(video => {
+            recentItems.push({
+                _id: video._id, type: 'Video',
+                name: video.title || video.name,
+                count: video.views?.length || 0,
+                createdAt: video.createdAt, link: `/account/videos`
             })
-        }
-
-        // Add recent categories
-        if(Array.isArray(category) && category.length > 0) {
-            category.slice(0, 3).forEach(cat => {
-                recentItems.push({
-                    _id: cat._id,
-                    type: 'Category',
-                    name: cat.name,
-                    icon: faFolder,
-                    count: cat.count || 0,
-                    createdAt: cat.createdAt,
-                    link: `/account/globallist/categories`
-                })
+        })
+        tagsArray.slice(0, 3).forEach(tag => {
+            recentItems.push({
+                _id: tag._id, type: 'Tag', name: tag.name,
+                count: tag.count || 0,
+                createdAt: tag.createdAt, link: `/account/globallist`
             })
-        }
-
-        // Sort by date (most recent first)
-        recentItems.sort((a, b) => {
-            const dateA = new Date(a.createdAt || 0)
-            const dateB = new Date(b.createdAt || 0)
-            return dateB - dateA
+        })
+        categoryArray.slice(0, 3).forEach(cat => {
+            recentItems.push({
+                _id: cat._id, type: 'Category', name: cat.name,
+                count: cat.count || 0,
+                createdAt: cat.createdAt, link: `/account/globallist/categories`
+            })
+        })
+        authorArray.slice(0, 3).forEach(auth => {
+            recentItems.push({
+                _id: auth._id, type: 'Author', name: auth.name,
+                count: auth.count || 0,
+                createdAt: auth.createdAt, link: `/account/globallist/author`
+            })
         })
 
-        const sortedData = recentItems.slice(0, 10)
-        setOverviewData(sortedData)
-        setTableData(sortedData)
-    }, [videos, tags, category, author])
+        recentItems.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        setTableData(recentItems.slice(0, 10))
+    }, [videosArray, tagsArray, categoryArray, authorArray])
 
     const formatDate = (dateString) => {
         if(!dateString) return 'N/A'
-        const date = new Date(dateString)
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         })
     }
 
-    // Ensure videos, tags, and category are arrays
-    const videosArray = Array.isArray(videos) ? videos : []
-    const tagsArray = Array.isArray(tags) ? tags : []
-    const categoryArray = Array.isArray(category) ? category : []
+    const timeAgo = (dateString) => {
+        if(!dateString) return 'N/A'
+        const diffMs = new Date() - new Date(dateString)
+        const diffMin = Math.floor(diffMs / 60000)
+        if(diffMin < 1) return 'Just now'
+        if(diffMin < 60) return `${diffMin}m ago`
+        const diffHr = Math.floor(diffMin / 60)
+        if(diffHr < 24) return `${diffHr}h ago`
+        const diffDay = Math.floor(diffHr / 24)
+        if(diffDay < 30) return `${diffDay}d ago`
+        return `${Math.floor(diffDay / 30)}mo ago`
+    }
 
-    // Placeholder statistics data
-    const stats = [
+    const totalViews = useMemo(() =>
+        videosArray.reduce((sum, v) => sum + (v.views?.length || 0), 0)
+    , [videosArray])
+
+    const getMostRecentDate = (arr) => {
+        const dates = arr.filter(i => i.createdAt).map(i => new Date(i.createdAt))
+        return dates.length > 0 ? new Date(Math.max(...dates)) : null
+    }
+
+    const userStats = [
         {
-            title: 'Total Videos',
-            value: videosArray.length || 0,
-            icon: faVideo,
+            title: 'My Videos', value: videosArray.length, icon: faVideo,
             color: 'from-blue-500 to-sky-500',
-            bgColor: 'bg-blue-500',
-            change: '+12%',
-            changeType: 'positive',
-            subtitle: 'Last added 2 days ago'
+            subtitle: videosArray.length > 0 ? `Last added ${timeAgo(getMostRecentDate(videosArray))}` : 'No videos yet'
         },
         {
-            title: 'Total Tags',
-            value: tagsArray.length || 0,
-            icon: faTag,
+            title: 'My Tags', value: tagsArray.length, icon: faTag,
             color: 'from-emerald-500 to-teal-500',
-            bgColor: 'bg-emerald-500',
-            change: '+8%',
-            changeType: 'positive',
-            subtitle: 'Last added 1 day ago'
+            subtitle: tagsArray.length > 0 ? `Last added ${timeAgo(getMostRecentDate(tagsArray))}` : 'No tags yet'
         },
         {
-            title: 'Total Categories',
-            value: categoryArray.length || 0,
-            icon: faFolder,
+            title: 'My Categories', value: categoryArray.length, icon: faFolder,
             color: 'from-amber-500 to-orange-500',
-            bgColor: 'bg-amber-500',
-            change: '+5%',
-            changeType: 'positive',
-            subtitle: 'Last added 3 days ago'
+            subtitle: categoryArray.length > 0 ? `Last added ${timeAgo(getMostRecentDate(categoryArray))}` : 'No categories yet'
         },
         {
-            title: 'Total Views',
-            value: videosArray.reduce((sum, video) => sum + (video.views?.length || 0), 0) || 0,
-            icon: faEye,
+            title: 'Total Views', value: totalViews, icon: faEye,
             color: 'from-purple-500 to-pink-500',
-            bgColor: 'bg-purple-500',
-            change: '+24%',
-            changeType: 'positive',
-            subtitle: 'This month'
+            subtitle: videosArray.length > 0 ? `Across ${videosArray.length} video${videosArray.length !== 1 ? 's' : ''}` : 'No views yet'
         }
     ]
 
-    // Placeholder quick stats
-    const quickStats = [
-        { label: 'Most Viewed Video', value: 'Sample Video Title', icon: faArrowUp },
-        { label: 'Most Used Tag', value: 'Sample Tag', icon: faTag },
-        { label: 'Active Category', value: 'Sample Category', icon: faFolder },
-        { label: 'Recent Activity', value: '5 items today', icon: faClock }
+    const totalUsersCount = usersArray.length
+    const adminCount = useMemo(() => usersArray.filter(u => u.role === 'Admin').length, [usersArray])
+    const modCount = useMemo(() => usersArray.filter(u => u.role === 'Moderator').length, [usersArray])
+    const regularCount = useMemo(() => usersArray.filter(u => u.role === 'User').length, [usersArray])
+    const bannedCount = useMemo(() => usersArray.filter(u => u.ban).length, [usersArray])
+    const verifiedCount = useMemo(() => usersArray.filter(u => u.verification?.verified).length, [usersArray])
+    const unverifiedCount = totalUsersCount - verifiedCount
+
+    const modStats = [
+        {
+            title: 'Total Users', value: totalUsersCount, icon: faUsers,
+            color: 'from-blue-500 to-indigo-500',
+            subtitle: `${verifiedCount} verified, ${unverifiedCount} unverified`
+        },
+        {
+            title: 'Banned Users', value: bannedCount, icon: faBan,
+            color: 'from-red-500 to-rose-500',
+            subtitle: bannedCount > 0 ? `${bannedCount} currently banned` : 'No banned users'
+        },
+        {
+            title: 'Verified Users', value: verifiedCount, icon: faCircleCheck,
+            color: 'from-emerald-500 to-green-500',
+            subtitle: totalUsersCount > 0 ? `${Math.round((verifiedCount / totalUsersCount) * 100)}% of all users` : '—'
+        },
     ]
+
+    const adminStats = [
+        {
+            title: 'Total Users', value: totalUsersCount, icon: faUsers,
+            color: 'from-blue-500 to-indigo-500',
+            subtitle: `${verifiedCount} verified, ${unverifiedCount} unverified`
+        },
+        {
+            title: 'Admins', value: adminCount, icon: faShieldHalved,
+            color: 'from-red-500 to-rose-500',
+            subtitle: 'Full access'
+        },
+        {
+            title: 'Moderators', value: modCount, icon: faUserShield,
+            color: 'from-amber-500 to-yellow-500',
+            subtitle: 'Can manage & ban users'
+        },
+        {
+            title: 'Regular Users', value: regularCount, icon: faUsers,
+            color: 'from-sky-500 to-cyan-500',
+            subtitle: totalUsersCount > 0 ? `${Math.round((regularCount / totalUsersCount) * 100)}% of all users` : '—'
+        },
+        {
+            title: 'Banned Users', value: bannedCount, icon: faBan,
+            color: 'from-rose-600 to-red-600',
+            subtitle: bannedCount > 0 ? `${bannedCount} currently banned` : 'No banned users'
+        },
+        {
+            title: 'Verified Users', value: verifiedCount, icon: faCircleCheck,
+            color: 'from-emerald-500 to-green-500',
+            subtitle: totalUsersCount > 0 ? `${Math.round((verifiedCount / totalUsersCount) * 100)}% verified` : '—'
+        },
+    ]
+
+    const platformStats = isAdmin ? adminStats : isMod ? modStats : []
+
+    const headerMessages = {
+        Admin: "Full platform overview — manage users, monitor activity, and review system health.",
+        Moderator: "Keep the community safe — monitor users and review flagged content.",
+        User: "Here's a summary of your content and recent activity."
+    }
+
+    const roleBadgeStyle = {
+        Admin: isLight ? 'bg-red-100 text-red-700 border-red-200' : 'bg-red-900/30 text-red-400 border-red-800',
+        Moderator: isLight ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-amber-900/30 text-amber-400 border-amber-800',
+        User: isLight ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-blue-900/30 text-blue-400 border-blue-800',
+    }
+
+    const renderStatCard = (stat, index, delay = 0) => (
+        <div
+            key={index}
+            className={`relative rounded-xl overflow-hidden ${
+                isLight
+                    ? 'bg-white/80 backdrop-blur-sm shadow-md hover:shadow-lg'
+                    : 'bg-[#1C1C1C] shadow-lg hover:shadow-xl'
+            } transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-1 ${
+                isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+            }`}
+            style={{ transitionDelay: `${delay + index * 100}ms` }}
+        >
+            <div className="p-5 md:p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div className={`p-2.5 md:p-3 rounded-lg bg-gradient-to-br ${stat.color} shadow-md flex-shrink-0 transition-transform duration-300 hover:scale-110 hover:rotate-3`}>
+                        <FontAwesomeIcon icon={stat.icon} className="text-white text-lg md:text-xl" />
+                    </div>
+                </div>
+                <div className="text-left">
+                    <p className={`text-sm font-medium mb-2 leading-tight ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>
+                        {stat.title}
+                    </p>
+                    <p className={`text-2xl md:text-3xl font-bold mb-2 leading-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                        <CountUp end={stat.value} duration={2} />
+                    </p>
+                    <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                        {stat.subtitle}
+                    </p>
+                </div>
+            </div>
+        </div>
+    )
 
     return (
         <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-            {/* Header Section */}
-            <div className={`mb-8 transition-all duration-700 ease-out ${
+            {/* Header */}
+            <div className={`mb-2 transition-all duration-700 ease-out ${
                 isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
             }`}>
-                <h1 className={`text-3xl font-semibold mb-3 ${theme === 'light' ? light.heading : dark.heading}`}>
-                    Dashboard Overview
-                </h1>
-                <p className={`text-sm leading-relaxed ${theme === 'light' ? light.text : dark.text}`}>
-                    Welcome back! Here's what's happening with your account.
+                <div className="flex items-center gap-3 mb-3">
+                    <h1 className={`text-3xl font-semibold ${isLight ? light.heading : dark.heading}`}>
+                        Dashboard
+                    </h1>
+                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${roleBadgeStyle[role] || roleBadgeStyle.User}`}>
+                        {role}
+                    </span>
+                </div>
+                <p className={`text-sm leading-relaxed ${isLight ? light.text : dark.text}`}>
+                    Welcome back, <span className="font-medium">{user?.username || 'User'}</span>! {headerMessages[role] || headerMessages.User}
                 </p>
             </div>
 
-            {/* Statistics Cards Grid */}
-            <div className="grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 md:gap-6 mb-8">
-                {stats.map((stat, index) => (
-                    <div
-                        key={index}
-                        className={`relative rounded-xl overflow-hidden border-l-4 ${
-                            theme === 'light'
-                                ? 'bg-white/80 backdrop-blur-sm border-blue-500 shadow-md hover:shadow-lg'
-                                : 'bg-[#1C1C1C] border-blue-600 shadow-lg hover:shadow-xl'
-                        } transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-1 ${
-                            isVisible 
-                                ? 'opacity-100 translate-y-0' 
-                                : 'opacity-0 translate-y-8'
-                        }`}
-                        style={{
-                            animationDelay: `${index * 100}ms`,
-                            transitionDelay: `${index * 100}ms`
-                        }}
-                    >
-                        <div className="p-5 md:p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className={`p-2.5 md:p-3 rounded-lg bg-gradient-to-br ${stat.color} shadow-md flex-shrink-0 transition-transform duration-300 hover:scale-110 hover:rotate-3`}>
-                                    <FontAwesomeIcon
-                                        icon={stat.icon}
-                                        className="text-white text-lg md:text-xl"
-                                    />
-                                </div>
-                                <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium flex-shrink-0 ${
-                                    stat.changeType === 'positive'
-                                        ? theme === 'light'
-                                            ? 'bg-emerald-100 text-emerald-700'
-                                            : 'bg-emerald-900/30 text-emerald-400'
-                                        : theme === 'light'
-                                            ? 'bg-rose-100 text-rose-700'
-                                            : 'bg-rose-900/30 text-rose-400'
-                                }`}>
-                                    <FontAwesomeIcon icon={faArrowUp} className="text-xs" />
-                                    {stat.change}
-                                </div>
-                            </div>
-                            <div className="text-left">
-                                <p className={`text-sm font-medium mb-2 leading-tight ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                                    {stat.title}
-                                </p>
-                                <p className={`text-2xl md:text-3xl font-bold mb-2 leading-tight ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
-                                    <CountUp end={stat.value} duration={2} />
-                                </p>
-                                <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
-                                    {stat.subtitle}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Quick Stats and Recent Activity Section */}
-            <div className="grid lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-                {/* Quick Stats Card */}
-                <div className={`lg:col-span-1 rounded-xl p-4 md:p-5 border transition-all duration-700 ease-out ${
-                    theme === 'light'
-                        ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md hover:shadow-lg'
-                        : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg hover:shadow-xl'
-                } ${
-                    isVisible 
-                        ? 'opacity-100 translate-x-0' 
-                        : 'opacity-0 -translate-x-8'
-                }`}
-                style={{
-                    transitionDelay: '300ms'
-                }}>
-                    <h2 className={`text-lg font-semibold mb-4 text-left ${theme === 'light' ? light.heading : dark.heading}`}>
-                        Quick Stats
-                    </h2>
-                    <div className="space-y-2.5 md:space-y-3">
-                        {quickStats.map((stat, index) => (
-                            <div
-                                key={index}
-                                className={`flex items-center gap-3 p-2.5 md:p-3 rounded-lg transition-all duration-300 ease-out hover:scale-[1.02] hover:translate-x-1 ${
-                                    theme === 'light'
-                                        ? 'hover:bg-blue-50/50'
-                                        : 'hover:bg-[#2B2B2B]'
-                                } ${
-                                    isVisible 
-                                        ? 'opacity-100 translate-x-0' 
-                                        : 'opacity-0 -translate-x-4'
-                                }`}
-                                style={{
-                                    transitionDelay: `${400 + index * 50}ms`
-                                }}
-                            >
-                                <div className={`p-2 rounded-lg flex-shrink-0 ${
-                                    theme === 'light'
-                                        ? 'bg-blue-100 text-blue-600'
-                                        : 'bg-blue-900/30 text-blue-400'
-                                }`}>
-                                    <FontAwesomeIcon icon={stat.icon} className="text-sm" />
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                    <p className={`text-xs font-medium mb-0.5 leading-tight ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                                        {stat.label}
-                                    </p>
-                                    <p className={`text-sm font-semibold truncate leading-tight ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
-                                        {stat.value}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Recent Activity Table */}
-                <div className={`lg:col-span-2 rounded-xl p-5 md:p-6 border transition-all duration-700 ease-out ${
-                    theme === 'light'
-                        ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md hover:shadow-lg'
-                        : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg hover:shadow-xl'
-                } ${
-                    isVisible 
-                        ? 'opacity-100 translate-x-0' 
-                        : 'opacity-0 translate-x-8'
-                }`}
-                style={{
-                    transitionDelay: '400ms'
-                }}>
-                    <div className="mb-5 text-left">
-                        <h2 className={`text-lg font-semibold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
-                            Recent Activity
+            {/* Platform Stats — Admin/Moderator only */}
+            {isStaff && platformStats.length > 0 && (
+                <div>
+                    <div className={`flex items-center gap-2 mb-4 transition-all duration-700 ease-out ${
+                        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                    }`} style={{ transitionDelay: '100ms' }}>
+                        <FontAwesomeIcon icon={isAdmin ? faShieldHalved : faGavel} className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`} />
+                        <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                            {isAdmin ? 'Platform Overview' : 'Moderation Overview'}
                         </h2>
-                        <p className={`text-xs leading-relaxed ${theme === 'light' ? light.text : dark.text}`}>
-                            Latest updates from your account
-                        </p>
                     </div>
-                    <Table 
-                        theme={theme}
-                        title=""
-                        header={[
-                            { 
-                                key: 'type', 
-                                label: 'Type',
-                                render: (item, index) => {
-                                    const fullItem = overviewData[index] || overviewData.find(i => i.type === item)
-                                    return (
-                                        <div className="flex items-center gap-2">
-                                            <FontAwesomeIcon 
-                                                icon={fullItem?.icon || faTag} 
-                                                className={`${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}
-                                            />
-                                            <span className="font-medium">{item}</span>
-                                        </div>
-                                    )
-                                }
-                            },
-                            { key: 'name', label: 'Name' },
-                            { key: 'count', label: 'Usage/Views' },
-                            { 
-                                key: 'createdAt', 
-                                label: 'Created At',
-                                render: (item) => formatDate(item)
-                            },
-                            { key: 'actions', label: 'Action' },
-                        ]}
-                        actions={[
-                            { 
-                                label: 'View', 
-                                color: `${theme === 'light' ? light.view_button : dark.view_button}`, 
-                                onClick: (item) => {
-                                    if(item.link) {
-                                        window.location.href = item.link
-                                    }
-                                }
-                            },
-                        ]}
-                        limit={5}
-                        multipleSelect={false}
-                        data={tableData}
-                        setSelectedData={setSelectedData}
-                        loading={loading}
-                    />
+                    <div className={`grid ${isAdmin ? 'lg:grid-cols-3 md:grid-cols-2' : 'lg:grid-cols-3 md:grid-cols-2'} grid-cols-1 gap-4 md:gap-6`}>
+                        {platformStats.map((stat, i) => renderStatCard(stat, i, 100))}
+                    </div>
+                </div>
+            )}
+
+            {/* Content Stats — All roles */}
+            <div>
+                <div className={`flex items-center gap-2 mb-4 transition-all duration-700 ease-out ${
+                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+                }`} style={{ transitionDelay: isStaff ? '500ms' : '100ms' }}>
+                    <FontAwesomeIcon icon={faVideo} className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`} />
+                    <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                        My Content
+                    </h2>
+                </div>
+                <div className="grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 md:gap-6">
+                    {userStats.map((stat, i) => renderStatCard(stat, i, isStaff ? 500 : 100))}
                 </div>
             </div>
 
-            {/* Activity Summary Section */}
+            {/* Recent Activity */}
             <div className={`rounded-xl p-5 md:p-6 border transition-all duration-700 ease-out ${
-                theme === 'light'
+                isLight
                     ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md hover:shadow-lg'
                     : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg hover:shadow-xl'
-            } ${
-                isVisible 
-                    ? 'opacity-100 translate-y-0' 
-                    : 'opacity-0 translate-y-8'
-            }`}
-            style={{
-                transitionDelay: '500ms'
-            }}>
-                <h2 className={`text-lg font-semibold mb-5 text-left ${theme === 'light' ? light.heading : dark.heading}`}>
-                    Activity Summary
-                </h2>
-                <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-                    <div className={`p-4 md:p-5 rounded-lg border text-left transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-1 ${
-                        theme === 'light'
-                            ? 'bg-gradient-to-br from-blue-50/50 to-sky-50/50 border-blue-200/60 hover:shadow-md'
-                            : 'bg-[#2B2B2B] border-[#1C1C1C] hover:shadow-lg'
-                    } ${
-                        isVisible 
-                            ? 'opacity-100 translate-y-0' 
-                            : 'opacity-0 translate-y-4'
-                    }`}
-                    style={{
-                        transitionDelay: '600ms'
-                    }}>
-                        <div className="flex items-center gap-3 mb-3">
-                            <FontAwesomeIcon
-                                icon={faChartLine}
-                                className={`text-lg flex-shrink-0 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}
-                            />
-                            <p className={`font-semibold text-sm md:text-base leading-tight ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
-                                Growth Rate
-                            </p>
-                        </div>
-                        <p className={`text-2xl md:text-3xl font-bold mb-2 leading-tight ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                            +18.5%
-                        </p>
-                        <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                            Compared to last month
-                        </p>
-                    </div>
-                    <div className={`p-4 md:p-5 rounded-lg border text-left transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-1 ${
-                        theme === 'light'
-                            ? 'bg-gradient-to-br from-emerald-50/50 to-teal-50/50 border-emerald-200/60 hover:shadow-md'
-                            : 'bg-[#2B2B2B] border-[#1C1C1C] hover:shadow-lg'
-                    } ${
-                        isVisible 
-                            ? 'opacity-100 translate-y-0' 
-                            : 'opacity-0 translate-y-4'
-                    }`}
-                    style={{
-                        transitionDelay: '700ms'
-                    }}>
-                        <div className="flex items-center gap-3 mb-3">
-                            <FontAwesomeIcon
-                                icon={faArrowUp}
-                                className={`text-lg flex-shrink-0 ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`}
-                            />
-                            <p className={`font-semibold text-sm md:text-base leading-tight ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
-                                Engagement
-                            </p>
-                        </div>
-                        <p className={`text-2xl md:text-3xl font-bold mb-2 leading-tight ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                            1,234
-                        </p>
-                        <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                            Total interactions this week
-                        </p>
-                    </div>
-                    <div className={`p-4 md:p-5 rounded-lg border text-left transition-all duration-500 ease-out hover:scale-105 hover:-translate-y-1 ${
-                        theme === 'light'
-                            ? 'bg-gradient-to-br from-purple-50/50 to-pink-50/50 border-purple-200/60 hover:shadow-md'
-                            : 'bg-[#2B2B2B] border-[#1C1C1C] hover:shadow-lg'
-                    } ${
-                        isVisible 
-                            ? 'opacity-100 translate-y-0' 
-                            : 'opacity-0 translate-y-4'
-                    }`}
-                    style={{
-                        transitionDelay: '800ms'
-                    }}>
-                        <div className="flex items-center gap-3 mb-3">
-                            <FontAwesomeIcon
-                                icon={faClock}
-                                className={`text-lg flex-shrink-0 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`}
-                            />
-                            <p className={`font-semibold text-sm md:text-base leading-tight ${theme === 'light' ? 'text-purple-700' : 'text-purple-400'}`}>
-                                Last Activity
-                            </p>
-                        </div>
-                        <p className={`text-2xl md:text-3xl font-bold mb-2 leading-tight ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                            2h ago
-                        </p>
-                        <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                            Most recent update
-                        </p>
-                    </div>
+            } ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            style={{ transitionDelay: isStaff ? '900ms' : '500ms' }}>
+                <div className="mb-5 text-left">
+                    <h2 className={`text-lg font-semibold mb-2 ${isLight ? light.heading : dark.heading}`}>
+                        Recent Activity
+                    </h2>
+                    <p className={`text-xs leading-relaxed ${isLight ? light.text : dark.text}`}>
+                        Latest updates from your account
+                    </p>
                 </div>
+                <Table
+                    theme={theme}
+                    title=""
+                    header={[
+                        {
+                            key: 'type',
+                            label: 'Type',
+                            render: (item) => {
+                                const iconLookup = { Video: faVideo, Tag: faTag, Category: faFolder, Author: faUserPen }
+                                return (
+                                    <div className="flex items-center gap-2">
+                                        <FontAwesomeIcon
+                                            icon={iconLookup[item] || faTag}
+                                            className={isLight ? 'text-blue-600' : 'text-blue-400'}
+                                        />
+                                        <span className="font-medium">{item}</span>
+                                    </div>
+                                )
+                            }
+                        },
+                        { key: 'name', label: 'Name' },
+                        { key: 'count', label: 'Usage/Views' },
+                        {
+                            key: 'createdAt',
+                            label: 'Created At',
+                            render: (item) => formatDate(item)
+                        },
+                        { key: 'actions', label: 'Action' },
+                    ]}
+                    actions={[
+                        {
+                            label: 'View',
+                            color: `${isLight ? light.view_button : dark.view_button}`,
+                            onClick: (item) => {
+                                if(item.link) window.location.href = item.link
+                            }
+                        },
+                    ]}
+                    limit={5}
+                    multipleSelect={false}
+                    data={tableData}
+                    setSelectedData={setSelectedData}
+                    loading={loading}
+                />
             </div>
         </div>
     )

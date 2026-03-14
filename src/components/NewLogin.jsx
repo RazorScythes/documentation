@@ -7,6 +7,70 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { encryptData, decryptData } from './Tools';
 
+const GoogleLoginButton = ({ isLoading, googleLoading, setGoogleLoading, dispatch }) => {
+    const handleGoogleLogin = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            setGoogleLoading(true)
+            try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const userInfo = await res.json();
+
+                dispatch(googleLogin({
+                    credential: tokenResponse.access_token,
+                    email: userInfo.email,
+                    given_name: userInfo.given_name,
+                    family_name: userInfo.family_name,
+                    picture: userInfo.picture,
+                    googleId: userInfo.sub,
+                }))
+            } catch {
+                setGoogleLoading(false)
+            }
+        },
+        onError: () => {
+            setGoogleLoading(false)
+        },
+    });
+
+    return (
+        <>
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[#252525]" />
+                </div>
+                <div className="relative flex justify-center">
+                    <span className="bg-[#141414] px-4 text-xs text-gray-500 uppercase tracking-wider">or continue with</span>
+                </div>
+            </div>
+
+            <button
+                onClick={() => handleGoogleLogin()}
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] hover:border-[#3a3a3a] hover:bg-[#222222] text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-3"
+            >
+                {googleLoading ? (
+                    <span className="flex items-center gap-2">
+                        <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                        Connecting...
+                    </span>
+                ) : (
+                    <>
+                        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+                            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
+                        </svg>
+                        Continue with Google
+                    </>
+                )}
+            </button>
+        </>
+    )
+}
+
 const NewLogin = () => {
     const navigate = useNavigate()
     const dispatch = useDispatch()
@@ -72,34 +136,8 @@ const NewLogin = () => {
         }
     };
 
-    const handleGoogleLogin = useGoogleLogin({
-        onSuccess: async (tokenResponse) => {
-            setGoogleLoading(true)
-            try {
-                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                });
-                const userInfo = await res.json();
-
-                const idTokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${tokenResponse.access_token}`);
-                const tokenInfo = await idTokenRes.json();
-
-                dispatch(googleLogin({
-                    credential: tokenResponse.access_token,
-                    email: userInfo.email,
-                    given_name: userInfo.given_name,
-                    family_name: userInfo.family_name,
-                    picture: userInfo.picture,
-                    googleId: userInfo.sub,
-                }))
-            } catch {
-                setGoogleLoading(false)
-            }
-        },
-        onError: () => {
-            setGoogleLoading(false)
-        },
-    });
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    const hasGoogleAuth = googleClientId && googleClientId !== 'YOUR_GOOGLE_CLIENT_ID_HERE' && googleClientId !== 'disabled'
 
     const isLoading = submitted || googleLoading
 
@@ -215,37 +253,14 @@ const NewLogin = () => {
                             </button>
                         </form>
 
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-[#252525]" />
-                            </div>
-                            <div className="relative flex justify-center">
-                                <span className="bg-[#141414] px-4 text-xs text-gray-500 uppercase tracking-wider">or continue with</span>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => handleGoogleLogin()}
-                            disabled={isLoading}
-                            className="w-full py-3 rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] hover:border-[#3a3a3a] hover:bg-[#222222] text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-3"
-                        >
-                            {googleLoading ? (
-                                <span className="flex items-center gap-2">
-                                    <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
-                                    Connecting...
-                                </span>
-                            ) : (
-                                <>
-                                    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-                                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-                                        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
-                                    </svg>
-                                    Continue with Google
-                                </>
-                            )}
-                        </button>
+                        {hasGoogleAuth && (
+                            <GoogleLoginButton
+                                isLoading={isLoading}
+                                googleLoading={googleLoading}
+                                setGoogleLoading={setGoogleLoading}
+                                dispatch={dispatch}
+                            />
+                        )}
                     </div>
 
                     <p className="text-center mt-6 text-sm text-gray-500">

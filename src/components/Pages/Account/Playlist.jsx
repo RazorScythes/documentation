@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { getPlaylists, createPlaylist, updatePlaylist, deletePlaylist, removeVideoFromPlaylist, clearAlert } from '../../../actions/playlist'
 import { dark, light } from '../../../style'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { 
-    faPlus, faTrash, faEdit, faChevronDown,
+    faPlus, faTrash, faEdit, faArrowLeft,
     faFilm, faPlay, faEye, faLock, faGlobe, faListSquares,
     faClose, faClock, faList, faGrip
 } from '@fortawesome/free-solid-svg-icons'
@@ -38,7 +38,7 @@ const Playlist = ({ user, theme, setNotification }) => {
     const alert = useSelector((state) => state.playlist.alert)
 
     const [viewMode, setViewMode] = useState('list')
-    const [expandedPlaylist, setExpandedPlaylist] = useState(null)
+    const [activePlaylist, setActivePlaylist] = useState(null)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingPlaylist, setEditingPlaylist] = useState(null)
     const [newPlaylistName, setNewPlaylistName] = useState('')
@@ -49,6 +49,9 @@ const Playlist = ({ user, theme, setNotification }) => {
     const [deleteId, setDeleteId] = useState('')
     const [openModal, setOpenModal] = useState(false)
     const [confirm, setConfirm] = useState(false)
+    const [videoPage, setVideoPage] = useState(1)
+    const editNameRef = useRef(null)
+    const videosPerPage = 8
 
     useEffect(() => {
         dispatch(getPlaylists())
@@ -62,11 +65,19 @@ const Playlist = ({ user, theme, setNotification }) => {
     }, [alert])
 
     useEffect(() => {
+        if (activePlaylist) {
+            const updated = playlists.find(p => p._id === activePlaylist._id)
+            if (updated) setActivePlaylist(updated)
+            else setActivePlaylist(null)
+        }
+    }, [playlists])
+
+    useEffect(() => {
         if (confirm && deleteId) {
             dispatch(deletePlaylist(deleteId))
+            if (activePlaylist?._id === deleteId) setActivePlaylist(null)
             setDeleteId('')
             setConfirm(false)
-            if (expandedPlaylist === deleteId) setExpandedPlaylist(null)
         }
     }, [confirm])
 
@@ -112,72 +123,28 @@ const Playlist = ({ user, theme, setNotification }) => {
         setEditingPlaylist(playlist._id)
         setEditName(playlist.name)
         setEditDesc(playlist.description || '')
+        requestAnimationFrame(() => editNameRef.current?.focus())
     }
 
-    const toggleExpand = (playlistId) => {
-        setExpandedPlaylist(expandedPlaylist === playlistId ? null : playlistId)
+    const openPlaylist = (playlist) => {
+        setActivePlaylist(playlist)
+        setVideoPage(1)
+        setShowCreateForm(false)
         if (editingPlaylist) setEditingPlaylist(null)
     }
 
-    const VideoItem = ({ video, index, playlistId, isLast }) => (
-        <div 
-            className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${
-                !isLast ? `border-b ${theme === 'light' ? 'border-blue-100/60' : 'border-[#2B2B2B]/60'}` : ''
-            } ${theme === 'light' ? 'hover:bg-blue-50/30' : 'hover:bg-[#2B2B2B]/30'}`}
-        >
-            <span className={`text-xs font-medium w-5 text-center shrink-0 ${theme === 'light' ? 'text-slate-400' : 'text-gray-600'}`}>
-                {index + 1}
-            </span>
+    const closePlaylist = () => {
+        setActivePlaylist(null)
+        setVideoPage(1)
+    }
 
-            <Link to={`/watch/${video._id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                <div className={`w-20 h-12 sm:w-24 sm:h-14 shrink-0 rounded-lg overflow-hidden border relative ${
-                    theme === 'light' ? 'border-blue-200/60' : 'border-[#2B2B2B]'
-                }`}>
-                    {video.thumbnail ? (
-                        <img src={video.thumbnail} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                        <div className={`w-full h-full flex items-center justify-center ${
-                            theme === 'light' ? 'bg-blue-100/50' : 'bg-gray-800'
-                        }`}>
-                            <FontAwesomeIcon icon={faFilm} className={`text-sm ${theme === 'light' ? 'text-blue-300' : 'text-gray-600'}`} />
-                        </div>
-                    )}
-                    {video.duration && (
-                        <div className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 py-0.5">
-                            <span className="text-white text-[10px] font-medium">{millisToTimeString(video.duration)}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${theme === 'light' ? 'text-slate-800' : 'text-gray-200'}`}>
-                        {video.title || 'Untitled'}
-                    </p>
-                    <p className={`text-xs mt-0.5 flex items-center gap-1 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
-                        <FontAwesomeIcon icon={faEye} className="text-[10px]" />
-                        {video.views?.length || 0} views
-                    </p>
-                </div>
-            </Link>
-
-            <button
-                onClick={() => handleRemoveVideo(playlistId, video._id)}
-                className={`p-1.5 rounded-lg transition-all shrink-0 ${theme === 'light' ? light.delete_button : dark.delete_button}`}
-                title="Remove from playlist"
-            >
-                <FontAwesomeIcon icon={faClose} className="text-xs" />
-            </button>
-        </div>
-    )
-
-    const ListItem = ({ playlist }) => {
-        const isExpanded = expandedPlaylist === playlist._id
+    const renderListItem = (playlist) => {
         const isEditing = editingPlaylist === playlist._id
         const videoCount = playlist.videos?.length || 0
         const firstThumbnail = playlist.videos?.[0]?.thumbnail
 
         return (
-            <div className={`rounded-xl border overflow-hidden transition-all ${
+            <div key={playlist._id} className={`rounded-xl border overflow-hidden transition-all ${
                 theme === 'light'
                     ? 'bg-white/80 border-blue-200/60'
                     : 'bg-[#1C1C1C] border-[#2B2B2B]'
@@ -186,7 +153,7 @@ const Playlist = ({ user, theme, setNotification }) => {
                     className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 cursor-pointer transition-colors ${
                         theme === 'light' ? 'hover:bg-blue-50/50' : 'hover:bg-[#2B2B2B]/50'
                     }`}
-                    onClick={() => toggleExpand(playlist._id)}
+                    onClick={() => !isEditing && openPlaylist(playlist)}
                 >
                     <div className={`w-14 h-14 sm:w-16 sm:h-16 shrink-0 rounded-lg overflow-hidden border ${
                         theme === 'light' ? 'border-blue-200/60' : 'border-[#2B2B2B]'
@@ -210,7 +177,7 @@ const Playlist = ({ user, theme, setNotification }) => {
                                     value={editName}
                                     onChange={(e) => { setEditName(e.target.value); setError('') }}
                                     className={`px-3 py-1.5 text-sm rounded-lg ${theme === 'light' ? light.input : dark.input}`}
-                                    autoFocus
+                                    ref={editNameRef}
                                     onKeyPress={(e) => e.key === 'Enter' && handleUpdate(playlist._id)}
                                 />
                                 <textarea
@@ -283,53 +250,26 @@ const Playlist = ({ user, theme, setNotification }) => {
                                 </button>
                             </>
                         )}
-                        <FontAwesomeIcon 
-                            icon={faChevronDown} 
-                            className={`text-xs ml-0.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''} ${theme === 'light' ? 'text-slate-400' : 'text-gray-500'}`} 
-                        />
                     </div>
                 </div>
-
-                {isExpanded && (
-                    <div className={`border-t ${theme === 'light' ? 'border-blue-200/60' : 'border-[#2B2B2B]'}`}>
-                        {videoCount === 0 ? (
-                            <div className="p-6 text-center">
-                                <p className={`text-sm ${theme === 'light' ? 'text-slate-400' : 'text-gray-600'}`}>
-                                    No videos in this playlist yet
-                                </p>
-                            </div>
-                        ) : (
-                            playlist.videos.map((video, index) => (
-                                <VideoItem 
-                                    key={video._id || index} 
-                                    video={video} 
-                                    index={index} 
-                                    playlistId={playlist._id}
-                                    isLast={index === videoCount - 1}
-                                />
-                            ))
-                        )}
-                    </div>
-                )}
             </div>
         )
     }
 
-    const BoxItem = ({ playlist }) => {
-        const isExpanded = expandedPlaylist === playlist._id
+    const renderBoxItem = (playlist) => {
         const isEditing = editingPlaylist === playlist._id
         const videoCount = playlist.videos?.length || 0
         const firstThumbnail = playlist.videos?.[0]?.thumbnail
 
         return (
-            <div className={`rounded-xl border overflow-hidden transition-all flex flex-col ${
+            <div key={playlist._id} className={`rounded-xl border overflow-hidden transition-all flex flex-col ${
                 theme === 'light'
                     ? 'bg-white/80 border-blue-200/60'
                     : 'bg-[#1C1C1C] border-[#2B2B2B]'
             }`}>
                 <div 
                     className="cursor-pointer group"
-                    onClick={() => toggleExpand(playlist._id)}
+                    onClick={() => !isEditing && openPlaylist(playlist)}
                 >
                     <div className={`relative aspect-video w-full overflow-hidden ${
                         theme === 'light' ? 'bg-blue-100/50' : 'bg-gray-800'
@@ -360,7 +300,7 @@ const Playlist = ({ user, theme, setNotification }) => {
                                     value={editName}
                                     onChange={(e) => { setEditName(e.target.value); setError('') }}
                                     className={`px-3 py-1.5 text-sm rounded-lg ${theme === 'light' ? light.input : dark.input}`}
-                                    autoFocus
+                                    ref={editNameRef}
                                     onKeyPress={(e) => e.key === 'Enter' && handleUpdate(playlist._id)}
                                 />
                                 <textarea
@@ -425,26 +365,166 @@ const Playlist = ({ user, theme, setNotification }) => {
                     </div>
                 </div>
 
-                {isExpanded && (
-                    <div className={`border-t ${theme === 'light' ? 'border-blue-200/60' : 'border-[#2B2B2B]'}`}>
-                        {videoCount === 0 ? (
-                            <div className="p-5 text-center">
-                                <p className={`text-sm ${theme === 'light' ? 'text-slate-400' : 'text-gray-600'}`}>
-                                    No videos in this playlist yet
-                                </p>
+            </div>
+        )
+    }
+
+    if (activePlaylist) {
+        const videos = activePlaylist.videos || []
+        const totalPages = Math.ceil(videos.length / videosPerPage)
+        const startIdx = (videoPage - 1) * videosPerPage
+        const currentVideos = videos.slice(startIdx, startIdx + videosPerPage)
+
+        return (
+            <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+                <div className="mb-6">
+                    <button
+                        onClick={closePlaylist}
+                        className={`flex items-center gap-2 text-sm font-medium mb-4 px-3 py-1.5 rounded-lg transition-colors ${
+                            theme === 'light'
+                                ? 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+                                : 'text-gray-400 hover:bg-[#2B2B2B] hover:text-white'
+                        }`}
+                    >
+                        <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
+                        Back to Playlists
+                    </button>
+
+                    <div className="flex items-center gap-3">
+                        {activePlaylist.videos?.[0]?.thumbnail && (
+                            <div className={`w-16 h-16 shrink-0 rounded-lg overflow-hidden border ${
+                                theme === 'light' ? 'border-blue-200/60' : 'border-[#2B2B2B]'
+                            }`}>
+                                <img src={activePlaylist.videos[0].thumbnail} alt="" className="w-full h-full object-cover" />
                             </div>
-                        ) : (
-                            playlist.videos.map((video, index) => (
-                                <VideoItem 
-                                    key={video._id || index} 
-                                    video={video} 
-                                    index={index} 
-                                    playlistId={playlist._id}
-                                    isLast={index === videoCount - 1}
-                                />
-                            ))
                         )}
+                        <div>
+                            <h1 className={`text-2xl font-semibold ${theme === 'light' ? light.heading : dark.heading}`}>
+                                {activePlaylist.name}
+                            </h1>
+                            <div className={`flex items-center gap-3 mt-1 text-xs ${theme === 'light' ? light.text : dark.text}`}>
+                                <span className="flex items-center gap-1">
+                                    <FontAwesomeIcon icon={faFilm} className="text-[10px]" />
+                                    {videos.length} video{videos.length !== 1 ? 's' : ''}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <FontAwesomeIcon icon={activePlaylist.privacy ? faLock : faGlobe} className="text-[10px]" />
+                                    {activePlaylist.privacy ? 'Private' : 'Public'}
+                                </span>
+                            </div>
+                            {activePlaylist.description && (
+                                <p className={`text-xs mt-1 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
+                                    {activePlaylist.description}
+                                </p>
+                            )}
+                        </div>
                     </div>
+                </div>
+
+                {videos.length === 0 ? (
+                    <div className={`rounded-xl border p-12 text-center ${
+                        theme === 'light'
+                            ? 'bg-white/80 border-blue-200/60'
+                            : 'bg-[#1C1C1C] border-[#2B2B2B]'
+                    }`}>
+                        <FontAwesomeIcon icon={faFilm} className={`text-3xl mb-3 ${theme === 'light' ? 'text-blue-300' : 'text-gray-600'}`} />
+                        <p className={`text-sm font-medium mb-1 ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
+                            No videos in this playlist yet
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {currentVideos.map((video, index) => (
+                                <div key={video._id || index} className={`rounded-xl border overflow-hidden transition-all group ${
+                                    theme === 'light'
+                                        ? 'bg-white/80 border-blue-200/60 hover:shadow-md'
+                                        : 'bg-[#1C1C1C] border-[#2B2B2B] hover:border-[#3B3B3B]'
+                                }`}>
+                                    <Link to={`/watch/${video._id}`} className="block">
+                                        <div className="relative aspect-video w-full overflow-hidden">
+                                            {video.thumbnail ? (
+                                                <img src={video.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+                                            ) : (
+                                                <div className={`w-full h-full flex items-center justify-center ${
+                                                    theme === 'light' ? 'bg-blue-100/50' : 'bg-gray-800'
+                                                }`}>
+                                                    <FontAwesomeIcon icon={faPlay} className={`text-lg ${theme === 'light' ? 'text-blue-300' : 'text-gray-600'}`} />
+                                                </div>
+                                            )}
+                                            {video.duration && (
+                                                <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5">
+                                                    <span className="text-white text-[10px] font-medium">{millisToTimeString(video.duration)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Link>
+                                    <div className="p-2.5">
+                                        <Link to={`/watch/${video._id}`}>
+                                            <p className={`text-xs font-medium line-clamp-2 leading-snug ${theme === 'light' ? 'text-slate-800' : 'text-gray-200'}`}>
+                                                {video.title || 'Untitled'}
+                                            </p>
+                                        </Link>
+                                        <div className="flex items-center justify-between mt-1.5">
+                                            <p className={`text-[10px] flex items-center gap-1 ${theme === 'light' ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                <FontAwesomeIcon icon={faEye} className="text-[9px]" />
+                                                {video.views?.length || 0} views
+                                            </p>
+                                            <button
+                                                onClick={() => handleRemoveVideo(activePlaylist._id, video._id)}
+                                                className={`p-1 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${
+                                                    theme === 'light' ? light.delete_button : dark.delete_button
+                                                }`}
+                                                title="Remove from playlist"
+                                            >
+                                                <FontAwesomeIcon icon={faClose} className="text-[10px]" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-6">
+                                <button
+                                    onClick={() => setVideoPage(p => Math.max(1, p - 1))}
+                                    disabled={videoPage === 1}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        videoPage === 1
+                                            ? 'opacity-40 cursor-not-allowed'
+                                            : (theme === 'light' ? 'hover:bg-blue-50 text-slate-600' : 'hover:bg-[#2B2B2B] text-gray-400')
+                                    }`}
+                                >
+                                    Prev
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setVideoPage(page)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                                            videoPage === page
+                                                ? 'bg-blue-600 text-white'
+                                                : (theme === 'light' ? 'hover:bg-blue-50 text-slate-600' : 'hover:bg-[#2B2B2B] text-gray-400')
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setVideoPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={videoPage === totalPages}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        videoPage === totalPages
+                                            ? 'opacity-40 cursor-not-allowed'
+                                            : (theme === 'light' ? 'hover:bg-blue-50 text-slate-600' : 'hover:bg-[#2B2B2B] text-gray-400')
+                                    }`}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         )
@@ -590,15 +670,11 @@ const Playlist = ({ user, theme, setNotification }) => {
                 </div>
             ) : viewMode === 'list' ? (
                 <div className="flex flex-col gap-3">
-                    {playlists.map((playlist) => (
-                        <ListItem key={playlist._id} playlist={playlist} />
-                    ))}
+                    {playlists.map((playlist) => renderListItem(playlist))}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {playlists.map((playlist) => (
-                        <BoxItem key={playlist._id} playlist={playlist} />
-                    ))}
+                    {playlists.map((playlist) => renderBoxItem(playlist))}
                 </div>
             )}
 

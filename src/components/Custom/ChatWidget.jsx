@@ -158,6 +158,15 @@ const ChatWidget = ({ theme }) => {
     }, [userId, dispatch])
 
     useEffect(() => {
+        const handleOpenChatWidget = () => {
+            setIsOpen(true)
+            setView('chat')
+        }
+        window.addEventListener('open-chat-widget', handleOpenChatWidget)
+        return () => window.removeEventListener('open-chat-widget', handleOpenChatWidget)
+    }, [])
+
+    useEffect(() => {
         if (activeConversation?._id && view === 'chat') {
             dispatch(getMessages({ conversationId: activeConversation._id }))
             const other = activeConversation?.participants?.find(p => p._id?.toString() !== userId)

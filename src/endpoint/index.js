@@ -50,6 +50,12 @@ export const updateUserRole                     = (formData) => endpoint.patch('
 export const deleteUser                         = (id) => endpoint.delete(`/user/deleteUser/${id}`, options)
 export const banUser                            = (formData) => endpoint.post('/user/banUser', formData, options)
 export const unbanUser                          = (id) => endpoint.delete(`/user/unbanUser/${id}`, options)
+export const getSettings                        = () => endpoint.get('/user/getSettings', options)
+export const updateSettings                     = (formData) => endpoint.post('/user/updateSettings', formData, options)
+export const deleteAccount                      = (formData) => endpoint.delete('/user/deleteAccount', { ...options, data: formData })
+export const sendVerificationEmail              = () => endpoint.post('/user/sendVerificationEmail', {}, options)
+export const verifyEmailToken                   = (formData) => endpoint.post('/user/verifyEmail', formData)
+export const getPublicProfile                   = (username) => endpoint.get(`/user/profile/${username}`)
 
 /*
     GROUPS

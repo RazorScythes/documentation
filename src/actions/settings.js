@@ -1,4 +1,5 @@
 import * as api from '../api'
+import * as newApi from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { requestAPI } from '../api/function'
 
@@ -80,7 +81,7 @@ export const sendVerificationEmail = createAsyncThunk('settings/sendVerification
 
 export const verifyEmail = createAsyncThunk('settings/verifyEmail', async (form, thunkAPI) => {
     try {
-        const response = await api.verifyEmail(form);
+        const response = await newApi.verifyEmailToken(form);
         return response;
     } catch (err) {
         if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
