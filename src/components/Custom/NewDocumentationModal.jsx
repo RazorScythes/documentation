@@ -1,11 +1,12 @@
-import React, { useState }  from 'react'
-import { dark, light } from '../../style';
-import { faClose } from '@fortawesome/free-solid-svg-icons';
+import React from 'react'
+import { faClose, faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { MotionAnimate } from 'react-motion-animate';
 import CustomForm from './CustomForm';
 
 const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, handleNewCategory }) => {
+    const isLight = theme === 'light'
+
     const fields = [
         { label: "Category Name", name: "category", type: "text", required: true },
         { label: "Sub Category", name: "sub", type: "list" },
@@ -19,64 +20,61 @@ const NewDocumentationModal = ({ theme, openModal, setOpenModal, title, handleNe
         handleNewCategory(formData);
     };
 
+    if (!openModal) return null
+
     return (
         <>
-            {/* Backdrop */}
-            {openModal && (
-                <div className="fixed inset-0 bg-black opacity-90 z-[100]"></div>
-            )}
-            {
-                openModal && (
-                    <div
-                        className="flex mt-16 justify-center scrollbar-hide w-full fixed inset-0 z-[100]"
-                    >
-                        <MotionAnimate variant={{
-                            hidden: { 
-                                opacity: 0,
-                                transform: 'scale(0)'
-                            },
-                            show: {
-                                opacity: 1,
-                                transform: 'scale(1)',
-                                transition: {
-                                    duration: 0.15,
-                                }
-                            }
-                        }}>
-                            <div className={`sm:w-auto sm:min-w-[550px] w-full rounded-md shadow-lg relative flex flex-col ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                {/*content*/}
-                                <div className="border-0 rounded-sm shadow-lg relative flex flex-col w-full bg-transparent outline-none focus:outline-none">
-                                    {/*header*/}
-                                    <div className="flex items-center justify-between p-5 py-3 border-b border-solid border-gray-700 rounded-t">
-                                        <h3 className="text-xl font-medium">
-                                            { title }
-                                        </h3>
-                                        <button
-                                            className={`text-base p-[0.35rem] px-3 rounded-md ${theme === 'light' ? light.icon : dark.icon}`}
-                                            onClick={() => closeModal()}
-                                        >
-                                            <FontAwesomeIcon icon={faClose} />
-                                        </button>
-                                    </div>
-                                    {/*body*/}
-                                    
-                                    <div className="p-5 pb-8 font-normal">
-                                        <CustomForm
-                                            theme={theme}
-                                            fields={fields}
-                                            onSubmit={handleSubmit}
-                                            initialValues={{}}
-                                            fullWidth={true}
-                                            submitText="Create Category"
-                                        />
-                                    </div>
-                                    
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100]" onClick={closeModal} />
+
+            <div className="flex items-start justify-center pt-[10vh] w-full fixed inset-0 z-[100] px-4">
+                <MotionAnimate variant={{
+                    hidden: { opacity: 0, transform: 'translateY(-12px) scale(0.98)' },
+                    show: { opacity: 1, transform: 'translateY(0) scale(1)', transition: { duration: 0.2 } }
+                }}>
+                    <div className={`sm:min-w-[500px] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden ${
+                        isLight ? 'bg-white border border-blue-200/60' : 'bg-[#0e0e0e] border border-[#2B2B2B]'
+                    }`}>
+                        <div className={`px-5 py-4 flex items-center justify-between border-b ${
+                            isLight ? 'border-blue-100/60 bg-blue-50/30' : 'border-[#2B2B2B] bg-[#1C1C1C]/50'
+                        }`}>
+                            <div className="flex items-center gap-2.5">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                    isLight ? 'bg-blue-100 text-blue-500' : 'bg-blue-900/30 text-blue-400'
+                                }`}>
+                                    <FontAwesomeIcon icon={faLayerGroup} className="text-sm" />
+                                </div>
+                                <div>
+                                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                        {title}
+                                    </h3>
+                                    <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        Add a new category to this documentation
+                                    </p>
                                 </div>
                             </div>
-                        </MotionAnimate>
+                            <button
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                                    isLight ? 'text-slate-400 hover:bg-slate-100 hover:text-slate-600' : 'text-gray-500 hover:bg-[#1C1C1C] hover:text-gray-300'
+                                }`}
+                                onClick={closeModal}
+                            >
+                                <FontAwesomeIcon icon={faClose} className="text-xs" />
+                            </button>
+                        </div>
+
+                        <div className="p-5">
+                            <CustomForm
+                                theme={theme}
+                                fields={fields}
+                                onSubmit={handleSubmit}
+                                initialValues={{}}
+                                fullWidth={true}
+                                submitText="Create Category"
+                            />
+                        </div>
                     </div>
-                )
-            }
+                </MotionAnimate>
+            </div>
         </>
     )
 }

@@ -159,6 +159,10 @@ export const deleteMultipleDocs                = (formData) => endpoint.patch('/
 export const newDocCategory                    = (formData) => endpoint.post(`/documentation/newDocCategory`, formData)
 export const deleteDocCategory                 = (id, category) => endpoint.delete(`/documentation/deleteDocCategory/${id}/${category}`) 
 export const updateDocCategory                 = (formData) => endpoint.patch('/documentation/updateDocCategory', formData)
+export const renameDocCategory                 = (formData) => endpoint.patch('/documentation/renameDocCategory', formData)
+export const renameDocSubCategory              = (formData) => endpoint.patch('/documentation/renameDocSubCategory', formData)
+export const deleteEntireDocCategory           = (categoryId, category) => endpoint.delete(`/documentation/deleteEntireDocCategory/${categoryId}/${category}`)
+export const addDocSubCategory                 = (formData) => endpoint.post('/documentation/addDocSubCategory', formData)
 
 /*
     CHAT

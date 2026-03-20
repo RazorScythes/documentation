@@ -190,6 +190,55 @@ export const deleteDocCategory = createAsyncThunk('docs/deleteDocCategory', asyn
     }
 })
 
+export const renameDocCategory = createAsyncThunk('docs/renameDocCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.renameDocCategory(form)
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+        return({ alert: { variant: 'danger', message: "There was a problem with the server." } })
+    }
+})
+
+export const renameDocSubCategory = createAsyncThunk('docs/renameDocSubCategory', async (form, thunkAPI) => {
+    try {
+        const response = await api.renameDocSubCategory(form)
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+        return({ alert: { variant: 'danger', message: "There was a problem with the server." } })
+    }
+})
+
+export const deleteEntireDocCategory = createAsyncThunk('docs/deleteEntireDocCategory', async (data, thunkAPI) => {
+    try {
+        const { categoryId, category } = data
+        const response = await api.deleteEntireDocCategory(categoryId, category)
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+        return({ alert: { variant: 'danger', message: "There was a problem with the server." } })
+    }
+})
+
+export const addDocSubCategory = createAsyncThunk('docs/addDocSubCategory', async (data, thunkAPI) => {
+    try {
+        const response = await api.addDocSubCategory(data)
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+        return({ alert: { variant: 'danger', message: "There was a problem with the server." } })
+    }
+})
+
 export const docsSlice = createSlice({
     name: 'docs',
     initialState,
@@ -302,6 +351,34 @@ export const docsSlice = createSlice({
         }),
         builder.addCase(updateDocCategory.rejected, (state, action) => {
             state.alert         = action.payload.alert
+        }),
+        builder.addCase(renameDocCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(renameDocCategory.rejected, (state, action) => {
+            state.alert         = action.payload?.alert
+        }),
+        builder.addCase(renameDocSubCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(renameDocSubCategory.rejected, (state, action) => {
+            state.alert         = action.payload?.alert
+        }),
+        builder.addCase(deleteEntireDocCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(deleteEntireDocCategory.rejected, (state, action) => {
+            state.alert         = action.payload?.alert
+        }),
+        builder.addCase(addDocSubCategory.fulfilled, (state, action) => {
+            state.docs          = action.payload.data.result
+            state.alert         = action.payload.data.alert
+        }),
+        builder.addCase(addDocSubCategory.rejected, (state, action) => {
+            state.alert         = action.payload?.alert
         })
     },
     reducers: {

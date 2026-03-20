@@ -3,7 +3,7 @@ import { main, dark, light } from '../../style';
 import styles from "../../style";
 import { useNavigate, Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBook, faCode, faExternalLinkAlt, faSearch, faSpinner, faFileAlt, faGlobe, faLock, faLockOpen, faPlus, faTable, faTh, faEye, faTimes, faChartLine, faServer, faShieldAlt, faClock, faCheckCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { faBook, faCode, faExternalLinkAlt, faSearch, faSpinner, faFileAlt, faGlobe, faLock, faLockOpen, faPlus, faTable, faTh, faEye, faTimes, faChartLine, faServer, faShieldAlt, faClock, faCheckCircle, faInfoCircle, faArrowRight, faLayerGroup } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux'
 import { getDocs, clearAlert, deleteDocs, deleteMultipleDocs, newDocs, updateDocs, updateDocsSettings } from '../../actions/documentation';
 import Notification from '../Custom/Notification';
@@ -43,6 +43,8 @@ const SiteDocs = ({ user, theme }) => {
         token: {},
         base_url: {},
     })
+
+    const isLight = theme === 'light'
 
     const fields = [
         {
@@ -212,27 +214,26 @@ const SiteDocs = ({ user, theme }) => {
                         />
 
                         {/* Header Section */}
-                        <div className="mb-8 md:mb-12">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className={`p-3 rounded-xl ${theme === 'light' ? 'bg-gradient-to-br from-blue-500 to-sky-500' : 'bg-gradient-to-br from-blue-600 to-sky-600'} shadow-lg`}>
-                                            <FontAwesomeIcon icon={faCode} className="text-white text-2xl" />
+                        <div className={`mb-6 rounded-xl overflow-hidden border border-solid ${isLight ? 'border-blue-200/60' : 'border-[#2B2B2B]'}`}>
+                            <div className={`px-6 py-5 ${isLight ? 'bg-white/90 backdrop-blur-sm' : 'bg-[#0e0e0e]'}`}>
+                                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
+                                                Dashboard
+                                            </span>
+                                            <span className={`w-1 h-1 rounded-full ${isLight ? 'bg-slate-300' : 'bg-gray-600'}`} />
+                                            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>
+                                                {Array.isArray(docs) ? docs.length : 0} documentation{Array.isArray(docs) && docs.length !== 1 ? 's' : ''} registered
+                                            </span>
                                         </div>
-                                        <div>
-                                            <h1 className={`text-3xl md:text-4xl font-bold mb-1 ${theme === 'light' ? light.heading : dark.heading}`}>
-                                                API Documentation
-                                            </h1>
-                                            <p className={`text-sm ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
-                                                Manage and explore your API endpoints
-                                            </p>
-                                        </div>
+                                        <h1 className={`text-2xl font-bold leading-tight mb-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                            API Documentation
+                                        </h1>
+                                        <p className={`text-sm leading-relaxed max-w-lg ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                            Create, organize, and manage your API documentation sets. Configure endpoints, tokens, and access control.
+                                        </p>
                                     </div>
-                                    <p className={`text-base md:text-lg ${theme === 'light' ? light.text : dark.text} ml-14`}>
-                                        Explore and interact with our comprehensive API documentation
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3">
                                     <button
                                         onClick={() => {
                                             setFormOpen(!formOpen)
@@ -240,133 +241,94 @@ const SiteDocs = ({ user, theme }) => {
                                             setUpdateForm(true)
                                             setEdit(false)
                                         }}
-                                        className={`flex items-center gap-2 py-3 px-6 ${theme === "light" ? light.button_secondary : dark.button_secondary} rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105`}
+                                        className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition-all flex-shrink-0 ${
+                                            isLight
+                                                ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
                                     >
-                                        <FontAwesomeIcon icon={faPlus} />
+                                        <FontAwesomeIcon icon={formOpen ? faTimes : faPlus} className="text-xs" />
                                         <span>{formOpen ? 'Cancel' : 'New Documentation'}</span>
                                     </button>
                                 </div>
                             </div>
-
-                            {/* Statistics Cards */}
                             {!loading && !formOpen && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                    <div className={`flex flex-col h-full ${theme === 'light' ? light.background : dark.background} rounded-xl border border-solid ${theme === 'light' ? light.border : dark.border} p-5 shadow-sm hover:shadow-md transition-all`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className={`p-2.5 rounded-lg ${theme === 'light' ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
-                                                <FontAwesomeIcon icon={faFileAlt} className={`text-lg ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
+                                <div className={`grid grid-cols-2 sm:grid-cols-4 border-t ${isLight ? 'border-blue-200/60 divide-x divide-blue-200/60' : 'border-[#2B2B2B] divide-x divide-[#2B2B2B]'}`}>
+                                    {[
+                                        { label: 'Total', value: Array.isArray(docs) ? docs.length : 0, icon: faFileAlt, color: isLight ? 'text-blue-500' : 'text-blue-400' },
+                                        { label: 'Public', value: Array.isArray(docs) ? docs.filter(d => !d.private).length : 0, icon: faLockOpen, color: isLight ? 'text-emerald-500' : 'text-emerald-400' },
+                                        { label: 'Private', value: Array.isArray(docs) ? docs.filter(d => d.private).length : 0, icon: faLock, color: isLight ? 'text-amber-500' : 'text-amber-400' },
+                                        { label: 'Categories', value: Array.isArray(docs) ? docs.reduce((sum, doc) => sum + (doc.categoryCount || 0), 0) : 0, icon: faLayerGroup, color: isLight ? 'text-purple-500' : 'text-purple-400' },
+                                    ].map((stat, i) => (
+                                        <div key={i} className={`flex items-center gap-2.5 px-4 py-3 ${isLight ? 'bg-blue-50/30' : 'bg-[#0a0a0a]'}`}>
+                                            <FontAwesomeIcon icon={stat.icon} className={`text-sm ${stat.color}`} />
+                                            <div>
+                                                <p className={`text-base font-bold leading-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>{stat.value}</p>
+                                                <p className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>{stat.label}</p>
                                             </div>
-                                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${theme === 'light' ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/20 text-blue-400'}`}>
-                                                Total
-                                            </span>
                                         </div>
-                                        <p className={`text-2xl font-bold ${theme === 'light' ? light.heading : dark.heading} mb-1`}>
-                                            {Array.isArray(docs) ? docs.length : 0}
-                                        </p>
-                                        <p className={`text-xs ${theme === 'light' ? light.text : dark.text} opacity-70 mt-auto`}>
-                                            Documentation Sets
-                                        </p>
-                                    </div>
-
-                                    <div className={`flex flex-col h-full ${theme === 'light' ? light.background : dark.background} rounded-xl border border-solid ${theme === 'light' ? light.border : dark.border} p-5 shadow-sm hover:shadow-md transition-all`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className={`p-2.5 rounded-lg ${theme === 'light' ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
-                                                <FontAwesomeIcon icon={faLockOpen} className={`text-lg ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                                            </div>
-                                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${theme === 'light' ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-900/20 text-emerald-400'}`}>
-                                                Public
-                                            </span>
-                                        </div>
-                                        <p className={`text-2xl font-bold ${theme === 'light' ? light.heading : dark.heading} mb-1`}>
-                                            {Array.isArray(docs) ? docs.filter(d => !d.private).length : 0}
-                                        </p>
-                                        <p className={`text-xs ${theme === 'light' ? light.text : dark.text} opacity-70 mt-auto`}>
-                                            Public APIs
-                                        </p>
-                                    </div>
-
-                                    <div className={`flex flex-col h-full ${theme === 'light' ? light.background : dark.background} rounded-xl border border-solid ${theme === 'light' ? light.border : dark.border} p-5 shadow-sm hover:shadow-md transition-all`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className={`p-2.5 rounded-lg ${theme === 'light' ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
-                                                <FontAwesomeIcon icon={faLock} className={`text-lg ${theme === 'light' ? 'text-amber-600' : 'text-amber-400'}`} />
-                                            </div>
-                                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${theme === 'light' ? 'bg-amber-50 text-amber-700' : 'bg-amber-900/20 text-amber-400'}`}>
-                                                Private
-                                            </span>
-                                        </div>
-                                        <p className={`text-2xl font-bold ${theme === 'light' ? light.heading : dark.heading} mb-1`}>
-                                            {Array.isArray(docs) ? docs.filter(d => d.private).length : 0}
-                                        </p>
-                                        <p className={`text-xs ${theme === 'light' ? light.text : dark.text} opacity-70 mt-auto`}>
-                                            Private APIs
-                                        </p>
-                                    </div>
-
-                                    <div className={`flex flex-col h-full ${theme === 'light' ? light.background : dark.background} rounded-xl border border-solid ${theme === 'light' ? light.border : dark.border} p-5 shadow-sm hover:shadow-md transition-all`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className={`p-2.5 rounded-lg ${theme === 'light' ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
-                                                <FontAwesomeIcon icon={faBook} className={`text-lg ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />
-                                            </div>
-                                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${theme === 'light' ? 'bg-purple-50 text-purple-700' : 'bg-purple-900/20 text-purple-400'}`}>
-                                                Categories
-                                            </span>
-                                        </div>
-                                        <p className={`text-2xl font-bold ${theme === 'light' ? light.heading : dark.heading} mb-1`}>
-                                            {Array.isArray(docs) ? docs.reduce((sum, doc) => sum + (doc.categoryCount || 0), 0) : 0}
-                                        </p>
-                                        <p className={`text-xs ${theme === 'light' ? light.text : dark.text} opacity-70 mt-auto`}>
-                                            Total Categories
-                                        </p>
-                                    </div>
+                                    ))}
                                 </div>
                             )}
+                        </div>
 
-                            {/* Search and View Toggle */}
-                            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                                <div className="relative max-w-2xl w-full sm:flex-1">
-                                    <div className={`relative flex items-center ${theme === 'light' ? light.input : dark.input} rounded-xl px-5 py-3.5 shadow-md hover:shadow-lg transition-all ${searchQuery ? 'ring-2 ring-blue-400/50' : ''}`}>
+                        {/* Search and View Toggle */}
+                        {!formOpen && (
+                            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-5">
+                                <div className="relative w-full sm:flex-1 sm:max-w-md">
+                                    <div className={`relative flex items-center rounded-lg px-3.5 py-2.5 border border-solid transition-all ${
+                                        isLight
+                                            ? `bg-white/90 border-blue-200/60 ${searchQuery ? 'ring-2 ring-blue-400/30' : ''}`
+                                            : `bg-[#0e0e0e] border-[#2B2B2B] ${searchQuery ? 'ring-2 ring-blue-500/30' : ''}`
+                                    }`}>
                                         <FontAwesomeIcon 
                                             icon={faSearch} 
-                                            className={`mr-3 ${theme === 'light' ? light.input_icon : dark.input_icon} ${searchQuery ? 'text-blue-600' : ''}`}
+                                            className={`mr-2.5 text-xs ${isLight ? 'text-slate-400' : 'text-gray-600'} ${searchQuery ? (isLight ? 'text-blue-500' : 'text-blue-400') : ''}`}
                                         />
                                         <input
                                             type="text"
-                                            placeholder="Search by name or description..."
+                                            placeholder="Search documentation..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className={`flex-1 bg-transparent outline-none ${theme === 'light' ? light.color : dark.color} placeholder:${theme === 'light' ? 'text-slate-400' : 'text-gray-500'} font-medium`}
+                                            className={`flex-1 bg-transparent outline-none text-sm ${isLight ? 'text-slate-800 placeholder:text-slate-400' : 'text-gray-200 placeholder:text-gray-600'}`}
                                         />
                                         {searchQuery && (
-                                            <div className="flex items-center gap-2 ml-2">
-                                                <span className={`text-xs px-2 py-1 rounded-md ${theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-blue-900/30 text-blue-400'} font-medium`}>
-                                                    {filteredDocs.length} {filteredDocs.length === 1 ? 'result' : 'results'}
+                                            <div className="flex items-center gap-1.5 ml-2">
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${isLight ? 'bg-blue-100 text-blue-700' : 'bg-blue-900/30 text-blue-400'} font-medium`}>
+                                                    {filteredDocs.length}
                                                 </span>
                                                 <button
                                                     onClick={() => setSearchQuery('')}
-                                                    className={`p-1.5 rounded-lg ${theme === 'light' ? 'hover:bg-blue-100' : 'hover:bg-gray-700'} transition-colors`}
+                                                    className={`p-1 rounded ${isLight ? 'hover:bg-blue-50' : 'hover:bg-[#1C1C1C]'} transition-colors`}
                                                 >
-                                                    <FontAwesomeIcon icon={faTimes} className={`text-sm ${theme === 'light' ? light.text : dark.text}`} />
+                                                    <FontAwesomeIcon icon={faTimes} className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                                                 </button>
-                                                    </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                                <div className={`flex items-center gap-2 ${theme === 'light' ? light.semibackground : dark.semibackground} rounded-lg p-1 border border-solid ${theme === 'light' ? light.border : dark.border}`}>
+                                <div className={`flex items-center gap-1 rounded-lg p-0.5 border border-solid ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                     <button
                                         onClick={() => setViewMode('cards')}
-                                        className={`p-2 rounded-md transition-all ${viewMode === 'cards' ? (theme === 'light' ? light.active_list_button : dark.active_list_button) : ''}`}
+                                        className={`p-1.5 px-2.5 rounded-md text-xs transition-all ${viewMode === 'cards'
+                                            ? (isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white')
+                                            : (isLight ? 'text-slate-500 hover:bg-blue-50' : 'text-gray-500 hover:bg-[#1C1C1C]')
+                                        }`}
                                     >
-                                        <FontAwesomeIcon icon={faTh} className={viewMode === 'cards' ? 'text-white' : (theme === 'light' ? light.text : dark.text)} />
+                                        <FontAwesomeIcon icon={faTh} />
                                     </button>
                                     <button
                                         onClick={() => setViewMode('table')}
-                                        className={`p-2 rounded-md transition-all ${viewMode === 'table' ? (theme === 'light' ? light.active_list_button : dark.active_list_button) : ''}`}
+                                        className={`p-1.5 px-2.5 rounded-md text-xs transition-all ${viewMode === 'table'
+                                            ? (isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white')
+                                            : (isLight ? 'text-slate-500 hover:bg-blue-50' : 'text-gray-500 hover:bg-[#1C1C1C]')
+                                        }`}
                                     >
-                                        <FontAwesomeIcon icon={faTable} className={viewMode === 'table' ? 'text-white' : (theme === 'light' ? light.text : dark.text)} />
+                                        <FontAwesomeIcon icon={faTable} />
                                     </button>
                                 </div>
                             </div>
-                                                </div>
+                        )}
 
                         {/* Form Section */}
                         {formOpen && (
@@ -411,23 +373,23 @@ const SiteDocs = ({ user, theme }) => {
 
                         {/* Main Content Area */}
                         {!formOpen && (
-                            <div className="w-full">
-                                {/* Main Content */}
-                                <div className="w-full">
+                            <div className="w-full md:flex items-start gap-5">
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
                                     {/* Loading State */}
                                     {loading && (
-                                        <div className={`flex flex-col items-center justify-center py-20 ${theme === 'light' ? light.background : dark.background} rounded-2xl border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                            <div className={`relative p-6 rounded-full ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/20'} mb-6`}>
+                                        <div className={`flex flex-col items-center justify-center py-20 rounded-xl border border-solid ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                            <div className={`relative p-5 rounded-full ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'} mb-5`}>
                                                 <FontAwesomeIcon 
                                                     icon={faSpinner} 
-                                                    className={`text-5xl animate-spin ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}
+                                                    className={`text-4xl animate-spin ${isLight ? 'text-blue-600' : 'text-blue-400'}`}
                                                 />
                                             </div>
-                                            <h3 className={`text-xl font-bold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                                            <h3 className={`text-lg font-bold mb-1.5 ${isLight ? light.heading : dark.heading}`}>
                                                 Loading Documentation
                                             </h3>
-                                            <p className={`text-sm ${theme === 'light' ? light.text : dark.text} opacity-70`}>
-                                                Please wait while we fetch your API documentation...
+                                            <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                Fetching your API documentation...
                                             </p>
                                         </div>
                                     )}
@@ -438,20 +400,20 @@ const SiteDocs = ({ user, theme }) => {
                                         {viewMode === 'cards' ? (
                                             <>
                                                 {filteredDocs.length === 0 ? (
-                                                    <div className={`py-20 text-center ${theme === 'light' ? light.background : dark.background} rounded-2xl border-2 border-dashed ${theme === 'light' ? light.border : dark.border}`}>
-                                                        <div className={`inline-flex p-6 rounded-full ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/20'} mb-6`}>
+                                                    <div className={`py-20 text-center rounded-xl border-2 border-dashed ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                                        <div className={`inline-flex p-5 rounded-full ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'} mb-5`}>
                                                             <FontAwesomeIcon 
                                                                 icon={searchQuery ? faSearch : faFileAlt} 
-                                                                className={`text-6xl ${theme === 'light' ? 'text-blue-400' : 'text-blue-500'} opacity-70`}
+                                                                className={`text-4xl ${isLight ? 'text-blue-400' : 'text-blue-500'} opacity-70`}
                                                             />
                                                         </div>
-                                                        <h3 className={`text-2xl font-bold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                                                        <h3 className={`text-xl font-bold mb-2 ${isLight ? light.heading : dark.heading}`}>
                                                             {searchQuery ? 'No Results Found' : 'No Documentation Yet'}
                                                         </h3>
-                                                        <p className={`text-base mb-6 ${theme === 'light' ? light.text : dark.text} max-w-md mx-auto`}>
+                                                        <p className={`text-sm mb-5 ${isLight ? 'text-slate-500' : 'text-gray-500'} max-w-md mx-auto`}>
                                                             {searchQuery 
-                                                                ? `We couldn't find any documentation matching "${searchQuery}". Try adjusting your search terms.`
-                                                                : 'Get started by creating your first API documentation set. Click the "New Documentation" button above to begin.'}
+                                                                ? `No documentation matching "${searchQuery}".`
+                                                                : 'Create your first API documentation set to get started.'}
                                                         </p>
                                                         {!searchQuery && (
                                                             <button
@@ -461,52 +423,53 @@ const SiteDocs = ({ user, theme }) => {
                                                                     setUpdateForm(true)
                                                                     setEdit(false)
                                                                 }}
-                                                                className={`inline-flex items-center gap-2 py-3 px-6 ${theme === "light" ? light.button_secondary : dark.button_secondary} rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105`}
+                                                                className={`inline-flex items-center gap-2 py-2.5 px-5 rounded-lg text-sm font-medium transition-all ${
+                                                                    isLight ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm' : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                                }`}
                                                             >
-                                                                <FontAwesomeIcon icon={faPlus} />
-                                                                <span>Create Your First Documentation</span>
+                                                                <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                                                                <span>Create Documentation</span>
                                                             </button>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {filteredDocs.map((doc, index) => (
                                                             <div
                                                                 key={doc._id || index}
-                                                                className={`group cursor-pointer ${theme === 'light' ? light.background : dark.background} rounded-2xl border border-solid ${theme === 'light' ? light.border : dark.border} p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${theme === 'light' ? 'hover:border-blue-400 hover:shadow-blue-100/50' : 'hover:border-blue-600 hover:shadow-blue-900/20'} relative overflow-hidden`}
+                                                                className={`group cursor-pointer rounded-xl border border-solid p-5 transition-all duration-200 hover:shadow-lg hover:scale-[1.01] relative overflow-hidden ${
+                                                                    isLight
+                                                                        ? 'bg-white/90 border-blue-200/60 hover:border-blue-300'
+                                                                        : 'bg-[#0e0e0e] border-[#2B2B2B] hover:border-[#3B3B3B]'
+                                                                }`}
                                                                 onClick={() => handleDocClick(doc.doc_name)}
                                                             >
-                                                                {/* Decorative gradient overlay */}
-                                                                <div className={`absolute top-0 right-0 w-32 h-32 ${theme === 'light' ? 'bg-gradient-to-br from-blue-50/50 to-transparent' : 'bg-gradient-to-br from-blue-900/10 to-transparent'} rounded-full blur-2xl -mr-16 -mt-16`}></div>
-                                                                
                                                                 <div className="relative z-10">
-                                                                    <div className="flex items-start justify-between mb-5">
-                                                                        <div className={`p-4 rounded-xl ${theme === 'light' ? 'bg-gradient-to-br from-blue-100 to-sky-100 shadow-md' : 'bg-gradient-to-br from-blue-900/30 to-sky-900/30 shadow-lg'}`}>
+                                                                    <div className="flex items-start justify-between mb-3">
+                                                                        <div className={`p-2.5 rounded-lg ${isLight ? 'bg-gradient-to-br from-blue-100 to-sky-100' : 'bg-gradient-to-br from-blue-900/30 to-sky-900/30'}`}>
                                                                             <FontAwesomeIcon 
                                                                                 icon={faCode} 
-                                                                                className={`text-2xl ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}
+                                                                                className={`text-lg ${isLight ? 'text-blue-600' : 'text-blue-400'}`}
                                                                             />
                                                                         </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            {doc.private ? (
-                                                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${theme === 'light' ? 'bg-amber-100 text-amber-700 shadow-sm' : 'bg-amber-900/30 text-amber-400'}`}>
-                                                                                    <FontAwesomeIcon icon={faLock} className="text-xs" />
-                                                                                    Private
-                                                                                </span>
-                                                                            ) : (
-                                                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${theme === 'light' ? 'bg-emerald-100 text-emerald-700 shadow-sm' : 'bg-emerald-900/30 text-emerald-400'}`}>
-                                                                                    <FontAwesomeIcon icon={faLockOpen} className="text-xs" />
-                                                                                    Public
-                                                                                </span>
-                                                                            )}
-                                                                        </div>
+                                                                        {doc.private ? (
+                                                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold ${isLight ? 'bg-amber-100 text-amber-700' : 'bg-amber-900/30 text-amber-400'}`}>
+                                                                                <FontAwesomeIcon icon={faLock} className="text-[8px]" />
+                                                                                Private
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold ${isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                                                                                <FontAwesomeIcon icon={faLockOpen} className="text-[8px]" />
+                                                                                Public
+                                                                            </span>
+                                                                        )}
                                                                     </div>
 
-                                                                    <h3 className={`text-xl font-bold mb-3 transition-colors ${theme === 'light' ? light.heading : dark.heading} ${theme === 'light' ? 'group-hover:text-blue-600' : 'group-hover:text-blue-400'}`}>
+                                                                    <h3 className={`text-base font-bold mb-1.5 transition-colors ${isLight ? 'text-slate-900 group-hover:text-blue-600' : 'text-white group-hover:text-blue-400'}`}>
                                                                         {doc.doc_name}
                                                                     </h3>
 
-                                                                    <p className={`text-sm mb-5 leading-relaxed ${theme === 'light' ? light.text : dark.text} min-h-[2.5rem]`} style={{
+                                                                    <p className={`text-xs mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-gray-500'}`} style={{
                                                                         display: '-webkit-box',
                                                                         WebkitLineClamp: 2,
                                                                         WebkitBoxOrient: 'vertical',
@@ -517,44 +480,34 @@ const SiteDocs = ({ user, theme }) => {
                                                                     </p>
 
                                                                     {doc.base_url && (
-                                                                        <div className={`mb-4 p-3 rounded-lg ${theme === 'light' ? 'bg-blue-50/50' : 'bg-blue-900/10'} border border-solid ${theme === 'light' ? 'border-blue-100' : 'border-blue-800/30'}`}>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <FontAwesomeIcon 
-                                                                                    icon={faServer} 
-                                                                                    className={`text-xs ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}
-                                                                                />
-                                                                                <span className={`text-xs font-medium truncate ${theme === 'light' ? 'text-blue-700' : 'text-blue-400'}`}>
+                                                                        <div className={`mb-3 px-2.5 py-1.5 rounded-md ${isLight ? 'bg-blue-50/60' : 'bg-blue-900/10'} border border-solid ${isLight ? 'border-blue-100/80' : 'border-blue-800/20'}`}>
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <FontAwesomeIcon icon={faServer} className={`text-[10px] ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                                                                                <span className={`text-[10px] font-medium truncate ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
                                                                                     {doc.base_url}
                                                                                 </span>
                                                                             </div>
                                                                         </div>
                                                                     )}
 
-                                                                    <div className={`flex items-center justify-between pt-4 border-t border-solid ${theme === 'light' ? light.semiborder : dark.semiborder}`}>
-                                                                        <div className="flex items-center gap-4">
-                                                                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme === 'light' ? 'bg-slate-50' : 'bg-gray-800/50'}`}>
-                                                                                <FontAwesomeIcon 
-                                                                                    icon={faBook} 
-                                                                                    className={`text-sm ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}
-                                                                                />
-                                                                                <span className={`text-xs font-semibold ${theme === 'light' ? 'text-slate-700' : 'text-gray-300'}`}>
-                                                                                    {doc.categoryCount || 0} {doc.categoryCount === 1 ? 'Category' : 'Categories'}
-                                                                                </span>
-                                                                            </div>
+                                                                    <div className={`flex items-center justify-between pt-3 border-t border-solid ${isLight ? 'border-blue-100/60' : 'border-[#2B2B2B]'}`}>
+                                                                        <div className={`flex items-center gap-1.5 text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                                            <FontAwesomeIcon icon={faBook} className="text-[10px]" />
+                                                                            <span className="font-medium">{doc.categoryCount || 0} {doc.categoryCount === 1 ? 'Category' : 'Categories'}</span>
                                                                         </div>
-                                                                        <div className={`flex items-center gap-2 ${theme === 'light' ? light.link : dark.link} text-sm font-semibold group-hover:gap-3 transition-all`}>
-                                                                            <span>View Docs</span>
-                                                                            <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+                                                                        <div className={`flex items-center gap-1.5 text-xs font-medium ${isLight ? 'text-blue-600' : 'text-blue-400'} group-hover:gap-2 transition-all`}>
+                                                                            <span>View</span>
+                                                                            <FontAwesomeIcon icon={faArrowRight} className="text-[10px]" />
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         ))}
-                                                </div>
+                                                    </div>
                                                 )}
                                             </>
                                         ) : (
-                                            <div className={`${theme === 'light' ? light.background : dark.background} p-5 pb-0 rounded-xl border border-solid ${theme === 'light' ? light.border : dark.border} overflow-hidden`}>
+                                            <div className={`p-5 pb-0 rounded-xl border border-solid overflow-hidden ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                                 <Table 
                                                     theme={theme}
                                                     title=""
@@ -638,17 +591,62 @@ const SiteDocs = ({ user, theme }) => {
                                             </div>
                                         )}
                                     </>
-                                )}
+                                    )}
+                                </div>
 
-                                    {/* Footer Info - Only show in card view */}
-                                    {!loading && filteredDocs.length > 0 && viewMode === 'cards' && (
-                                        <div className={`mt-8 p-4 rounded-lg ${theme === 'light' ? light.semibackground : dark.semibackground} border border-solid ${theme === 'light' ? light.border : dark.border}`}>
-                                            <p className={`text-sm text-center ${theme === 'light' ? light.text : dark.text}`}>
-                                                Showing {filteredDocs.length} {filteredDocs.length === 1 ? 'documentation' : 'documentations'}
-                                                {searchQuery && ` matching "${searchQuery}"`}
-                                            </p>
+                                {/* Right Sidebar */}
+                                <div className="w-full md:w-64 flex-shrink-0 mt-5 md:mt-0 space-y-3">
+                                    {/* Recent Docs */}
+                                    {!loading && Array.isArray(docs) && docs.length > 0 && (
+                                        <div className={`rounded-xl overflow-hidden border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                            <div className={`px-4 py-2.5 border-b ${isLight ? 'border-blue-100/60 bg-blue-50/40' : 'border-[#2B2B2B] bg-[#1C1C1C]/50'}`}>
+                                                <p className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Recent Docs</p>
+                                            </div>
+                                            <div className="p-2">
+                                                {docs.slice(0, 5).map((doc, i) => (
+                                                    <button
+                                                        key={doc._id || i}
+                                                        onClick={() => handleDocClick(doc.doc_name)}
+                                                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all ${
+                                                            isLight ? 'hover:bg-blue-50/60' : 'hover:bg-[#1C1C1C]'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${
+                                                            isLight ? 'bg-blue-100/60 text-blue-500' : 'bg-blue-900/20 text-blue-400'
+                                                        }`}>
+                                                            <FontAwesomeIcon icon={faCode} className="text-[9px]" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{doc.doc_name}</p>
+                                                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>
+                                                                {doc.categoryCount || 0} categories · {doc.private ? 'Private' : 'Public'}
+                                                            </p>
+                                                        </div>
+                                                        <FontAwesomeIcon icon={faArrowRight} className={`text-[9px] ${isLight ? 'text-slate-300' : 'text-gray-700'}`} />
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
+
+                                    {/* Quick Tips */}
+                                    <div className={`rounded-xl overflow-hidden border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                        <div className={`px-4 py-2.5 border-b ${isLight ? 'border-blue-100/60 bg-blue-50/40' : 'border-[#2B2B2B] bg-[#1C1C1C]/50'}`}>
+                                            <p className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Quick Tips</p>
+                                        </div>
+                                        <div className={`p-3.5 space-y-2.5`}>
+                                            {[
+                                                { icon: faCheckCircle, text: 'Set docs to private to restrict access' },
+                                                { icon: faServer, text: 'Base URL is used for API endpoint prefixes' },
+                                                { icon: faShieldAlt, text: 'Tokens authenticate API requests' },
+                                            ].map((tip, i) => (
+                                                <div key={i} className="flex items-start gap-2">
+                                                    <FontAwesomeIcon icon={tip.icon} className={`text-[10px] mt-0.5 ${isLight ? 'text-blue-400' : 'text-blue-500'}`} />
+                                                    <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>{tip.text}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

@@ -4,8 +4,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useDispatch, useSelector } from 'react-redux'
-import { faChevronDown, faChevronUp, faCode, faCodePullRequest, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faPlus, faThumbsDown, faThumbsUp, faTriangleExclamation, faUser, faUserCircle, faUserEdit, faVideo, faBolt, faShieldAlt, faCopy, faCheck, faInfoCircle, faArrowRight, faSpinner, faTrashAlt, faExternalLinkAlt, faTimes, faTag } from '@fortawesome/free-solid-svg-icons';
-import { getDocsById, clearAlert, newDocCategory, deleteDocCategory, updateDocCategory } from '../../actions/documentation';
+import { faChevronDown, faChevronUp, faCode, faCodePullRequest, faCog, faDashboard, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faPlus, faThumbsDown, faThumbsUp, faTriangleExclamation, faUser, faUserCircle, faUserEdit, faVideo, faBolt, faShieldAlt, faCopy, faCheck, faInfoCircle, faArrowRight, faSpinner, faTrashAlt, faExternalLinkAlt, faTimes, faTag, faPen, faBan, faFileCode, faStickyNote, faServer } from '@fortawesome/free-solid-svg-icons';
+import { getDocsById, clearAlert, newDocCategory, deleteDocCategory, updateDocCategory, renameDocCategory, renameDocSubCategory, deleteEntireDocCategory, addDocSubCategory } from '../../actions/documentation';
 import DocumentForm from '../Custom/DocumentForm';
 import NewDocumentationModal from '../Custom/NewDocumentationModal';
 import CodeEditor from '../Custom/CodeEditor';
@@ -42,6 +42,7 @@ const Documentation = ({ user, theme }) => {
         response: false
     })
     
+    const isLight = theme === 'light'
     const [menuItems, setMenuItems] = useState([])
 
     const key = searchParams.get('edit')
@@ -83,7 +84,14 @@ const Documentation = ({ user, theme }) => {
         }
     }, [alert])
 
-    const [openDropdown, setOpenDropdown] = useState(null); 
+    const [openDropdown, setOpenDropdown] = useState(null);
+    const [renamingCategory, setRenamingCategory] = useState(null)
+    const [renamingSubCategory, setRenamingSubCategory] = useState(null)
+    const [renameValue, setRenameValue] = useState('')
+    const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState(null)
+    const [deleteSubConfirm, setDeleteSubConfirm] = useState(null)
+    const [addingSubTo, setAddingSubTo] = useState(null)
+    const [newSubName, setNewSubName] = useState('')
 
     const toggleDropdown = (itemPath) => {
         setOpenDropdown(openDropdown === itemPath ? null : itemPath);
@@ -125,39 +133,61 @@ const Documentation = ({ user, theme }) => {
     const makeApiCall = async (formData = {}) => {
         try {
             const baseUrl = menuItems[selectedIndex]?.base_url || '';
-            const endpoint = selected?.endpoint || '';
+            let endpoint = selected?.endpoint || '';
             const method = selected?.method?.toLowerCase() || 'get';
             const token = menuItems[selectedIndex]?.token;
-            const url = `${baseUrl}${endpoint}`;
+            const params = selected?.parameters || [];
+
+            const paramKeys = new Set(params.filter(p => p.location === 'param').map(p => p.key?.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, '')))
+            const queryKeys = new Set(params.filter(p => p.location === 'query').map(p => p.key?.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, '')))
+            const bodyKeys = new Set(params.filter(p => (p.location || 'body') === 'body').map(p => p.key?.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, '')))
+
+            const paramValues = []
+            const queryData = {}
+            const bodyData = {}
+
+            Object.entries(formData).forEach(([key, value]) => {
+                if (value === '' || value === null || value === undefined) return
+                if (paramKeys.has(key)) {
+                    paramValues.push(encodeURIComponent(value))
+                } else if (queryKeys.has(key)) {
+                    queryData[key] = value
+                } else if (bodyKeys.has(key)) {
+                    bodyData[key] = value
+                } else if (!paramKeys.has(key)) {
+                    if (['get', 'delete'].includes(method)) {
+                        queryData[key] = value
+                    } else {
+                        bodyData[key] = value
+                    }
+                }
+            })
+
+            const paramPath = paramValues.length > 0 ? `/${paramValues.join('/')}` : ''
+            const queryString = new URLSearchParams(queryData).toString()
+            const url = `${baseUrl}${endpoint}${paramPath}${queryString ? `?${queryString}` : ''}`
 
             let response;
             const config = {
                 headers: {}
             };
 
-            // Add token if required
             if (selected?.token_required && token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
 
-            // Make API call based on method
             switch(method) {
                 case 'get':
-                    // For GET, append params as query string (filter out empty values)
-                    const filteredParams = Object.fromEntries(
-                        Object.entries(formData).filter(([_, value]) => value !== '' && value !== null && value !== undefined)
-                    );
-                    const queryParams = new URLSearchParams(filteredParams).toString();
-                    response = await axios.get(`${url}${queryParams ? `?${queryParams}` : ''}`, config);
+                    response = await axios.get(url, config);
                     break;
                 case 'post':
-                    response = await axios.post(url, formData, config);
+                    response = await axios.post(url, bodyData, config);
                     break;
                 case 'patch':
-                    response = await axios.patch(url, formData, config);
+                    response = await axios.patch(url, bodyData, config);
                     break;
                 case 'delete':
-                    response = await axios.delete(url, { ...config, data: formData });
+                    response = await axios.delete(url, { ...config, data: bodyData });
                     break;
                 default:
                     response = await axios.get(url, config);
@@ -200,9 +230,10 @@ const Documentation = ({ user, theme }) => {
     }
 
     useEffect(() => {
-        // Clear response data when selected endpoint changes
         setResponseData({});
         
+        const paramTypeMap = { string: 'text', number: 'number', boolean: 'text', array: 'text', object: 'text' }
+
         if(selected?.payload?.length > 0) {
             const values = {};
             const fields = selected.payload.map((field) => {
@@ -217,6 +248,21 @@ const Documentation = ({ user, theme }) => {
                 values[field.name] = field.value;
             })
             
+            setFormFields(fields);
+            setInitialValues(values);
+            setForm(values)
+            setUpdateForm(true);
+        }
+        else if (selected?.parameters?.length > 0) {
+            const allParams = selected.parameters.filter(p => p.key)
+            const fields = allParams.map((p) => ({
+                label: `${p.key}${(p.location && p.location !== 'body') ? ` (${p.location})` : ''}`,
+                name: p.key.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, ''),
+                type: paramTypeMap[p.type] || 'text'
+            }))
+            const values = {}
+            fields.forEach(f => { values[f.name] = '' })
+
             setFormFields(fields);
             setInitialValues(values);
             setForm(values)
@@ -248,28 +294,32 @@ const Documentation = ({ user, theme }) => {
         }
     }, [form, selected?.auto_response, selected?.endpoint, selected?.method, menuItems[selectedIndex]?.base_url, editMode, selectedIndex, formFields])
 
-    // Load payload data into payloadForm when in edit mode
     useEffect(() => {
         if (editMode) {
+            const paramTypeMap = { string: 'text', number: 'number', boolean: 'text', array: 'text', object: 'text' }
+            const params = selected?.parameters && Array.isArray(selected.parameters) ? selected.parameters : []
+
             if (selected?.payload && Array.isArray(selected.payload) && selected.payload.length > 0) {
-                // Load the actual payload data into payloadForm
                 setPayloadForm(selected.payload.map(field => ({
                     label: field.label || '',
                     value: field.value || '',
                     name: field.name || '',
                     type: field.type || 'text'
                 })));
+            } else if (params.length > 0) {
+                setPayloadForm(params.filter(p => p.key).map(p => ({
+                    label: p.key,
+                    name: p.key.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, ''),
+                    type: paramTypeMap[p.type] || 'text',
+                    value: ''
+                })))
             } else {
-                // Reset to default if no payload exists
-                setPayloadForm([
-                    {
-                        label: "Label 1",
-                        value: "",
-                        name: "label_1",
-                        type: "text"
-                    }
-                ]);
+                setPayloadForm([]);
             }
+
+            setHeadersForm(selected?.headers && Array.isArray(selected.headers) ? selected.headers : [])
+            setParamsForm(params)
+            setStatusCodesForm(selected?.status_codes && Array.isArray(selected.status_codes) ? selected.status_codes : [])
         }
     }, [editMode, selected])
 
@@ -359,8 +409,17 @@ const Documentation = ({ user, theme }) => {
         ));
     };
 
+    const getBodyOnlyForm = () => {
+        const params = selected?.parameters || []
+        const nonBodyKeys = new Set(
+            params.filter(p => p.location === 'query' || p.location === 'param')
+                .map(p => p.key?.toLowerCase().replace(/\s+/g, '_').replace(/[^\w_]/g, ''))
+        )
+        return Object.fromEntries(Object.entries(form).filter(([key]) => !nonBodyKeys.has(key)))
+    }
+
     const handleCopy = () => {
-        const jsonAsString = JSON.stringify(form, null, 2);
+        const jsonAsString = JSON.stringify(getBodyOnlyForm(), null, 2);
         navigator.clipboard.writeText(jsonAsString);
     };
 
@@ -419,6 +478,7 @@ const Documentation = ({ user, theme }) => {
             : form
         );
         setPayloadForm(updatedForms);
+        syncParamsFromPayload(updatedForms);
     };
 
     const handleTypeChange = (index, type) => {
@@ -432,14 +492,17 @@ const Documentation = ({ user, theme }) => {
             : form
         );
         setPayloadForm(updatedForms);
+        syncParamsFromPayload(updatedForms);
     };
 
     const handleAddForm = () => {
         const nextIndex = payloadForm.length + 1;
-        setPayloadForm([
+        const updated = [
             ...payloadForm,
-            { label: `Label ${nextIndex}`, value: "", name: `label_${nextIndex}` },
-        ]);
+            { label: `Label ${nextIndex}`, value: "", name: `label_${nextIndex}`, type: 'text' },
+        ];
+        setPayloadForm(updated);
+        syncParamsFromPayload(updated);
     };
 
     const handleInputChange = (index, value) => {
@@ -451,17 +514,92 @@ const Documentation = ({ user, theme }) => {
 
     const handleDeleteForm = (index) => {
         const updatedForms = payloadForm.filter((_, i) => i !== index);
-        // Allow removing all fields - set to empty array if last field is removed
         setPayloadForm(updatedForms);
+        syncParamsFromPayload(updatedForms);
     };
+
+    const [headersForm, setHeadersForm] = useState([])
+    const [paramsForm, setParamsForm] = useState([])
+    const [statusCodesForm, setStatusCodesForm] = useState([])
+
+    const handleAddHeader = () => {
+        setHeadersForm([...headersForm, { key: '', value: '', required: false }])
+    }
+    const handleHeaderChange = (index, field, value) => {
+        setHeadersForm(headersForm.map((h, i) => i === index ? { ...h, [field]: value } : h))
+    }
+    const handleDeleteHeader = (index) => {
+        setHeadersForm(headersForm.filter((_, i) => i !== index))
+    }
+
+    const paramTypeToInputType = (type) => {
+        const map = { string: 'text', number: 'number', boolean: 'text', array: 'text', object: 'text' }
+        return map[type] || 'text'
+    }
+
+    const inputTypeToParamType = (type) => {
+        const map = { text: 'string', number: 'number', email: 'string', date: 'string' }
+        return map[type] || 'string'
+    }
+
+    const syncPayloadFromParams = (params) => {
+        setPayloadForm(params.map(p => ({
+            label: p.key || '',
+            name: toSnakeCase(p.key || ''),
+            type: paramTypeToInputType(p.type),
+            value: payloadForm.find(pf => pf.name === toSnakeCase(p.key || ''))?.value || ''
+        })))
+    }
+
+    const syncParamsFromPayload = (payload) => {
+        setParamsForm(payload.map(f => {
+            const existing = paramsForm.find(p => toSnakeCase(p.key || '') === f.name)
+            return {
+                key: f.label || '',
+                type: inputTypeToParamType(f.type),
+                location: existing?.location || 'body',
+                required: existing?.required || false
+            }
+        }))
+    }
+
+    const handleAddParam = () => {
+        const defaultLoc = ['get', 'delete'].includes(selected?.method?.toLowerCase()) ? 'query' : 'body'
+        const updated = [...paramsForm, { key: '', type: 'string', location: defaultLoc, required: false }]
+        setParamsForm(updated)
+        syncPayloadFromParams(updated)
+    }
+    const handleParamChange = (index, field, value) => {
+        const updated = paramsForm.map((p, i) => i === index ? { ...p, [field]: value } : p)
+        setParamsForm(updated)
+        syncPayloadFromParams(updated)
+    }
+    const handleDeleteParam = (index) => {
+        const updated = paramsForm.filter((_, i) => i !== index)
+        setParamsForm(updated)
+        syncPayloadFromParams(updated)
+    }
+
+    const handleAddStatusCode = () => {
+        setStatusCodesForm([...statusCodesForm, { code: '200', description: '' }])
+    }
+    const handleStatusCodeChange = (index, field, value) => {
+        setStatusCodesForm(statusCodesForm.map((s, i) => i === index ? { ...s, [field]: value } : s))
+    }
+    const handleDeleteStatusCode = (index) => {
+        setStatusCodesForm(statusCodesForm.filter((_, i) => i !== index))
+    }
 
     const [save, setSave] = useState(false)
     const handleResponse = () => {
         if(!save) {
             const formData = {...selected};
             formData.payload = payloadForm;
+            formData.headers = headersForm;
+            formData.parameters = paramsForm;
+            formData.status_codes = statusCodesForm;
 
-            setSelected({...selected, payload: payloadForm})
+            setSelected({...selected, payload: payloadForm, headers: headersForm, parameters: paramsForm, status_codes: statusCodesForm})
 
             dispatch(updateDocCategory({
                 category,
@@ -481,6 +619,36 @@ const Documentation = ({ user, theme }) => {
             category,
             formData
         }))
+    }
+
+    const handleRenameCategory = (categoryId) => {
+        if (!renameValue.trim()) return
+        dispatch(renameDocCategory({ category, categoryId, name: renameValue.trim() }))
+        setRenamingCategory(null)
+        setRenameValue('')
+    }
+
+    const handleRenameSubCategory = (subCategoryId) => {
+        if (!renameValue.trim()) return
+        dispatch(renameDocSubCategory({ category, subCategoryId, name: renameValue.trim() }))
+        setRenamingSubCategory(null)
+        setRenameValue('')
+    }
+
+    const handleDeleteEntireCategory = (categoryId) => {
+        dispatch(deleteEntireDocCategory({ categoryId, category }))
+        setDeleteCategoryConfirm(null)
+    }
+
+    const handleDeleteSubCategory = (subId) => {
+        dispatch(deleteDocCategory({ category, id: subId }))
+    }
+
+    const handleAddSubCategory = (categoryId) => {
+        if (!newSubName.trim()) return
+        dispatch(addDocSubCategory({ category, categoryId, name: newSubName.trim() }))
+        setAddingSubTo(null)
+        setNewSubName('')
     }
 
     useEffect(() => {
@@ -526,133 +694,333 @@ const Documentation = ({ user, theme }) => {
                         />
 
                         {/* Header Section */}
-                        <div className='mb-8'>
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-xl ${theme === 'light' ? 'bg-gradient-to-br from-blue-500 to-sky-500' : 'bg-gradient-to-br from-blue-600 to-sky-600'} shadow-lg`}>
-                                        <FontAwesomeIcon icon={faCode} className="text-white text-xl" />
-                                    </div>
+                        <div className={`mb-6 rounded-xl overflow-hidden border border-solid ${isLight ? 'border-blue-200/60' : 'border-[#2B2B2B]'}`}>
+                            <div className={`px-6 py-4 ${isLight ? 'bg-white/90 backdrop-blur-sm' : 'bg-[#0e0e0e]'}`}>
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                     <div>
-                                        <h1 className={`text-3xl md:text-4xl font-bold mb-1 ${theme === 'light' ? light.heading : dark.heading}`}>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <button
+                                                onClick={() => navigate('/site')}
+                                                className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded transition-all ${isLight ? 'text-slate-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'}`}
+                                            >
+                                                <FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180" />
+                                                Sites
+                                            </button>
+                                            <span className={`w-1 h-1 rounded-full ${isLight ? 'bg-slate-300' : 'bg-gray-600'}`} />
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
+                                                Docs
+                                            </span>
+                                            <span className={`w-1 h-1 rounded-full ${isLight ? 'bg-slate-300' : 'bg-gray-600'}`} />
+                                            <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>
+                                                {menuItems.length} {menuItems.length === 1 ? 'category' : 'categories'}
+                                            </span>
+                                        </div>
+                                        <h1 className={`text-2xl font-bold leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                                             {category}
                                         </h1>
-                                        <p className={`text-sm ${theme === 'light' ? 'text-slate-600' : 'text-gray-400'}`}>
+                                        <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
                                             API Documentation & Endpoints
                                         </p>
                                     </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        {editMode && (
+                                            <button
+                                                onClick={() => setOpenModal(true)}
+                                                className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                                                    isLight
+                                                        ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                }`}
+                                            >
+                                                <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                                                <span>New Category</span>
+                                            </button>
+                                        )}
+                                        {['Admin', 'Moderator'].includes(user?.role) && (
+                                            <button
+                                                onClick={() => setEditMode(!editMode)}
+                                                className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                                                    editMode
+                                                        ? (isLight ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm' : 'bg-emerald-600 text-white hover:bg-emerald-700')
+                                                        : (isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200' : 'bg-[#1C1C1C] text-gray-300 hover:bg-[#2B2B2B] border border-[#2B2B2B]')
+                                                }`}
+                                            >
+                                                <FontAwesomeIcon icon={editMode ? faCheck : faPen} className="text-xs" />
+                                                <span>{editMode ? 'Done' : 'Edit'}</span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            {
-                                editMode &&
-                                    <button
-                                        onClick={() => setOpenModal(true)}
-                                        className={`flex items-center gap-2 py-3 px-6 ${
-                                            theme === "light"
-                                                ? light.button_secondary
-                                                : dark.button_secondary
-                                        } rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105`}
-                                    >
-                                        <FontAwesomeIcon icon={faPlus} />
-                                        <span>New Category</span>
-                                    </button>
-                            }
                             </div>
                         </div>
                         
-                        <div className='w-full md:flex items-start gap-6 transition-all'>
+                        <div className='w-full md:flex items-start gap-5 transition-all'>
                             {/* Sidebar Navigation */}
-                            <div className="md:w-80 w-full flex-shrink-0 transition-all">
+                            <div className="md:w-72 w-full flex-shrink-0 transition-all">
                                 {
                                     loading ?
-                                        <div className={`rounded-xl overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border} p-6 shadow-sm`}>
+                                        <div className={`rounded-xl overflow-hidden border border-solid p-6 ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                             <div className="flex flex-col items-center justify-center py-8">
-                                                <FontAwesomeIcon icon={faSpinner} className={`text-3xl mb-3 animate-spin ${theme === 'light' ? light.icon : dark.icon}`} />
-                                                <p className={`text-sm ${theme === 'light' ? light.text : dark.text}`}>Loading Categories...</p>
+                                                <FontAwesomeIcon icon={faSpinner} className={`text-2xl mb-3 animate-spin ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                                                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Loading Categories...</p>
                                             </div>
                                         </div>
                                     :
                                     (menuItems.length === 0 && !loading) ?
-                                        <div className={`rounded-xl overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border-2 border-dashed ${theme === 'light' ? light.border : dark.border} p-8 shadow-sm`}>
+                                        <div className={`rounded-xl overflow-hidden border-2 border-dashed p-8 ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                             <div className="text-center">
-                                                <div className={`inline-flex p-4 rounded-full ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/20'} mb-4`}>
-                                                    <FontAwesomeIcon icon={faListSquares} className={`text-3xl ${theme === 'light' ? 'text-blue-400' : 'text-blue-500'} opacity-70`} />
-                                                </div>
-                                                <p className={`text-sm font-medium ${theme === 'light' ? light.text : dark.text}`}>No Categories Available</p>
+                                                <FontAwesomeIcon icon={faListSquares} className={`text-2xl mb-2 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                                <p className={`text-xs font-medium ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No Categories Available</p>
                                             </div>
                                         </div>
                                     :
-                                        <div className={`rounded-xl overflow-hidden ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border} shadow-lg`}>
-                                            <div className={`px-4 py-3 border-b border-solid ${theme === 'light' ? light.semiborder : dark.semiborder} ${theme === 'light' ? 'bg-blue-50/50' : 'bg-blue-900/10'}`}>
-                                                <h3 className={`text-sm font-semibold uppercase tracking-wide ${theme === 'light' ? light.heading : dark.heading}`}>
-                                                    Categories
-                                                </h3>
+                                        <div className={`rounded-xl overflow-hidden border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                            <div className={`px-4 py-2.5 border-b ${isLight ? 'border-blue-100/60 bg-blue-50/40' : 'border-[#2B2B2B] bg-[#1C1C1C]/50'}`}>
+                                                <p className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Categories</p>
                                             </div>
-                                            <ul className={`divide-y ${theme === 'light' ? 'divide-slate-200' : 'divide-gray-700'}`}>
-                                                {menuItems.map((item, i) => {
-                                                    const hasDropdown = item.dropdown && Array.isArray(item.dropdown) && item.dropdown.length > 0;
-                                                    const hasSubDropdown = hasDropdown && mainDropdown(item);
-                                                    
-                                                    return (
-                                                        <li key={item.path || i} className="">
-                                                            <div
-                                                                className={`px-4 py-2.5 ${
-                                                                activePage(item.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
-                                                                } transition-all cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} flex justify-between items-center ${theme === 'light' ? 'hover:bg-blue-50' : 'hover:bg-gray-800/50'}`}
-                                                                onClick={() => (hasSubDropdown ? toggleDropdown(item.path) : redirect(item.path, i))}
-                                                        >
-                                                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                                                                    <div className={`p-1 rounded-md ${activePage(item.path) ? (theme === 'light' ? 'bg-white/50' : 'bg-white/10') : 'bg-transparent'}`}>
-                                                                        <FontAwesomeIcon icon={faListSquares} className={`text-xs ${activePage(item.path) ? 'text-white' : (theme === 'light' ? light.text : dark.text)}`} />
-                                                            </div>
-                                                                    <span className="font-medium text-sm truncate">{item.name}</span>
-                                                                    {hasDropdown && (
-                                                                        <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${hasSubDropdown ? (theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-blue-900/30 text-blue-400') : (theme === 'light' ? 'bg-slate-200 text-slate-600' : 'bg-gray-700 text-gray-400')}`}>
-                                                                            {item.dropdown.length}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                {hasSubDropdown && (
-                                                                    <FontAwesomeIcon icon={openDropdown === item.path ? faChevronUp : faChevronDown} className={`text-xs ml-2 flex-shrink-0 ${theme === 'light' ? light.text : dark.text} opacity-60`} />
-                                                            )}
-                                                        </div>
+                                            <nav>
+                                                <ul className="py-1.5">
+                                                    {menuItems.map((item, i) => {
+                                                        const hasDropdown = item.dropdown && Array.isArray(item.dropdown) && item.dropdown.length > 0;
+                                                        const hasSubDropdown = hasDropdown && mainDropdown(item);
+                                                        const isActive = activePage(item.path);
+                                                        const isRenamingThis = renamingCategory === item._id;
 
-                                                            {hasSubDropdown && (
-                                                        <div
-                                                                    className={`overflow-hidden transition-all duration-300 ${theme === 'light' ? 'bg-slate-50/50' : 'bg-gray-900/30'}`}
-                                                            style={{
-                                                                        maxHeight: openDropdown === item.path ? `${(item.dropdown?.length || 0) * 48}px` : '0px',
-                                                            }}
-                                                        >
-                                                            <ul className="">
-                                                                        {(item.dropdown || []).map((subItem, si) => (
-                                                                    <li
-                                                                        key={si}
-                                                                        onClick={() => redirect(subItem.path, i)}
-                                                                                className={`px-4 py-2 pl-10 ${
-                                                                            activeSubPage(item.path, subItem.path) && (theme === 'light' ? light.active_list_button : dark.active_list_button)
-                                                                                } cursor-pointer ${theme === 'light' ? light.list_button : dark.list_button} transition-all ${theme === 'light' ? 'hover:bg-blue-50' : 'hover:bg-gray-800/50'}`}
+                                                        return (
+                                                            <li key={item.path || i}>
+                                                                {isRenamingThis ? (
+                                                                    <div className={`mx-1.5 my-0.5 px-2 py-1.5 rounded-lg flex items-center gap-1.5 ${isLight ? 'bg-blue-50/80' : 'bg-[#1C1C1C]'}`}>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={renameValue}
+                                                                            onChange={(e) => setRenameValue(e.target.value)}
+                                                                            onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(item._id); if (e.key === 'Escape') { setRenamingCategory(null); setRenameValue('') } }}
+                                                                            autoFocus
+                                                                            className={`flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none ${isLight ? 'bg-white border-blue-200 text-slate-800' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200'}`}
+                                                                        />
+                                                                        <button onClick={() => handleRenameCategory(item._id)} className={`p-1 rounded ${isLight ? 'text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-900/20'}`}>
+                                                                            <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                                                                        </button>
+                                                                        <button onClick={() => { setRenamingCategory(null); setRenameValue('') }} className={`p-1 rounded ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1C1C1C]'}`}>
+                                                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                <div className="group relative">
+                                                                    <div
+                                                                        className={`mx-1.5 my-0.5 px-3 py-2 rounded-lg flex justify-between items-center cursor-pointer transition-all duration-200 ${
+                                                                            isActive
+                                                                                ? (isLight
+                                                                                    ? 'bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-sm'
+                                                                                    : 'bg-blue-600 text-white')
+                                                                                : (isLight
+                                                                                    ? 'text-slate-700 hover:bg-blue-50/80'
+                                                                                    : 'text-gray-300 hover:bg-[#1C1C1C]')
+                                                                        }`}
+                                                                        onClick={() => (hasSubDropdown ? toggleDropdown(item.path) : redirect(item.path, i))}
                                                                     >
-                                                                                <div className="flex items-center gap-2">
-                                                                        {
-                                                                            subItem.method?.toLowerCase() === 'get' ?
-                                                                                            <span className='px-2 py-0.5 rounded text-xs font-bold text-white bg-green-500 shadow-sm'>GET</span> 
-                                                                            : subItem.method?.toLowerCase() === 'post' ?
-                                                                                            <span className='px-2 py-0.5 rounded text-xs font-bold text-white bg-purple-500 shadow-sm'>POST</span> 
-                                                                            : subItem.method?.toLowerCase() === 'patch' ?
-                                                                                            <span className='px-2 py-0.5 rounded text-xs font-bold text-white bg-yellow-500 shadow-sm'>PATCH</span> 
-                                                                            : subItem.method?.toLowerCase() === 'delete' &&
-                                                                                            <span className='px-2 py-0.5 rounded text-xs font-bold text-white bg-red-500 shadow-sm'>DELETE</span> 
-                                                                        }
-                                                                                    <span className="truncate text-sm">{subItem.name}</span>
-                                                                                </div>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                            )}
-                                                    </li>
-                                                    );
-                                                })}
-                                            </ul>
+                                                                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                                                            <FontAwesomeIcon icon={faListSquares} className={`text-xs w-3.5 ${isActive ? 'text-white' : (isLight ? 'text-blue-500' : 'text-gray-500')}`} />
+                                                                            <span className="font-medium text-sm truncate">{item.name}</span>
+                                                                            {hasDropdown && (
+                                                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                                                                    isActive
+                                                                                        ? 'bg-white/20 text-white'
+                                                                                        : (isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400')
+                                                                                }`}>
+                                                                                    {item.dropdown.length}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            {editMode && (
+                                                                                <>
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); setAddingSubTo(addingSubTo === item._id ? null : item._id); setNewSubName(''); if (!hasSubDropdown) setOpenDropdown(item.path) }}
+                                                                                        className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-white/70 hover:text-white hover:bg-white/10' : (isLight ? 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-gray-600 hover:text-emerald-400 hover:bg-emerald-900/20')}`}
+                                                                                        title="Add subcategory"
+                                                                                    >
+                                                                                        <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); setRenamingCategory(item._id); setRenameValue(item.name) }}
+                                                                                        className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-white/70 hover:text-white hover:bg-white/10' : (isLight ? 'text-slate-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:text-blue-400 hover:bg-blue-900/20')}`}
+                                                                                        title="Rename category"
+                                                                                    >
+                                                                                        <FontAwesomeIcon icon={faPen} className="text-[9px]" />
+                                                                                    </button>
+                                                                                    {deleteCategoryConfirm === item._id ? (
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); handleDeleteEntireCategory(item._id) }}
+                                                                                            className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                                            title="Click again to confirm"
+                                                                                        >
+                                                                                            <FontAwesomeIcon icon={faCheck} className="text-[9px]" />
+                                                                                        </button>
+                                                                                    ) : (
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); setDeleteCategoryConfirm(item._id); setTimeout(() => setDeleteCategoryConfirm(null), 3000) }}
+                                                                                            className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${isActive ? 'text-white/70 hover:text-red-200 hover:bg-white/10' : (isLight ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20')}`}
+                                                                                            title="Delete category"
+                                                                                        >
+                                                                                            <FontAwesomeIcon icon={faTrashAlt} className="text-[9px]" />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </>
+                                                                            )}
+                                                                            {hasSubDropdown && (
+                                                                                <FontAwesomeIcon icon={openDropdown === item.path ? faChevronUp : faChevronDown} className="text-[10px] ml-1 flex-shrink-0 opacity-60" />
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                )}
+
+                                                                {hasSubDropdown && (
+                                                                    <div
+                                                                        className="overflow-hidden transition-all duration-300"
+                                                                        style={{
+                                                                            maxHeight: openDropdown === item.path
+                                                                                ? `${((item.dropdown?.length || 0) * (editMode ? 52 : 42)) + (addingSubTo === item._id ? 44 : 0)}px`
+                                                                                : '0px',
+                                                                        }}
+                                                                    >
+                                                                        <ul className="pl-5 pr-1.5 py-0.5">
+                                                                            {(item.dropdown || []).map((subItem, si) => {
+                                                                                const isSubActive = activeSubPage(item.path, subItem.path);
+                                                                                const methodColors = {
+                                                                                    get: 'bg-emerald-500',
+                                                                                    post: 'bg-purple-500',
+                                                                                    patch: 'bg-amber-500',
+                                                                                    delete: 'bg-red-500',
+                                                                                };
+                                                                                const method = subItem.method?.toLowerCase();
+                                                                                const isRenamingSub = renamingSubCategory === subItem._id;
+
+                                                                                if (isRenamingSub) {
+                                                                                    return (
+                                                                                        <li key={si} className={`px-2 py-1 my-0.5 rounded-lg flex items-center gap-1.5 ${isLight ? 'bg-blue-50/60' : 'bg-[#1C1C1C]'}`}>
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                value={renameValue}
+                                                                                                onChange={(e) => setRenameValue(e.target.value)}
+                                                                                                onKeyDown={(e) => { if (e.key === 'Enter') handleRenameSubCategory(subItem._id); if (e.key === 'Escape') { setRenamingSubCategory(null); setRenameValue('') } }}
+                                                                                                autoFocus
+                                                                                                className={`flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none ${isLight ? 'bg-white border-blue-200 text-slate-800' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200'}`}
+                                                                                            />
+                                                                                            <button onClick={() => handleRenameSubCategory(subItem._id)} className={`p-1 rounded ${isLight ? 'text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-900/20'}`}>
+                                                                                                <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                                                                                            </button>
+                                                                                            <button onClick={() => { setRenamingSubCategory(null); setRenameValue('') }} className={`p-1 rounded ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1C1C1C]'}`}>
+                                                                                                <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                                                            </button>
+                                                                                        </li>
+                                                                                    );
+                                                                                }
+
+                                                                                return (
+                                                                                    <li
+                                                                                        key={si}
+                                                                                        className={`group/sub px-3 py-1.5 my-0.5 rounded-lg cursor-pointer transition-all duration-200 ${
+                                                                                            isSubActive
+                                                                                                ? (isLight
+                                                                                                    ? 'bg-blue-100/80 text-blue-700 font-medium'
+                                                                                                    : 'bg-blue-600/20 text-blue-400 font-medium')
+                                                                                                : (isLight
+                                                                                                    ? 'text-slate-600 hover:bg-blue-50/60'
+                                                                                                    : 'text-gray-400 hover:bg-[#1C1C1C]')
+                                                                                        }`}
+                                                                                    >
+                                                                                        <div className="flex items-center justify-between" onClick={() => redirect(subItem.path, i)}>
+                                                                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white leading-none flex-shrink-0 ${methodColors[method] || 'bg-gray-500'}`}>
+                                                                                                    {subItem.method?.toUpperCase()}
+                                                                                                </span>
+                                                                                                <span className="truncate text-xs">{subItem.name}</span>
+                                                                                            </div>
+                                                                                            {editMode && (
+                                                                                                <div className="flex items-center gap-0.5 opacity-0 group-hover/sub:opacity-100 transition-opacity flex-shrink-0 ml-1">
+                                                                                                    <button
+                                                                                                        onClick={(e) => { e.stopPropagation(); setRenamingSubCategory(subItem._id); setRenameValue(subItem.name) }}
+                                                                                                        className={`p-1 rounded ${isLight ? 'text-slate-400 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-600 hover:text-blue-400 hover:bg-blue-900/20'}`}
+                                                                                                        title="Rename"
+                                                                                                    >
+                                                                                                        <FontAwesomeIcon icon={faPen} className="text-[8px]" />
+                                                                                                    </button>
+                                                                                                    {deleteSubConfirm === subItem._id ? (
+                                                                                                        <button
+                                                                                                            onClick={(e) => { e.stopPropagation(); handleDeleteSubCategory(subItem._id); setDeleteSubConfirm(null) }}
+                                                                                                            className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                                                            title="Click again to confirm"
+                                                                                                        >
+                                                                                                            <FontAwesomeIcon icon={faCheck} className="text-[8px]" />
+                                                                                                        </button>
+                                                                                                    ) : (
+                                                                                                        <button
+                                                                                                            onClick={(e) => { e.stopPropagation(); setDeleteSubConfirm(subItem._id); setTimeout(() => setDeleteSubConfirm(null), 3000) }}
+                                                                                                            className={`p-1 rounded ${isLight ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20'}`}
+                                                                                                            title="Delete"
+                                                                                                        >
+                                                                                                            <FontAwesomeIcon icon={faTrashAlt} className="text-[8px]" />
+                                                                                                        </button>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </li>
+                                                                                );
+                                                                            })}
+                                                                            {addingSubTo === item._id && (
+                                                                                <li className={`px-2 py-1 my-0.5 rounded-lg flex items-center gap-1.5 ${isLight ? 'bg-emerald-50/60' : 'bg-[#1C1C1C]'}`}>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={newSubName}
+                                                                                        onChange={(e) => setNewSubName(e.target.value)}
+                                                                                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubCategory(item._id); if (e.key === 'Escape') { setAddingSubTo(null); setNewSubName('') } }}
+                                                                                        autoFocus
+                                                                                        placeholder="Subcategory name..."
+                                                                                        className={`flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none ${isLight ? 'bg-white border-emerald-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                                                    />
+                                                                                    <button onClick={() => handleAddSubCategory(item._id)} className={`p-1 rounded ${isLight ? 'text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-900/20'}`}>
+                                                                                        <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                                                                                    </button>
+                                                                                    <button onClick={() => { setAddingSubTo(null); setNewSubName('') }} className={`p-1 rounded ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1C1C1C]'}`}>
+                                                                                        <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                                                    </button>
+                                                                                </li>
+                                                                            )}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
+
+                                                                {!hasSubDropdown && addingSubTo === item._id && (
+                                                                    <div className="overflow-hidden transition-all duration-300" style={{ maxHeight: '44px' }}>
+                                                                        <div className="pl-5 pr-1.5 py-0.5">
+                                                                            <div className={`px-2 py-1 my-0.5 rounded-lg flex items-center gap-1.5 ${isLight ? 'bg-emerald-50/60' : 'bg-[#1C1C1C]'}`}>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={newSubName}
+                                                                                    onChange={(e) => setNewSubName(e.target.value)}
+                                                                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubCategory(item._id); if (e.key === 'Escape') { setAddingSubTo(null); setNewSubName('') } }}
+                                                                                    autoFocus
+                                                                                    placeholder="Subcategory name..."
+                                                                                    className={`flex-1 min-w-0 text-xs px-2 py-1 rounded border outline-none ${isLight ? 'bg-white border-emerald-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                                                />
+                                                                                <button onClick={() => handleAddSubCategory(item._id)} className={`p-1 rounded ${isLight ? 'text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-900/20'}`}>
+                                                                                    <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
+                                                                                </button>
+                                                                                <button onClick={() => { setAddingSubTo(null); setNewSubName('') }} className={`p-1 rounded ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1C1C1C]'}`}>
+                                                                                    <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            </nav>
                                         </div>
                                 }          
                             </div>
@@ -660,27 +1028,23 @@ const Documentation = ({ user, theme }) => {
                             {/* Main Content */}
                             {
                                 loading ?
-                                <div className={`flex-1 rounded-xl ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border} p-12 shadow-sm`}>
+                                <div className={`flex-1 rounded-xl border border-solid p-12 ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                     <div className="flex flex-col items-center justify-center py-12">
-                                        <div className={`p-4 rounded-full ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/20'} mb-4`}>
-                                            <FontAwesomeIcon icon={faSpinner} className={`text-4xl animate-spin ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
-                                        </div>
-                                        <p className={`text-base font-medium ${theme === 'light' ? light.text : dark.text}`}>Loading endpoint data...</p>
+                                        <FontAwesomeIcon icon={faSpinner} className={`text-3xl animate-spin mb-4 ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                                        <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Loading endpoint data...</p>
                                     </div>
                                 </div>
                                 :
                                 (menuItems.length === 0 && !loading) ?
-                                <div className={`flex-1 rounded-xl ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border-2 border-dashed ${theme === 'light' ? light.border : dark.border} p-12 shadow-sm`}>
+                                <div className={`flex-1 rounded-xl border-2 border-dashed p-12 ${isLight ? 'bg-white/90 border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                     <div className="text-center py-12">
-                                        <div className={`inline-flex p-5 rounded-full ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-900/20'} mb-4`}>
-                                            <FontAwesomeIcon icon={faCode} className={`text-4xl ${theme === 'light' ? 'text-blue-400' : 'text-blue-500'} opacity-70`} />
-                                        </div>
-                                        <h3 className={`text-xl font-bold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>No Endpoints Available</h3>
-                                        <p className={`text-sm ${theme === 'light' ? light.text : dark.text} opacity-70`}>Select a category from the sidebar to view endpoints</p>
+                                        <FontAwesomeIcon icon={faCode} className={`text-3xl mb-3 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                        <h3 className={`text-lg font-bold mb-1.5 ${isLight ? 'text-slate-800' : 'text-white'}`}>No Endpoints Available</h3>
+                                        <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Select a category from the sidebar to view endpoints</p>
                                     </div>
                                 </div>
                                 :
-                                <div className={`flex-1 rounded-xl ${theme === 'light' ? light.background : dark.background} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border} p-6 md:p-8 shadow-lg`}>
+                                <div className={`flex-1 rounded-xl border border-solid p-6 md:p-7 ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'} ${isLight ? light.color : dark.color}`}>
                                     {/* <p className={`truncate w-full mt-2 mb-8 ${theme === 'light' ? light.text : dark.text}`}>
                                         <span className={`${theme === 'light' ? light.link : dark.link}`}>Personal Website</span> / 
                                         <span className={`${theme === 'light' ? light.link : dark.link}`}> Overview</span> / 
@@ -688,52 +1052,97 @@ const Documentation = ({ user, theme }) => {
                                     </p> */}
 
                                     {/* Title Section */}
-                                    <div className={`mb-6 pb-6 border-b border-solid ${theme === 'light' ? light.semiborder : dark.semiborder}`}>
+                                    <div className={`mb-6 pb-5 border-b ${isLight ? 'border-blue-100/60' : 'border-[#2B2B2B]'}`}>
                                     {
                                         editMode ?
                                             <input
                                                 type="text" 
-                                                    className={`w-full text-3xl font-bold bg-transparent outline-none ${theme === 'light' ? light.heading : dark.heading} mb-2`}
+                                                    className={`w-full text-xl font-bold bg-transparent outline-none ${isLight ? 'text-slate-900' : 'text-white'} mb-2`}
                                                     value={ selected?.name || '' }
                                                     onChange={(e) => setSelected({ ...(selected || {}), name: e.target.value })}
                                                     placeholder='Endpoint Title'
                                                 />
                                             : 
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
-                                                    <FontAwesomeIcon icon={faBolt} className={`text-lg ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
-                                                </div>
-                                                <h1 className={`text-3xl font-bold ${theme === 'light' ? light.heading : dark.heading}`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h1 className={`text-xl font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                                                     { selected?.name || 'Select an Endpoint' }
                                                 </h1>
+                                                {selected?.deprecated && (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${isLight ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-orange-900/30 text-orange-400 border border-orange-800/50'}`}>
+                                                        Deprecated
+                                                    </span>
+                                                )}
                                             </div>
                                     }
                                     
                                     {
                                         editMode ?
                                             <textarea 
-                                                    className={`w-full bg-transparent outline-none mt-3 custom-scroll ${theme === 'light' ? light.input : dark.input} rounded-lg p-4 ${theme === 'light' ? light.text : dark.text}`}
-                                                rows={4}
+                                                    className={`w-full bg-transparent outline-none mt-2 custom-scroll rounded-lg p-3 text-sm border border-solid ${isLight ? 'border-blue-200/60 bg-blue-50/30' : 'border-[#2B2B2B] bg-[#1C1C1C]'} ${isLight ? 'text-slate-700' : 'text-gray-300'}`}
+                                                rows={3}
                                                 value={selected?.description ?? 'Description Here'}
                                                     onChange={(e) => setSelected({ ...(selected || {}), description: e.target.value })}
                                                     placeholder='Add a description for this endpoint...'
                                             ></textarea>
                                         :   
-                                            <div className={`mt-4 p-4 rounded-lg ${theme === 'light' ? 'bg-slate-50' : 'bg-gray-900/30'} border border-solid ${theme === 'light' ? 'border-slate-200' : 'border-gray-700'}`}>
-                                                <p className={`whitespace-pre-wrap text-base leading-relaxed ${theme === 'light' ? light.text : dark.text}`}>
-                                                    { selected?.description ?? 'No description available for this endpoint.' }
-                                                </p>
+                                            <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                { selected?.description ?? 'No description available for this endpoint.' }
+                                            </p>
+                                    }
+
+                                    {/* Metadata row (view mode) */}
+                                    {!editMode && (selected?.content_type || selected?.notes) && (
+                                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                                            {selected?.content_type && (
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium ${isLight ? 'bg-slate-100 text-slate-600' : 'bg-gray-800 text-gray-400'}`}>
+                                                    <FontAwesomeIcon icon={faFileCode} className="text-[10px]" />
+                                                    {selected.content_type}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Edit mode: Deprecated + Content Type */}
+                                    {editMode && (
+                                        <div className={`flex flex-wrap items-center gap-4 mt-3 p-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-gray-900/30'} border border-solid ${isLight ? 'border-slate-200' : 'border-gray-700'}`}>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id="deprecated"
+                                                    type="checkbox"
+                                                    checked={selected?.deprecated || false}
+                                                    onChange={() => setSelected({...(selected || {}), deprecated: !selected?.deprecated })}
+                                                    className="w-4 h-4 outline-none"
+                                                />
+                                                <label htmlFor="deprecated" className={`font-medium text-sm ${isLight ? 'text-orange-600' : 'text-orange-400'}`}>
+                                                    <FontAwesomeIcon icon={faBan} className="mr-1.5" />
+                                                    Deprecated
+                                                </label>
                                             </div>
-                                        }
+                                            <div className={`h-5 w-px ${isLight ? 'bg-slate-200' : 'bg-gray-700'}`} />
+                                            <div className="flex items-center gap-2">
+                                                <label className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Content Type:</label>
+                                                <select
+                                                    value={selected?.content_type || 'application/json'}
+                                                    onChange={(e) => setSelected({...(selected || {}), content_type: e.target.value })}
+                                                    className={`text-xs py-1.5 px-3 rounded-lg border border-solid outline-none ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-300'}`}
+                                                >
+                                                    <option value="application/json">application/json</option>
+                                                    <option value="multipart/form-data">multipart/form-data</option>
+                                                    <option value="application/x-www-form-urlencoded">application/x-www-form-urlencoded</option>
+                                                    <option value="text/plain">text/plain</option>
+                                                    <option value="text/html">text/html</option>
+                                                    <option value="application/xml">application/xml</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
                                     </div>
 
                                     {/* Request Section */}
                                     <div className="mb-6">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-gradient-to-br from-blue-100 to-sky-100' : 'bg-gradient-to-br from-blue-900/30 to-sky-900/30'}`}>
-                                                <FontAwesomeIcon icon={faCode} className={`text-lg ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
-                                            </div>
-                                            <h2 className={`text-xl font-bold ${theme === 'light' ? light.heading : dark.heading}`}>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <FontAwesomeIcon icon={faCode} className={`text-sm ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
                                                 Request
                                             </h2>
                                         </div>
@@ -778,7 +1187,7 @@ const Documentation = ({ user, theme }) => {
                                                     </div>
                                             </div>
 
-                                                <div className={`flex w-full items-center gap-2 px-5 py-3.5 rounded-xl ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border border-solid ${theme === 'light' ? light.border : dark.border} shadow-sm`}>
+                                                <div className={`flex w-full items-center gap-2 px-4 py-3 rounded-lg border border-solid ${isLight ? 'bg-blue-50/30 border-blue-200/60' : 'bg-[#1C1C1C] border-[#2B2B2B]'} ${isLight ? light.color : dark.color}`}>
                                                 {
                                                     selected?.method?.toLowerCase() === 'get' ?
                                                             <span className='px-3 py-1 rounded-lg text-sm font-bold text-white bg-green-500 shadow-sm'>GET</span> 
@@ -804,7 +1213,7 @@ const Documentation = ({ user, theme }) => {
                                             </div>
                                         </>
                                         :
-                                            <div className={`flex w-full items-center gap-3 px-5 py-4 rounded-xl ${theme === 'light' ? light.semibackground : dark.semibackground} ${theme === 'light' ? light.color : dark.color} border-2 border-solid ${theme === 'light' ? 'border-blue-200' : 'border-blue-800/50'} shadow-md`}>
+                                            <div className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg border border-solid ${isLight ? 'bg-blue-50/30 border-blue-200/60' : 'bg-[#1C1C1C] border-[#2B2B2B]'} ${isLight ? light.color : dark.color}`}>
                                             {
                                                 selected?.method?.toLowerCase() === 'get' ?
                                                         <span className='px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-green-500 shadow-sm'>GET</span> 
@@ -829,22 +1238,246 @@ const Documentation = ({ user, theme }) => {
                                     </div>
                                     
                                     {
-                                        !editMode &&
-                                            (selected?.token_required && !menuItems[selectedIndex]?.token) &&
-                                                <div className={`flex items-center gap-2 w-full my-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 ${theme === 'light' ? '' : 'bg-red-900/20 border-red-800/50'}`}>
-                                                    <FontAwesomeIcon icon={faTriangleExclamation} className='text-red-600'/>
-                                                    <span className={`text-sm font-medium ${theme === 'light' ? 'text-red-700' : 'text-red-400'}`}>Token is required for this endpoint!</span>
+                                        !editMode && selected?.token_required && (
+                                            menuItems[selectedIndex]?.token ? (
+                                                <div className={`flex items-center gap-2 w-full my-4 px-4 py-3 rounded-lg ${isLight ? 'bg-emerald-50 border border-emerald-200' : 'bg-emerald-900/20 border border-emerald-800/50'}`}>
+                                                    <FontAwesomeIcon icon={faShieldAlt} className={`${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                                    <span className={`text-sm font-medium ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                                                        Bearer token is configured
+                                                    </span>
+                                                    <span className={`ml-auto text-xs font-mono px-2 py-0.5 rounded ${isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400'}`}>
+                                                        Bearer ••••••••
+                                                    </span>
                                                 </div>
+                                            ) : (
+                                                <div className={`flex items-center gap-2 w-full my-4 px-4 py-3 rounded-lg ${isLight ? 'bg-red-50 border border-red-200' : 'bg-red-900/20 border border-red-800/50'}`}>
+                                                    <FontAwesomeIcon icon={faTriangleExclamation} className={`${isLight ? 'text-red-600' : 'text-red-400'}`} />
+                                                    <span className={`text-sm font-medium ${isLight ? 'text-red-700' : 'text-red-400'}`}>
+                                                        Token is required but no bearer token is set up
+                                                    </span>
+                                                </div>
+                                            )
+                                        )
                                     }
+
+                                    {/* Headers Section */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faServer} className={`text-sm ${isLight ? 'text-amber-500' : 'text-amber-400'}`} />
+                                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                    Headers
+                                                </h2>
+                                                {!editMode && selected?.headers?.length > 0 && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400'}`}>
+                                                        {selected.headers.length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {editMode && (
+                                                <button onClick={handleAddHeader} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200' : 'bg-amber-900/20 text-amber-400 hover:bg-amber-900/30 border border-amber-800/50'}`}>
+                                                    <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                                                    Add Header
+                                                </button>
+                                            )}
+                                        </div>
+                                        {editMode ? (
+                                            headersForm.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {headersForm.map((header, index) => (
+                                                        <div key={index} className={`group relative flex items-center gap-2 p-3 rounded-lg border border-solid ${isLight ? 'bg-white border-slate-200' : 'bg-gray-800/90 border-gray-700'}`}>
+                                                            <input
+                                                                type="text"
+                                                                value={header.key}
+                                                                onChange={(e) => handleHeaderChange(index, 'key', e.target.value)}
+                                                                placeholder="Header key"
+                                                                className={`flex-1 text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={header.value}
+                                                                onChange={(e) => handleHeaderChange(index, 'value', e.target.value)}
+                                                                placeholder="Header value"
+                                                                className={`flex-1 text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                            />
+                                                            <div className="flex items-center gap-1.5">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={header.required || false}
+                                                                    onChange={(e) => handleHeaderChange(index, 'required', e.target.checked)}
+                                                                    className="w-3.5 h-3.5 outline-none"
+                                                                />
+                                                                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Required</span>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteHeader(index)} className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No headers configured. Click "Add Header" to add one.</p>
+                                            )
+                                        ) : (
+                                            selected?.headers?.length > 0 ? (
+                                                <div className={`rounded-lg border border-solid overflow-hidden ${isLight ? 'border-slate-200' : 'border-gray-700'}`}>
+                                                    <table className="w-full text-xs">
+                                                        <thead>
+                                                            <tr className={`${isLight ? 'bg-slate-50' : 'bg-gray-800/50'}`}>
+                                                                <th className={`text-left px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Key</th>
+                                                                <th className={`text-left px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Value</th>
+                                                                <th className={`text-center px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Required</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {selected.headers.map((header, i) => (
+                                                                <tr key={i} className={`border-t ${isLight ? 'border-slate-100' : 'border-gray-700/50'}`}>
+                                                                    <td className={`px-4 py-2.5 font-mono font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{header.key}</td>
+                                                                    <td className={`px-4 py-2.5 font-mono ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{header.value}</td>
+                                                                    <td className="px-4 py-2.5 text-center">
+                                                                        {header.required
+                                                                            ? <span className="text-emerald-500"><FontAwesomeIcon icon={faCheck} /></span>
+                                                                            : <span className={`${isLight ? 'text-slate-300' : 'text-gray-600'}`}>—</span>
+                                                                        }
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No headers required for this endpoint.</p>
+                                            )
+                                        )}
+                                    </div>
+
+                                    {/* Parameters Section */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faTag} className={`text-sm ${isLight ? 'text-cyan-500' : 'text-cyan-400'}`} />
+                                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                    Parameters
+                                                </h2>
+                                                {!editMode && selected?.parameters?.length > 0 && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isLight ? 'bg-cyan-100 text-cyan-600' : 'bg-cyan-900/30 text-cyan-400'}`}>
+                                                        {selected.parameters.length}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {editMode && (
+                                                <button onClick={handleAddParam} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200' : 'bg-cyan-900/20 text-cyan-400 hover:bg-cyan-900/30 border border-cyan-800/50'}`}>
+                                                    <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                                                    Add Parameter
+                                                </button>
+                                            )}
+                                        </div>
+                                        {editMode ? (
+                                            paramsForm.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {paramsForm.map((param, index) => (
+                                                        <div key={index} className={`group relative flex items-center gap-2 p-3 rounded-lg border border-solid ${isLight ? 'bg-white border-slate-200' : 'bg-gray-800/90 border-gray-700'}`}>
+                                                            <input
+                                                                type="text"
+                                                                value={param.key}
+                                                                onChange={(e) => handleParamChange(index, 'key', e.target.value)}
+                                                                placeholder="Parameter name"
+                                                                className={`flex-[2] text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                            />
+                                                            <select
+                                                                value={param.type || 'string'}
+                                                                onChange={(e) => handleParamChange(index, 'type', e.target.value)}
+                                                                className={`w-24 text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200'}`}
+                                                            >
+                                                                <option value="string">String</option>
+                                                                <option value="number">Number</option>
+                                                                <option value="boolean">Boolean</option>
+                                                                <option value="array">Array</option>
+                                                                <option value="object">Object</option>
+                                                            </select>
+                                                            <select
+                                                                value={param.location || (['get', 'delete'].includes(selected?.method?.toLowerCase()) ? 'query' : 'body')}
+                                                                onChange={(e) => handleParamChange(index, 'location', e.target.value)}
+                                                                className={`w-24 text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200'}`}
+                                                            >
+                                                                {!['get', 'delete'].includes(selected?.method?.toLowerCase()) && <option value="body">Body</option>}
+                                                                <option value="query">Query</option>
+                                                                <option value="param">Param</option>
+                                                            </select>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={param.required || false}
+                                                                    onChange={(e) => handleParamChange(index, 'required', e.target.checked)}
+                                                                    className="w-3.5 h-3.5 outline-none"
+                                                                />
+                                                                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Req</span>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteParam(index)} className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No parameters configured. Click "Add Parameter" to add one.</p>
+                                            )
+                                        ) : (
+                                            selected?.parameters?.length > 0 ? (
+                                                <div className={`rounded-lg border border-solid overflow-hidden ${isLight ? 'border-slate-200' : 'border-gray-700'}`}>
+                                                    <table className="w-full text-xs">
+                                                        <thead>
+                                                            <tr className={`${isLight ? 'bg-slate-50' : 'bg-gray-800/50'}`}>
+                                                                <th className={`text-left px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Name</th>
+                                                                <th className={`text-left px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Type</th>
+                                                                <th className={`text-left px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Location</th>
+                                                                <th className={`text-center px-4 py-2 font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Required</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {selected.parameters.map((param, i) => {
+                                                                const locColors = {
+                                                                    body: isLight ? 'bg-purple-50 text-purple-600' : 'bg-purple-900/30 text-purple-400',
+                                                                    query: isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/30 text-amber-400',
+                                                                    param: isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400',
+                                                                }
+                                                                return (
+                                                                <tr key={i} className={`border-t ${isLight ? 'border-slate-100' : 'border-gray-700/50'}`}>
+                                                                    <td className={`px-4 py-2.5 font-mono font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{param.key}</td>
+                                                                    <td className="px-4 py-2.5">
+                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${isLight ? 'bg-cyan-50 text-cyan-600' : 'bg-cyan-900/30 text-cyan-400'}`}>
+                                                                            {param.type}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-2.5">
+                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${locColors[param.location] || locColors.body}`}>
+                                                                            {param.location || 'body'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-2.5 text-center">
+                                                                        {param.required
+                                                                            ? <span className="text-emerald-500"><FontAwesomeIcon icon={faCheck} /></span>
+                                                                            : <span className={`${isLight ? 'text-slate-300' : 'text-gray-600'}`}>—</span>
+                                                                        }
+                                                                    </td>
+                                                                </tr>
+                                                                )
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No parameters for this endpoint.</p>
+                                            )
+                                        )}
+                                    </div>
 
                                     {/* Request Payload Section */}
                                     <div className="mb-6">
-                                        <div className='flex justify-between items-center mb-4'>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-gradient-to-br from-purple-100 to-pink-100' : 'bg-gradient-to-br from-purple-900/30 to-pink-900/30'}`}>
-                                                    <FontAwesomeIcon icon={faCodePullRequest} className={`text-lg ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />
-                                                </div>
-                                                <h2 className={`text-xl font-bold ${theme === 'light' ? light.heading : dark.heading}`}>
+                                        <div className='flex justify-between items-center mb-3'>
+                                            <div className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faCodePullRequest} className={`text-sm ${isLight ? 'text-purple-500' : 'text-purple-400'}`} />
+                                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
                                                     Request Payload
                                                 </h2>
                                             </div>
@@ -1076,7 +1709,7 @@ const Documentation = ({ user, theme }) => {
                                             </div>
                                         <CodeEditor
                                             theme={theme}
-                                            inputValue={JSON.stringify(form, null, 2)}
+                                            inputValue={JSON.stringify(getBodyOnlyForm(), null, 2)}
                                             readOnly={true}
                                         />    
                                         </div>
@@ -1085,11 +1718,9 @@ const Documentation = ({ user, theme }) => {
 
                                     {/* Response Section */}
                                     <div className="mb-6">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-gradient-to-br from-emerald-100 to-teal-100' : 'bg-gradient-to-br from-emerald-900/30 to-teal-900/30'}`}>
-                                                <FontAwesomeIcon icon={faCodePullRequest} className={`text-lg ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                                            </div>
-                                            <h2 className={`text-xl font-bold ${theme === 'light' ? light.heading : dark.heading}`}>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <FontAwesomeIcon icon={faCodePullRequest} className={`text-sm ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
                                                 Response
                                             </h2>
                                         </div>
@@ -1169,37 +1800,154 @@ const Documentation = ({ user, theme }) => {
                                                     </div>
                                             </div>
                                     }                     
-                                    </div>                     
+                                    </div>
+
+                                    {/* Status Codes Section */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faInfoCircle} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                                <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                    Status Codes
+                                                </h2>
+                                            </div>
+                                            {editMode && (
+                                                <button onClick={handleAddStatusCode} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-200' : 'bg-indigo-900/20 text-indigo-400 hover:bg-indigo-900/30 border border-indigo-800/50'}`}>
+                                                    <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                                                    Add Status Code
+                                                </button>
+                                            )}
+                                        </div>
+                                        {editMode ? (
+                                            statusCodesForm.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {statusCodesForm.map((sc, index) => (
+                                                        <div key={index} className={`group relative flex items-center gap-2 p-3 rounded-lg border border-solid ${isLight ? 'bg-white border-slate-200' : 'bg-gray-800/90 border-gray-700'}`}>
+                                                            <input
+                                                                type="text"
+                                                                value={sc.code}
+                                                                onChange={(e) => handleStatusCodeChange(index, 'code', e.target.value)}
+                                                                placeholder="200"
+                                                                className={`w-20 text-xs px-3 py-2 rounded-lg border border-solid outline-none font-mono font-bold text-center ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200'}`}
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={sc.description}
+                                                                onChange={(e) => handleStatusCodeChange(index, 'description', e.target.value)}
+                                                                placeholder="Description (e.g., Success, Not Found...)"
+                                                                className={`flex-1 text-xs px-3 py-2 rounded-lg border border-solid outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#0e0e0e] border-[#2B2B2B] text-gray-200 placeholder:text-gray-600'}`}
+                                                            />
+                                                            <button onClick={() => handleDeleteStatusCode(index)} className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No status codes defined. Click "Add Status Code" to add one.</p>
+                                            )
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {responseData?.status ? (() => {
+                                                    const code = parseInt(responseData.status)
+                                                    const colorClass = code >= 200 && code < 300
+                                                        ? (isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300 ring-2 ring-emerald-300/50' : 'bg-emerald-900/40 text-emerald-300 border-emerald-700 ring-2 ring-emerald-500/30')
+                                                        : code >= 400 && code < 500
+                                                        ? (isLight ? 'bg-orange-100 text-orange-800 border-orange-300 ring-2 ring-orange-300/50' : 'bg-orange-900/40 text-orange-300 border-orange-700 ring-2 ring-orange-500/30')
+                                                        : code >= 500
+                                                        ? (isLight ? 'bg-red-100 text-red-800 border-red-300 ring-2 ring-red-300/50' : 'bg-red-900/40 text-red-300 border-red-700 ring-2 ring-red-500/30')
+                                                        : (isLight ? 'bg-slate-100 text-slate-800 border-slate-300 ring-2 ring-slate-300/50' : 'bg-gray-700 text-gray-300 border-gray-600 ring-2 ring-gray-500/30')
+                                                    return (
+                                                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${colorClass}`}>
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                                                            <span className="font-mono font-bold">{responseData.status}</span>
+                                                            {responseData.statusText && <span className="opacity-80">— {responseData.statusText}</span>}
+                                                        </div>
+                                                    )
+                                                })() : (
+                                                    selected?.status_codes?.length > 0 ? (
+                                                        selected.status_codes.map((sc, i) => {
+                                                            const code = parseInt(sc.code)
+                                                            const colorClass = code >= 200 && code < 300
+                                                                ? (isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-900/20 text-emerald-400 border-emerald-800/50')
+                                                                : code >= 400 && code < 500
+                                                                ? (isLight ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-orange-900/20 text-orange-400 border-orange-800/50')
+                                                                : code >= 500
+                                                                ? (isLight ? 'bg-red-50 text-red-700 border-red-200' : 'bg-red-900/20 text-red-400 border-red-800/50')
+                                                                : (isLight ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-gray-800 text-gray-400 border-gray-700')
+                                                            return (
+                                                                <div key={i} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs ${colorClass}`}>
+                                                                    <span className="font-mono font-bold">{sc.code}</span>
+                                                                    {sc.description && <span className="opacity-80">— {sc.description}</span>}
+                                                                </div>
+                                                            )
+                                                        })
+                                                    ) : (
+                                                        <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No status codes documented.</p>
+                                                    )
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Notes Section */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <FontAwesomeIcon icon={faStickyNote} className={`text-sm ${isLight ? 'text-yellow-500' : 'text-yellow-400'}`} />
+                                            <h2 className={`text-sm font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                                Notes
+                                            </h2>
+                                        </div>
+                                        {editMode ? (
+                                            <textarea
+                                                value={selected?.notes || ''}
+                                                onChange={(e) => setSelected({...(selected || {}), notes: e.target.value })}
+                                                placeholder="Add any additional notes, warnings, or usage tips for this endpoint..."
+                                                rows={3}
+                                                className={`w-full text-sm rounded-lg p-3 border border-solid outline-none custom-scroll ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-400 focus:border-yellow-300 focus:bg-white' : 'bg-[#1C1C1C] border-[#2B2B2B] text-gray-300 placeholder:text-gray-600 focus:border-yellow-700'}`}
+                                            />
+                                        ) : (
+                                            selected?.notes ? (
+                                                <div className={`p-4 rounded-lg border border-solid ${isLight ? 'bg-yellow-50/50 border-yellow-200/60' : 'bg-yellow-900/10 border-yellow-800/30'}`}>
+                                                    <p className={`text-sm whitespace-pre-wrap leading-relaxed ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>
+                                                        {selected.notes}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No additional notes for this endpoint.</p>
+                                            )
+                                        )}
+                                    </div>
                                     
                                     {/* Action Buttons */}
                                     {
                                         editMode && 
-                                            <div className="flex justify-end gap-3 pt-6 border-t border-solid ${theme === 'light' ? light.semiborder : dark.semiborder}">
+                                            <div className={`flex justify-end gap-2.5 pt-5 border-t ${isLight ? 'border-blue-100/60' : 'border-[#2B2B2B]'}`}>
                                                 <button
                                                     type="submit"
-                                                    className={`flex items-center gap-2 disabled:cursor-not-allowed py-3 px-6 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105`}
+                                                    className="flex items-center gap-2 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all"
                                                     onClick={() => setDeleteOpenModal(true)}
                                                 >
-                                                    <FontAwesomeIcon icon={faTrashAlt} />
+                                                    <FontAwesomeIcon icon={faTrashAlt} className="text-xs" />
                                                     <span>Delete</span>
                                                 </button> 
                                                 <button
                                                     type="submit"
-                                                    className={`flex items-center gap-2 disabled:cursor-not-allowed py-3 px-6 ${
-                                                        theme === "light"
-                                                            ? light.button_secondary
-                                                            : dark.button_secondary
-                                                    } rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:scale-105`}
+                                                    className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                                                        isLight
+                                                            ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                                                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                    }`}
                                                     onClick={handleResponse}
                                                 >
                                                     {save ? (
                                                         <>
-                                                            <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                                                            <FontAwesomeIcon icon={faSpinner} className="animate-spin text-xs" />
                                                             <span>Saving...</span>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <FontAwesomeIcon icon={faCheck} />
+                                                            <FontAwesomeIcon icon={faCheck} className="text-xs" />
                                                             <span>Save Changes</span>
                                                         </>
                                                     )}
