@@ -3,7 +3,7 @@ import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { nav_links, user_navLinks } from "../constants";
-import { faUser, faGear, faRightFromBracket, faFolder , faEnvelope} from "@fortawesome/free-solid-svg-icons";
+import { faUser, faGear, faRightFromBracket, faFolder, faEnvelope, faGlobe, faWallet } from "@fortawesome/free-solid-svg-icons";
 import { logout } from "../actions/auth";
 import { convertDriveImageLink } from './Tools'
 import { useDispatch, useSelector } from 'react-redux'
@@ -199,6 +199,18 @@ const Navbar = ({ path }) => {
                       >
                         <FontAwesomeIcon icon={faGear} className="mr-2" />
                         <a href={`${path}/account/settings`}>Settings</a>
+                      </li>
+                      <li
+                        className={`cursor-pointer text-white hover:text-blue-200 mb-4`}
+                      >
+                        <FontAwesomeIcon icon={faGlobe} className="mr-2" />
+                        <a href={`${path}/sites`}>Sites</a>
+                      </li>
+                      <li
+                        className={`cursor-pointer text-white hover:text-blue-200 mb-4`}
+                      >
+                        <FontAwesomeIcon icon={faWallet} className="mr-2" />
+                        <a href={`${path}/budget`}>Budget</a>
                       </li>
                       <li
                         className={`cursor-pointer text-white hover:text-blue-200 mb-0`}

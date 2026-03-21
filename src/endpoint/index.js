@@ -181,3 +181,23 @@ export const blockUser                         = (formData) => endpoint.post('/c
 export const unblockUser                       = (targetUserId) => endpoint.delete(`/chat/block/${targetUserId}`, options)
 export const getBlockedUsers                   = () => endpoint.get('/chat/blocked', options)
 export const checkBlocked                      = (targetUserId) => endpoint.get(`/chat/blocked/${targetUserId}`, options)
+
+/*
+    BUDGET
+*/
+export const getBudgetDashboard                = (params) => endpoint.get('/budget/dashboard', { params })
+export const getBudgetCategories               = () => endpoint.get('/budget/categories')
+export const createBudgetCategory              = (formData) => endpoint.post('/budget/category', formData)
+export const updateBudgetCategory              = (formData) => endpoint.patch('/budget/category', formData)
+export const deleteBudgetCategory              = (id) => endpoint.delete(`/budget/category/${id}`)
+export const seedBudgetFromSheet                = (formData) => endpoint.post('/budget/seed', formData)
+export const getBudgetExpenses                 = (params) => endpoint.get('/budget/expenses', { params })
+export const createBudgetExpense               = (formData) => endpoint.post('/budget/expense', formData)
+export const updateBudgetExpense               = (formData) => endpoint.patch('/budget/expense', formData)
+export const deleteBudgetExpense               = (id) => endpoint.delete(`/budget/expense/${id}`)
+export const bulkDeleteBudgetExpenses          = (formData) => endpoint.post('/budget/expenses/bulkDelete', formData)
+export const bulkUpdateBudgetCategory          = (formData) => endpoint.patch('/budget/expenses/bulkCategory', formData)
+export const getSavings                        = () => endpoint.get('/budget/savings')
+export const saveSavings                       = (formData) => endpoint.post('/budget/savings', formData)
+export const getSavingsHistory                 = () => endpoint.get('/budget/savings/history')
+export const deleteSavingsHistory              = (id) => endpoint.delete(`/budget/savings/history/${id}`)

@@ -22,6 +22,7 @@ import playlistSlice from '../actions/playlist'
 import reportSlice from '../actions/report'
 import chatSlice from '../actions/chat'
 import manageUsersSlice from '../actions/manageUsers'
+import budgetSlice from '../actions/budget'
 
 export const store = configureStore({
     reducer: {
@@ -47,7 +48,8 @@ export const store = configureStore({
         playlist    : playlistSlice,
         report      : reportSlice,
         chat        : chatSlice,
-        manageUsers : manageUsersSlice
+        manageUsers : manageUsersSlice,
+        budget      : budgetSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

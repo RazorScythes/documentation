@@ -25,6 +25,7 @@ import Profile from './components/Pages/Profile';
 
 import Documentation from './components/Pages/Documentation';
 import SiteDocs from './components/Pages/SiteDocs';
+import Budget from './components/Pages/Budget';
 import ChatWidget from './components/Custom/ChatWidget';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
@@ -75,7 +76,8 @@ const App = () => {
                     <Route path='/anime/watch/:id' element={<><AnimeWatch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
-                    <Route path='/site' element={<><SiteDocs user={user} theme={theme}/></>} />
+                    <Route path='/sites' element={<><SiteDocs user={user} theme={theme}/></>} />
+                    <Route path='/budget' element={<><Budget user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
