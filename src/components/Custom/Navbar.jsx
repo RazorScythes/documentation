@@ -1,6 +1,6 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke, faGlobe, faWallet } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke, faGlobe, faWallet, faBriefcase } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { video_links } from "../../constants";
@@ -205,7 +205,7 @@ const Navbar = ({ theme, setTheme }) => {
                                     onClick={(e) => e.stopPropagation()}
                                     className={`${
                                     !toggle ? "hidden" : "flex"
-                                    } flex-col ${theme === 'light' ? 'bg-white/98 backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C]/98 backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-16 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
+                                    } flex-col ${theme === 'light' ? 'bg-white backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C] backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-16 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
                                 >
                                     <ul className="list-none flex flex-col py-2">
                                         <li>
@@ -246,6 +246,16 @@ const Navbar = ({ theme, setTheme }) => {
                                             >
                                                 <FontAwesomeIcon icon={faWallet} className="mr-3 w-4" />
                                                 <span className="font-medium">Budget</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a 
+                                                href={`/portfolio`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faBriefcase} className="mr-3 w-4" />
+                                                <span className="font-medium">Portfolio</span>
                                             </a>
                                         </li>
                                         <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
@@ -346,7 +356,7 @@ const Navbar = ({ theme, setTheme }) => {
                                     )}
                                     <div
                                         onClick={(e) => e.stopPropagation()}
-                                        className={`${!toggle ? "hidden" : "flex"} flex-col ${theme === 'light' ? 'bg-white/98 backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C]/98 backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-14 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
+                                        className={`${!toggle ? "hidden" : "flex"} flex-col ${theme === 'light' ? 'bg-white backdrop-blur-md border-2 border-blue-200/80' : 'bg-[#1C1C1C] backdrop-blur-md border-2 border-[#2B2B2B]'} absolute z-50 top-14 right-0 mx-4 my-2 min-w-[240px] rounded-2xl shadow-2xl overflow-hidden`}
                                     >
                                     <ul className="list-none flex flex-col py-2">
                                         <li>
@@ -387,6 +397,16 @@ const Navbar = ({ theme, setTheme }) => {
                                             >
                                                 <FontAwesomeIcon icon={faWallet} className="mr-3 w-4" />
                                                 <span className="font-medium">Budget</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a 
+                                                href={`/portfolio`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faBriefcase} className="mr-3 w-4" />
+                                                <span className="font-medium">Portfolio</span>
                                             </a>
                                         </li>
                                         <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>

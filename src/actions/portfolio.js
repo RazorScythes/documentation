@@ -1,6 +1,5 @@
-import * as api from '../api'
+import * as api from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { requestAPI } from '../api/function'
 
 const initialState = {
     error               : '',
@@ -208,14 +207,26 @@ export const portfolioSlice = createSlice({
     extraReducers: (builder) => {
       builder.addCase(publishPortfolio.fulfilled, (state, action) => {
         state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
         state.error             = ''
         state.isLoading         = false
+      }),
+      builder.addCase(publishPortfolio.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
       }),
 
       builder.addCase(unpublishPortfolio.fulfilled, (state, action) => {
         state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
         state.error             = ''
         state.isLoading         = false
+      }),
+      builder.addCase(unpublishPortfolio.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
       }),
 
       builder.addCase(getPortfolio.fulfilled, (state, action) => {

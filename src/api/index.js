@@ -18,6 +18,10 @@ User_API.interceptors.request.use((req) => {
     if (localStorage.getItem('profile')) {
         req.headers.token = `${JSON.parse(localStorage.getItem('profile')).token}`;
     }
+    const token = cookies.get('token');
+    if (token) {
+        req.headers.Authorization = `Bearer ${token}`;
+    }
     if(cookies.get('uid')){
         req.headers.uid = `${cookies.get('uid')}`;
     }

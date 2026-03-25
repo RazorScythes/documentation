@@ -201,3 +201,24 @@ export const getSavings                        = () => endpoint.get('/budget/sav
 export const saveSavings                       = (formData) => endpoint.post('/budget/savings', formData)
 export const getSavingsHistory                 = () => endpoint.get('/budget/savings/history')
 export const deleteSavingsHistory              = (id) => endpoint.delete(`/budget/savings/history/${id}`)
+
+/*
+    PORTFOLIO
+*/
+export const getPortfolio                      = (formData) => endpoint.post('/portfolio/getPortfolio', formData)
+export const getPortfolioByUsername             = (formData) => endpoint.post('/portfolio/getPortfolioByUsername', formData)
+export const getProject                        = (formData) => endpoint.post('/portfolio/getProject', formData)
+export const uploadPortfolioHero               = (formData) => endpoint.post('/portfolio/hero', formData)
+export const uploadPortfolioSkills             = (formData) => endpoint.post('/portfolio/skills', formData)
+export const uploadPortfolioServices           = (formData) => endpoint.post('/portfolio/services', formData)
+export const addPortfolioExperience            = (formData) => endpoint.post('/portfolio/addExperience', formData)
+export const updatePortfolioExperience         = (formData) => endpoint.post('/portfolio/updateExperience', formData)
+export const addPortfolioProject               = (formData) => endpoint.post('/portfolio/addProject', formData)
+export const updatePortfolioProject            = (formData) => endpoint.post('/portfolio/updateProject', formData)
+export const deletePortfolioProject            = (formData) => endpoint.post('/portfolio/deleteProject', formData)
+export const uploadPortfolioContacts           = (formData) => endpoint.post('/portfolio/uploadContacts', formData)
+export const sendTestEmail                     = (formData) => endpoint.post('/portfolio/testEmail', formData)
+export const sendEmail                         = (formData) => endpoint.post('/portfolio/sendEmail', formData)
+export const sendContactUs                     = (formData) => endpoint.post('/portfolio/sendContactUs', formData)
+export const publishPortfolio                  = (formData) => endpoint.post('/portfolio/publishPortfolio', formData)
+export const unpublishPortfolio                = (formData) => endpoint.post('/portfolio/unpublishPortfolio', formData)

@@ -26,6 +26,9 @@ import Profile from './components/Pages/Profile';
 import Documentation from './components/Pages/Documentation';
 import SiteDocs from './components/Pages/SiteDocs';
 import Budget from './components/Pages/Budget';
+import PortfolioBuilder from './components/Pages/PortfolioBuilder';
+import PortfolioView from './components/Pages/PortfolioView';
+import ProjectView from './components/Pages/ProjectView';
 import ChatWidget from './components/Custom/ChatWidget';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
@@ -78,6 +81,7 @@ const App = () => {
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/sites' element={<><SiteDocs user={user} theme={theme}/></>} />
                     <Route path='/budget' element={<><Budget user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/portfolio' element={<><PortfolioBuilder user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
@@ -85,6 +89,9 @@ const App = () => {
 
                     <Route path='/user/:username' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><Profile theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
                     <Route path='/user/:username/:tab' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><Profile theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
+
+                    <Route path='/:username/portfolio' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><PortfolioView theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
+                    <Route path='/:username/project/:project_name' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /><ProjectView theme={theme} /><Footer theme={theme} />{user && <ChatWidget theme={theme} />}</>} />
 
                     <Route path='/account' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
                     <Route index element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
