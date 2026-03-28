@@ -5,8 +5,14 @@ const cookies = new Cookies();
 
 let Admin_API, User_API
 
-Admin_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}/admin`})
-User_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`})
+if(import.meta.env.VITE_DEVELOPMENT == "true"){
+    Admin_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}/admin`})
+    User_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`})
+}
+else {
+    Admin_API = axios.create({ baseURL: `https://endpoint-rho-six.vercel.app/`})
+    User_API = axios.create({ baseURL: `https://endpoint-rho-six.vercel.app/`})
+}
 
 User_API.interceptors.request.use((req) => {
     if (localStorage.getItem('profile')) {
