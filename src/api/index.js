@@ -5,14 +5,8 @@ const cookies = new Cookies();
 
 let Admin_API, User_API
 
-if(import.meta.env.VITE_DEVELOPMENT == "true"){
-    Admin_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}/admin`})
-    User_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`})
-}
-else {
-    Admin_API = axios.create({ baseURL: `https://main-api-eight.vercel.app/`})
-    User_API = axios.create({ baseURL: `https://main-api-eight.vercel.app/`})
-}
+Admin_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}/admin`})
+User_API = axios.create({ baseURL: `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`})
 
 User_API.interceptors.request.use((req) => {
     if (localStorage.getItem('profile')) {
