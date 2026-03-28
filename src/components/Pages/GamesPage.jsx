@@ -379,7 +379,7 @@ const GamesPage = ({ user, theme }) => {
                                         </div>
                                         <div className="relative w-full sm:w-auto sm:max-w-[200px]">
                                             <FontAwesomeIcon icon={faSearch} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                                            <input type="text" placeholder="Quick filter..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(0) }}
+                                            <input type="text" placeholder="Quick search" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0) }}
                                                 className={`${inputCls} pl-8 text-xs py-1.5`} />
                                         </div>
                                     </div>
