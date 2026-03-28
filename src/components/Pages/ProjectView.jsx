@@ -64,6 +64,8 @@ const ProjectView = ({ theme }) => {
     const project = useSelector((state) => state.portfolio.project)
     const notFound = useSelector((state) => state.portfolio.notFound)
     const published = useSelector((state) => state.portfolio.published)
+    const isLoading = useSelector((state) => state.portfolio.isLoading)
+    const currentProject = useSelector((state) => state.portfolio.currentProject)
     const isLight = theme === 'light'
     const [lightboxIndex, setLightboxIndex] = useState(-1)
 
@@ -77,10 +79,11 @@ const ProjectView = ({ theme }) => {
     const nextImage = useCallback(() => setLightboxIndex((prev) => (prev + 1) % allViewableImages.length), [allViewableImages.length])
 
     useEffect(() => {
-        if (username && project_name) {
+        if (username && project_name && project_name !== currentProject) {
+            window.scrollTo(0, 0)
             dispatch(getProject({ username, project_name }))
         }
-    }, [dispatch, username, project_name])
+    }, [dispatch, username, project_name, currentProject])
 
     if (notFound) {
         return (
@@ -113,12 +116,29 @@ const ProjectView = ({ theme }) => {
         )
     }
 
-    if (!project || !project.project_name) {
+    if (isLoading || !project || !project.project_name) {
         return (
             <div className={`flex items-center justify-center min-h-screen ${main.font} ${isLight ? light.body : dark.body}`}>
-                <div className="flex flex-col items-center gap-3">
-                    <div className={`w-10 h-10 border-4 border-t-transparent rounded-full animate-spin ${isLight ? 'border-blue-500' : 'border-white'}`} />
-                    <p className={`text-xs font-medium ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Loading project...</p>
+                <div className="flex flex-col items-center gap-6">
+                    <div className="relative w-14 h-14">
+                        <div className={`absolute inset-0 rounded-full border-2 border-dashed animate-spin ${isLight ? 'border-slate-200' : 'border-white/10'}`} style={{ animationDuration: '3s' }} />
+                        <div className={`absolute inset-2 rounded-full border-2 border-t-transparent animate-spin ${isLight ? 'border-blue-500' : 'border-blue-400'}`} />
+                    </div>
+                    <div className="text-center">
+                        <p className={`text-sm font-semibold mb-3 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Loading Project</p>
+                        <div className={`w-48 h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
+                            <div className={`h-full rounded-full ${isLight ? 'bg-blue-500' : 'bg-blue-400'}`}
+                                style={{ animation: 'progressBar 1.8s ease-in-out infinite' }} />
+                        </div>
+                        <style>{`
+                            @keyframes progressBar {
+                                0% { width: 0%; }
+                                50% { width: 70%; }
+                                100% { width: 100%; }
+                            }
+                        `}</style>
+                        <p className={`text-xs mt-2 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>Please wait a moment...</p>
+                    </div>
                 </div>
             </div>
         )

@@ -29,7 +29,9 @@ import Budget from './components/Pages/Budget';
 import PortfolioBuilder from './components/Pages/PortfolioBuilder';
 import PortfolioView from './components/Pages/PortfolioView';
 import ProjectView from './components/Pages/ProjectView';
-import ChatWidget from './components/Custom/ChatWidget';
+import ChatWidget from './components/Custom/ChatWidget'
+import GameManager from './components/Pages/GameManager';
+import GamesPage from './components/Pages/GamesPage';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
@@ -82,6 +84,11 @@ const App = () => {
                     <Route path='/sites' element={<><SiteDocs user={user} theme={theme}/></>} />
                     <Route path='/budget' element={<><Budget user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/portfolio' element={<><PortfolioBuilder user={user} theme={theme}/></>} />
+                    <Route path='/games' element={<><GamesPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/games/search/:key' element={<><GamesPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/games/developer/:developer' element={<><GamesPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/games/:id' element={<><GamesSingle user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/games/manage' element={<><GameManager user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />

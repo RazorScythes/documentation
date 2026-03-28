@@ -1,6 +1,6 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke, faGlobe, faWallet, faBriefcase } from "@fortawesome/free-solid-svg-icons";
+import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke, faGlobe, faWallet, faBriefcase, faGamepad } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { video_links } from "../../constants";
@@ -258,6 +258,16 @@ const Navbar = ({ theme, setTheme }) => {
                                                 <span className="font-medium">Portfolio</span>
                                             </a>
                                         </li>
+                                        <li>
+                                            <a 
+                                                href={`/games/manage`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faGamepad} className="mr-3 w-4" />
+                                                <span className="font-medium">Games</span>
+                                            </a>
+                                        </li>
                                         <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>
                                             <span className={`flex items-center font-medium ${theme === 'light' ? 'text-blue-700' : 'text-gray-300'}`}>
                                                 <FontAwesomeIcon icon={faCircleHalfStroke} className="mr-3 w-4" />
@@ -407,6 +417,16 @@ const Navbar = ({ theme, setTheme }) => {
                                             >
                                                 <FontAwesomeIcon icon={faBriefcase} className="mr-3 w-4" />
                                                 <span className="font-medium">Portfolio</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a 
+                                                href={`/games/manage`} 
+                                                className={`flex items-center px-4 py-2 cursor-pointer transition-all duration-200 border-l-4 border-transparent ${theme === 'light' ? 'text-blue-700 hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-sky-50/50 hover:text-blue-800 hover:border-blue-400 hover:shadow-sm' : 'text-gray-300 hover:bg-[#2B2B2B] hover:text-white hover:border-blue-500'}`}
+                                                onClick={() => setToggle(false)}
+                                            >
+                                                <FontAwesomeIcon icon={faGamepad} className="mr-3 w-4" />
+                                                <span className="font-medium">Games</span>
                                             </a>
                                         </li>
                                         <li className={`px-4 py-2.5 flex items-center justify-between border-t-2 ${theme === 'light' ? 'border-blue-200/80' : 'border-[#2B2B2B]'}`}>

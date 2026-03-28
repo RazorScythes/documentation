@@ -150,9 +150,9 @@ export const getGroupList                               = (formData) => User_API
 export const getGameByID                                = (formData) => User_API.post('/game/getGameByID', formData)
 export const getGames                                   = (formData) => User_API.post('/game/getGames', formData)
 export const getRelatedGames                            = (formData) => User_API.post('/game/getRelatedGames', formData)
-export const addRatings                                 = (formData) => User_API.post('/game/addRatings', formData, options)
-export const countTags                                  = (formData) => User_API.post('/game/countTags', formData, options)
-export const categoriesCount                            = (formData) => User_API.post('/game/categoriesCount', formData, options)
+export const addRatings                                 = (formData) => User_API.post('/game/addRatings', formData)
+export const countTags                                  = (formData) => User_API.post('/game/countTags', formData)
+export const categoriesCount                            = (formData) => User_API.post('/game/categoriesCount', formData)
 export const getGameByTag                               = (formData) => User_API.post('/game/getGameByTag', formData)
 export const getGameByDeveloper                         = (formData) => User_API.post('/game/getGameByDeveloper', formData)
 export const getGameBySearchKey                         = (formData) => User_API.post('/game/getGameBySearchKey', formData)
@@ -163,6 +163,8 @@ export const updateGameAccessKey                        = (formData) => User_API
 export const getGameComments                            = (formData) => User_API.post('/game/getGameComments', formData)
 export const uploadGameComment                          = (formData) => User_API.post('/game/uploadGameComment', formData)
 export const removeGameComment                          = (formData) => User_API.post('/game/removeGameComment', formData)
+export const toggleFavoriteGame                         = (formData) => User_API.post('/game/toggleFavorite', formData)
+export const getFavoriteGames                           = (formData) => User_API.post('/game/getFavorites', formData)
 
 /*
     Blogs

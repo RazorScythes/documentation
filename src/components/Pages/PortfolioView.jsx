@@ -4,7 +4,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { sendEmail, clearMailStatus } from '../../actions/portfolio'
 import SideAlert from '../SideAlert'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEnvelope, faArrowRight, faArrowDown, faCircleCheck, faCode, faBriefcase, faLock, faGlobe, faMapMarkerAlt, faCalendarAlt, faExternalLinkAlt, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { faEnvelope, faArrowRight, faArrowDown, faCircleCheck, faCode, faBriefcase, faLock, faGlobe, faMapMarkerAlt, faCalendarAlt, faExternalLinkAlt, faChevronLeft, faChevronRight, faDownload, faPhone, faGraduationCap, faLanguage, faCertificate } from '@fortawesome/free-solid-svg-icons'
+import html2canvas from 'html2canvas-pro'
+import { jsPDF } from 'jspdf'
 import Carousel from 'react-multi-carousel'
 import 'react-multi-carousel/lib/styles.css'
 import { faFacebookF, faTwitter, faInstagram, faGithub, faLinkedinIn } from '@fortawesome/free-brands-svg-icons'
@@ -589,6 +591,802 @@ const ViewContact = ({ contact, isLight, contactRef }) => {
     )
 }
 
+/* ═══════════════════════ CLASSIC LAYOUT ═══════════════════════ */
+
+const ClassicLayout = ({ portfolio, isLight, username }) => {
+    const dispatch = useDispatch()
+    const mailStatus = useSelector((state) => state.portfolio.mailStatus)
+    const cvRef = useRef(null)
+    const contactRef = useRef(null)
+    const [downloading, setDownloading] = useState(false)
+
+    const [contactForm, setContactForm] = useState({ name: '', sender_email: '', phone: '', selectedSubject: '', message: '' })
+    const [contactSubmitted, setContactSubmitted] = useState(false)
+    const [alertActive, setAlertActive] = useState(false)
+
+    useEffect(() => {
+        if (mailStatus) {
+            setAlertActive(true)
+            dispatch(clearMailStatus())
+            setContactForm({ name: '', sender_email: '', phone: '', selectedSubject: '', message: '' })
+            setContactSubmitted(false)
+        }
+    }, [mailStatus, dispatch])
+
+    const handleContactSubmit = () => {
+        if (!contactForm.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.sender_email) || !contactForm.message || contactSubmitted) return
+        setContactSubmitted(true)
+        dispatch(sendEmail({ ...contactForm, email: portfolio.contact?.email, subject: contactForm.selectedSubject || 'No Subject' }))
+    }
+
+    const handleDownloadPDF = async () => {
+        if (!cvRef.current || downloading) return
+        setDownloading(true)
+        try {
+            const canvas = await html2canvas(cvRef.current, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+            })
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            const pdfW = pdf.internal.pageSize.getWidth()
+            const pdfH = pdf.internal.pageSize.getHeight()
+            const imgW = canvas.width
+            const imgH = canvas.height
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH)
+            pdf.save(`${portfolio.hero?.full_name || 'portfolio'}_CV.pdf`)
+        } catch (err) {
+            console.error('PDF generation failed:', err)
+        } finally {
+            setDownloading(false)
+        }
+    }
+
+    const hero = portfolio.hero
+    const skills = portfolio.skills
+    const services = portfolio.services
+    const experience = portfolio.experience
+    const projects = portfolio.projects
+    const contact = portfolio.contact
+    const education = portfolio.education
+    const languages = portfolio.languages
+    const certifications = portfolio.certifications
+
+    const socials = [
+        { key: 'facebook', icon: faFacebookF, data: hero?.social_links?.facebook, label: 'Facebook' },
+        { key: 'twitter', icon: faTwitter, data: hero?.social_links?.twitter, label: 'Twitter' },
+        { key: 'instagram', icon: faInstagram, data: hero?.social_links?.instagram, label: 'Instagram' },
+        { key: 'github', icon: faGithub, data: hero?.social_links?.github, label: 'GitHub' },
+        { key: 'linkedin', icon: faLinkedinIn, data: hero?.social_links?.linkedin, label: 'LinkedIn' },
+    ].filter(s => s.data?.link && s.data?.show)
+
+    const inputCls = `w-full py-2.5 px-3 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800 placeholder-slate-300' : 'bg-[#1f1f1f] border-[#333] focus:border-blue-500 text-gray-200 placeholder-gray-600'}`
+
+    const CvHeading = ({ title }) => (
+        <div className="mb-3.5">
+            <div className="flex items-center gap-2.5 mb-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                <h2 className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-800">{title}</h2>
+            </div>
+            <div className="h-[1.5px] w-full bg-gradient-to-r from-blue-600 via-blue-300 to-transparent" />
+        </div>
+    )
+
+    return (
+        <div className={`min-h-screen ${main.font} ${isLight ? 'bg-slate-100' : 'bg-[#111]'}`}>
+            <SideAlert variants='success' heading='Success' paragraph='Your email was sent successfully' active={alertActive} setActive={setAlertActive} />
+
+            {/* Download FAB */}
+            <button onClick={handleDownloadPDF} disabled={downloading}
+                className="fixed bottom-6 right-[5.75rem] z-50 w-14 h-14 sm:w-auto sm:h-auto sm:px-5 sm:py-3.5 rounded-full sm:rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                {downloading ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                    <FontAwesomeIcon icon={faDownload} className="text-sm" />
+                )}
+                <span className="hidden sm:inline text-sm font-bold">{downloading ? 'Generating...' : 'Download PDF'}</span>
+            </button>
+
+            <div className={`${styles.paddingX} ${styles.flexCenter}`}>
+                <div className="w-full max-w-[850px] pt-8 sm:pt-12 pb-8 sm:pb-12">
+
+                    {/* ═══════ CV DOCUMENT ═══════ */}
+                    <div ref={cvRef} className="bg-white shadow-xl overflow-hidden flex flex-col" style={{ color: '#1e293b', aspectRatio: '210 / 297' }}>
+
+                        {/* ── Header ── */}
+                        <div className="relative bg-[#0f172a] text-white">
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600" />
+                            <div className="px-8 sm:px-10 py-7 sm:py-8">
+                                <div className="flex items-start gap-6 sm:gap-7">
+                                    {hero?.image && (
+                                        <div className="relative flex-shrink-0">
+                                            <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 opacity-60" />
+                                            <img src={convertDriveImageLink(hero.image)} alt={hero.full_name}
+                                                className="relative w-[80px] h-[80px] sm:w-[90px] sm:h-[90px] rounded-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0 pt-1">
+                                        <h1 className="text-[26px] sm:text-[30px] font-extrabold tracking-tight leading-tight">{hero?.full_name || 'Your Name'}</h1>
+                                        {hero?.profession?.length > 0 && (
+                                            <p className="text-[13px] text-blue-300 font-semibold mt-0.5 tracking-wide">{hero.profession.join('  ·  ')}</p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-slate-300">
+                                            {contact?.email && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center"><FontAwesomeIcon icon={faEnvelope} className="text-[8px] text-blue-300" /></span>
+                                                    {contact.email}
+                                                </span>
+                                            )}
+                                            {contact?.phone && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center"><FontAwesomeIcon icon={faPhone} className="text-[8px] text-blue-300" /></span>
+                                                    {contact.phone}
+                                                </span>
+                                            )}
+                                            {contact?.location && (
+                                                <span className="flex items-center gap-1.5">
+                                                    <span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center"><FontAwesomeIcon icon={faMapMarkerAlt} className="text-[8px] text-blue-300" /></span>
+                                                    {contact.location}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Body ── */}
+                        <div className="flex flex-1 min-h-0 overflow-hidden">
+                            {/* ── Left Column ── */}
+                            <div className="w-[34%] bg-[#f8fafc] px-6 sm:px-7 py-6 flex-shrink-0" style={{ borderRight: '1px solid #e2e8f0' }}>
+                                {/* About */}
+                                {hero?.description && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Profile" />
+                                        <p className="text-[11px] leading-[1.65] text-slate-500">{hero.description}</p>
+                                    </div>
+                                )}
+
+                                {/* Skills */}
+                                {skills?.skill?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Skills" />
+                                        <div className="space-y-2">
+                                            {skills.skill.map((s, i) => (
+                                                <div key={i}>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className="text-[11px] font-semibold text-slate-700">{s.skill_name}</span>
+                                                        <span className="text-[9px] font-bold text-slate-400 tabular-nums">{s.percentage}%</span>
+                                                    </div>
+                                                    <div className="h-[5px] rounded-full bg-slate-200 overflow-hidden">
+                                                        <div className="h-full rounded-full transition-all" style={{ width: `${s.percentage}%`, backgroundColor: s.hex || '#3b82f6' }} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {skills.project_completed > 0 && (
+                                            <div className="flex items-center gap-1.5 mt-3 px-2.5 py-1.5 rounded-md bg-blue-50">
+                                                <FontAwesomeIcon icon={faCircleCheck} className="text-[9px] text-blue-600" />
+                                                <span className="text-[10px] font-bold text-blue-700">{skills.project_completed}+ projects completed</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Languages */}
+                                {languages?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Languages" />
+                                        <div className="space-y-1.5">
+                                            {languages.map((l, i) => (
+                                                <div key={i} className="flex items-center justify-between">
+                                                    <span className="text-[11px] font-semibold text-slate-700">{l.language}</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{l.proficiency}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Socials */}
+                                {socials.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Socials" />
+                                        <div className="space-y-2">
+                                            {socials.map(s => (
+                                                <div key={s.key} className="flex items-start gap-2.5">
+                                                    <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                        <FontAwesomeIcon icon={s.icon} className="text-[8px] text-white" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <span className="block text-[9px] font-bold uppercase text-slate-400 tracking-wider">{s.label}</span>
+                                                        <span className="text-[11px] text-slate-600 break-all">{s.data.link.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                            </div>
+
+                            {/* ── Right Column ── */}
+                            <div className="flex-1 px-6 sm:px-8 py-6 min-w-0">
+                                {/* Experience */}
+                                {experience?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Work Experience" />
+                                        <div className="space-y-3.5 relative">
+                                            <div className="absolute left-[3px] top-2 bottom-2 w-px bg-slate-200" />
+                                            {experience.map((e, i) => (
+                                                <div key={i} className="relative pl-5">
+                                                    <div className="absolute left-0 top-[5px] w-[7px] h-[7px] rounded-full bg-blue-600 ring-2 ring-white" />
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <h3 className="text-[13px] font-bold text-slate-800 leading-tight">{e.position}</h3>
+                                                            <p className="text-[11px] font-semibold text-blue-600 mt-0.5">{e.company_name}</p>
+                                                        </div>
+                                                        <div className="flex-shrink-0 text-right">
+                                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-sm">
+                                                                {e.year_start?.split('-')[0]} – {e.year_end?.split('-')[0] || 'Present'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        {e.company_location && (
+                                                            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                                <FontAwesomeIcon icon={faMapMarkerAlt} className="text-[8px]" /> {e.company_location}
+                                                            </span>
+                                                        )}
+                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm ${e.remote_work ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+                                                            {e.remote_work ? 'Remote' : 'Onsite'}
+                                                        </span>
+                                                        {e.link && (
+                                                            <a href={e.link} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 font-semibold flex items-center gap-0.5">
+                                                                <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[7px]" /> Visit
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    {e.description && (
+                                                        <p className="text-[10px] text-slate-400 leading-relaxed mt-1.5">{e.description}</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Education */}
+                                {education?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Education" />
+                                        <div className="space-y-3 relative">
+                                            <div className="absolute left-[3px] top-2 bottom-2 w-px bg-slate-200" />
+                                            {education.map((ed, i) => (
+                                                <div key={i} className="relative pl-5">
+                                                    <div className="absolute left-0 top-[5px] w-[7px] h-[7px] rounded-full bg-blue-600 ring-2 ring-white" />
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <h3 className="text-[13px] font-bold text-slate-800 leading-tight">{ed.degree}</h3>
+                                                            <p className="text-[11px] font-semibold text-blue-600 mt-0.5">{ed.institution}</p>
+                                                            {ed.address && <p className="text-[10px] text-slate-400 mt-0.5">{ed.address}</p>}
+                                                        </div>
+                                                        {(ed.year_start || ed.year_end) && (
+                                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-sm flex-shrink-0">
+                                                                {ed.year_start}{ed.year_end ? ` – ${ed.year_end}` : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {ed.description && (
+                                                        <p className="text-[10px] text-slate-400 leading-relaxed mt-1">{ed.description}</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Services */}
+                                {services?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Services" />
+                                        <div className="space-y-3">
+                                            {services.map((cat, ci) => (
+                                                <div key={ci}>
+                                                    {cat.service_name && (
+                                                        <p className="text-[9px] font-bold uppercase text-blue-600 tracking-wider mb-1.5">{cat.service_name}</p>
+                                                    )}
+                                                    <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+                                                        {cat.type_of_service?.map((t, ti) => (
+                                                            <div key={`${ci}-${ti}`} className="flex items-start gap-2">
+                                                                <div className="w-5 h-5 rounded bg-blue-50 flex items-center justify-center flex-shrink-0 mt-px">
+                                                                    <SafeIcon name={t.featured_icon} cls="text-[9px] text-blue-600" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <h4 className="text-[11px] font-bold text-slate-700 leading-tight">{t.service_name}</h4>
+                                                                    {t.service_description && (
+                                                                        <p className="text-[10px] text-slate-400 line-clamp-1 mt-px">{t.service_description}</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Certifications */}
+                                {certifications?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Certifications" />
+                                        <div className="space-y-1.5">
+                                            {certifications.map((c, i) => (
+                                                <div key={i} className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="w-[5px] h-[5px] rounded-sm bg-blue-600 flex-shrink-0" />
+                                                        <span className="text-[11px] font-semibold text-slate-700 truncate">{c.name}</span>
+                                                        <span className="text-[10px] text-slate-400">— {c.issuer}</span>
+                                                    </div>
+                                                    {c.year && <span className="text-[9px] text-slate-400 flex-shrink-0">{c.year}</span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Projects */}
+                                {projects?.length > 0 && (
+                                    <div className="mb-5">
+                                        <CvHeading title="Projects" />
+                                        <div className="space-y-1.5">
+                                            {projects.map((p, i) => (
+                                                <div key={i}>
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className="w-[5px] h-[5px] rounded-sm bg-blue-600 flex-shrink-0" />
+                                                            <span className="text-[11px] font-semibold text-slate-700 truncate">{p.project_name}</span>
+                                                        </div>
+                                                        {p.category && <span className="text-[9px] text-slate-400 flex-shrink-0 whitespace-nowrap">{p.category}</span>}
+                                                    </div>
+                                                    {p.created_for && <p className="text-[9px] text-slate-400 italic ml-[13px] mt-0.5">for {p.created_for}</p>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ═══════ CONTACT FORM (outside CV document) ═══════ */}
+                    {contact?.email && (
+                        <div ref={contactRef} className={`mt-10 rounded-2xl overflow-hidden ${isLight ? 'bg-white shadow-lg ring-1 ring-slate-200/60' : 'bg-[#1a1a1a] ring-1 ring-white/[.08]'}`}>
+                            <div className="relative bg-[#0f172a] px-6 sm:px-8 py-8 text-center overflow-hidden">
+                                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%), radial-gradient(circle at 80% 50%, #06b6d4 0%, transparent 50%)' }} />
+                                <div className="relative">
+                                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4 backdrop-blur-sm ring-1 ring-white/20">
+                                        <FontAwesomeIcon icon={faEnvelope} className="text-lg text-blue-300" />
+                                    </div>
+                                    <h2 className="text-xl sm:text-2xl font-bold text-white mb-1.5">Let's Work Together</h2>
+                                    <p className="text-sm text-slate-400 max-w-sm mx-auto">Have a project or idea? Send a message and I'll get back to you shortly.</p>
+                                </div>
+                            </div>
+
+                            <div className="px-6 sm:px-8 py-6 sm:py-8">
+                                <div className="flex flex-wrap items-center gap-4 mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'}`}>
+                                            <FontAwesomeIcon icon={faEnvelope} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                        </div>
+                                        <span className={`text-sm font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{contact.email}</span>
+                                    </div>
+                                    {contact.phone && (
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'}`}>
+                                                <FontAwesomeIcon icon={faPhone} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                            </div>
+                                            <span className={`text-sm font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{contact.phone}</span>
+                                        </div>
+                                    )}
+                                    {contact.location && (
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'}`}>
+                                                <FontAwesomeIcon icon={faMapMarkerAlt} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                            </div>
+                                            <span className={`text-sm font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{contact.location}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className={`h-px mb-6 ${isLight ? 'bg-slate-100' : 'bg-white/[.06]'}`} />
+
+                                <div className="grid sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Full Name</label>
+                                        <input type="text" placeholder="Your name" value={contactForm.name} onChange={(e) => setContactForm({...contactForm, name: e.target.value})} className={inputCls} />
+                                    </div>
+                                    <div>
+                                        <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Email</label>
+                                        <input type="email" placeholder="your@email.com" value={contactForm.sender_email} onChange={(e) => setContactForm({...contactForm, sender_email: e.target.value})} className={inputCls} />
+                                    </div>
+                                </div>
+                                <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Phone</label>
+                                        <input type="tel" placeholder="Phone number" value={contactForm.phone} onChange={(e) => setContactForm({...contactForm, phone: e.target.value})} className={inputCls} />
+                                    </div>
+                                    {contact.subject?.length > 0 && (
+                                        <div>
+                                            <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Subject</label>
+                                            <select value={contactForm.selectedSubject} onChange={(e) => setContactForm({...contactForm, selectedSubject: e.target.value})} className={inputCls}>
+                                                <option value="" disabled hidden className="text-gray-900 bg-white">Select a subject</option>
+                                                {contact.subject.map((s, i) => <option key={i} value={s} className="text-gray-900 bg-white">{s}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-4">
+                                    <label className={`block text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Message</label>
+                                    <textarea placeholder="Tell me about your project..." rows="4" value={contactForm.message}
+                                        onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
+                                        className={`${inputCls} resize-none`} />
+                                </div>
+                                <div className="mt-6 flex justify-end">
+                                    <button onClick={handleContactSubmit} disabled={contactSubmitted}
+                                        className={`px-8 py-3 rounded-xl text-sm font-bold transition-all ${contactSubmitted
+                                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                                            : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/20'
+                                        }`}>
+                                        {contactSubmitted ? (
+                                            <span className="flex items-center gap-2">Sending<span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /></span>
+                                        ) : (
+                                            <>Send Message <FontAwesomeIcon icon={faArrowRight} className="ml-2 text-xs" /></>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="h-10" />
+                </div>
+            </div>
+        </div>
+    )
+}
+
+/* ═══════════════════════ MINIMAL LAYOUT ═══════════════════════ */
+
+const MinimalLayout = ({ portfolio, isLight, username }) => {
+    const dispatch = useDispatch()
+    const mailStatus = useSelector((state) => state.portfolio.mailStatus)
+    const contactRef = useRef(null)
+    const scrollToContact = () => contactRef.current?.scrollIntoView({ behavior: 'smooth' })
+
+    const [contactForm, setContactForm] = useState({ name: '', sender_email: '', phone: '', selectedSubject: '', message: '' })
+    const [contactSubmitted, setContactSubmitted] = useState(false)
+    const [alertActive, setAlertActive] = useState(false)
+
+    useEffect(() => {
+        if (mailStatus) {
+            setAlertActive(true)
+            dispatch(clearMailStatus())
+            setContactForm({ name: '', sender_email: '', phone: '', selectedSubject: '', message: '' })
+            setContactSubmitted(false)
+        }
+    }, [mailStatus, dispatch])
+
+    const handleContactSubmit = () => {
+        if (!contactForm.name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.sender_email) || !contactForm.message || contactSubmitted) return
+        setContactSubmitted(true)
+        dispatch(sendEmail({ ...contactForm, email: portfolio.contact?.email, subject: contactForm.selectedSubject || 'No Subject' }))
+    }
+
+    const hero = portfolio.hero
+    const skills = portfolio.skills
+    const services = portfolio.services
+    const experience = portfolio.experience
+    const projects = portfolio.projects
+    const contact = portfolio.contact
+    const education = portfolio.education
+    const languages = portfolio.languages
+    const certifications = portfolio.certifications
+
+    const socials = [
+        { key: 'facebook', icon: faFacebookF, data: hero?.social_links?.facebook },
+        { key: 'twitter', icon: faTwitter, data: hero?.social_links?.twitter },
+        { key: 'instagram', icon: faInstagram, data: hero?.social_links?.instagram },
+        { key: 'github', icon: faGithub, data: hero?.social_links?.github },
+        { key: 'linkedin', icon: faLinkedinIn, data: hero?.social_links?.linkedin },
+    ].filter(s => s.data?.link && s.data?.show)
+
+    const sep = <div className={`max-w-xs mx-auto h-px my-16 sm:my-20 ${isLight ? 'bg-slate-200' : 'bg-white/[.08]'}`} />
+    const inputCls = `w-full py-2.5 px-3 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-transparent border-slate-200 focus:border-slate-400 text-slate-800 placeholder-slate-300' : 'bg-transparent border-white/10 focus:border-white/25 text-gray-200 placeholder-gray-600'}`
+
+    return (
+        <div className={`min-h-screen ${main.font} ${isLight ? light.body : dark.body}`}>
+            <SideAlert variants='success' heading='Success' paragraph='Your email was sent successfully' active={alertActive} setActive={setAlertActive} />
+            <div className={`${styles.paddingX} ${styles.flexCenter}`}>
+                <div className="w-full max-w-2xl mx-auto">
+
+                    {/* ──── HERO ──── */}
+                    <section className="text-center pt-20 sm:pt-32 pb-8">
+                        {hero?.image && (
+                            <img src={convertDriveImageLink(hero.image)} alt={hero?.full_name}
+                                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover mx-auto mb-6 ${isLight ? 'ring-4 ring-white shadow-lg' : 'ring-4 ring-white/5'}`} />
+                        )}
+                        <h1 className={`text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                            {hero?.full_name || 'Your Name'}
+                        </h1>
+                        {hero?.profession?.length > 0 && (
+                            <p className={`text-base sm:text-lg mt-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                {hero.profession.join(' / ')}
+                            </p>
+                        )}
+                        {hero?.description && (
+                            <p className={`text-sm leading-relaxed mt-5 max-w-md mx-auto ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{hero.description}</p>
+                        )}
+                        <div className="flex items-center justify-center gap-3 mt-6">
+                            {hero?.resume_link && (
+                                <a href={hero.resume_link} target="_blank" rel="noreferrer"
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white text-gray-900 hover:bg-gray-100'}`}>
+                                    Resume
+                                </a>
+                            )}
+                            <button onClick={scrollToContact}
+                                className={`px-5 py-2.5 rounded-lg text-sm font-semibold border border-solid transition-all ${isLight ? 'border-slate-200 text-slate-600 hover:border-slate-400' : 'border-white/15 text-gray-400 hover:border-white/30'}`}>
+                                Contact
+                            </button>
+                        </div>
+                        {socials.length > 0 && (
+                            <div className="flex items-center justify-center gap-3 mt-5">
+                                {socials.map(s => (
+                                    <a key={s.key} href={s.data.link} target="_blank" rel="noreferrer"
+                                        className={`text-sm transition-colors ${isLight ? 'text-slate-300 hover:text-slate-600' : 'text-gray-600 hover:text-gray-300'}`}>
+                                        <FontAwesomeIcon icon={s.icon} />
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+
+                    {/* ──── SKILLS ──── */}
+                    {skills?.skill?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Skills</h2>
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {skills.skill.map((s, i) => (
+                                        <span key={i} className={`px-4 py-2 rounded-full text-sm font-medium ${isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-gray-400'}`}>
+                                            {s.skill_name} <span className={`text-xs ml-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{s.percentage}%</span>
+                                        </span>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── SERVICES ──── */}
+                    {services?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Services</h2>
+                                <div className="space-y-6">
+                                    {services.map((cat, ci) =>
+                                        cat.type_of_service?.map((t, ti) => (
+                                            <div key={`${ci}-${ti}`} className="text-center">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-gray-400'}`}>
+                                                    <SafeIcon name={t.featured_icon} cls="text-base" />
+                                                </div>
+                                                <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{t.service_name}</h3>
+                                                {t.service_description && (
+                                                    <p className={`text-sm mt-1 max-w-sm mx-auto ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{t.service_description}</p>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── EXPERIENCE ──── */}
+                    {experience?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Experience</h2>
+                                <div className="space-y-0">
+                                    {experience.map((e, i) => (
+                                        <div key={i} className={`py-5 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-white/[.05]'}` : ''}`}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{e.position}</h3>
+                                                    <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{e.company_name}</p>
+                                                </div>
+                                                <span className={`text-xs font-medium whitespace-nowrap pt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                    {e.year_start?.split('-')[0]} – {e.year_end?.split('-')[0] || 'Present'}
+                                                </span>
+                                            </div>
+                                            {(e.company_location || e.link) && (
+                                                <div className="flex items-center gap-3 mt-1.5">
+                                                    {e.company_location && (
+                                                        <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{e.company_location}</span>
+                                                    )}
+                                                    {e.link && (
+                                                        <a href={e.link} target="_blank" rel="noreferrer" className={`text-xs font-semibold ${isLight ? 'text-blue-500' : 'text-blue-400'}`}>
+                                                            Visit <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[9px] ml-0.5" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {e.description && (
+                                                <p className={`text-sm leading-relaxed mt-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{e.description}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── EDUCATION ──── */}
+                    {education?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Education</h2>
+                                <div className="space-y-0">
+                                    {education.map((ed, i) => (
+                                        <div key={i} className={`py-5 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-white/[.05]'}` : ''}`}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{ed.degree}</h3>
+                                                    <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{ed.institution}</p>
+                                                    {ed.address && <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{ed.address}</p>}
+                                                </div>
+                                                {(ed.year_start || ed.year_end) && (
+                                                    <span className={`text-xs font-medium whitespace-nowrap pt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                        {ed.year_start}{ed.year_end ? ` – ${ed.year_end}` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {ed.description && (
+                                                <p className={`text-sm leading-relaxed mt-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{ed.description}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── CERTIFICATIONS ──── */}
+                    {certifications?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Certifications</h2>
+                                <div className="space-y-0">
+                                    {certifications.map((c, i) => (
+                                        <div key={i} className={`py-4 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-white/[.05]'}` : ''}`}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{c.name}</h3>
+                                                    <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{c.issuer}</p>
+                                                </div>
+                                                {c.year && <span className={`text-xs font-medium whitespace-nowrap pt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.year}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── LANGUAGES ──── */}
+                    {languages?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Languages</h2>
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    {languages.map((l, i) => (
+                                        <span key={i} className={`px-4 py-2 rounded-full text-sm font-medium ${isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-gray-400'}`}>
+                                            {l.language} <span className={`text-xs ml-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{l.proficiency}</span>
+                                        </span>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── PROJECTS ──── */}
+                    {projects?.length > 0 && (
+                        <>
+                            {sep}
+                            <section>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Projects</h2>
+                                <div className="space-y-5">
+                                    {projects.map((p, i) => {
+                                        const slug = p.project_name?.split(/[\/\s]+/).join("_")
+                                        return (
+                                            <Link key={i} to={`/${username}/project/${slug}`}
+                                                className={`group flex items-center gap-5 py-4 px-5 -mx-5 rounded-xl transition-all ${isLight ? 'hover:bg-slate-50' : 'hover:bg-white/[.02]'}`}>
+                                                {p.image ? (
+                                                    <img src={convertDriveImageLink(p.image)} alt={p.project_name}
+                                                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                                                ) : (
+                                                    <div className={`w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}>
+                                                        <FontAwesomeIcon icon={faCode} className={`text-lg ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className={`text-base font-bold line-clamp-1 ${isLight ? 'text-slate-800 group-hover:text-blue-600' : 'text-white group-hover:text-blue-400'} transition-colors`}>
+                                                        {p.project_name}
+                                                    </h3>
+                                                    <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{p.category || 'Project'}</p>
+                                                </div>
+                                                <FontAwesomeIcon icon={faArrowRight} className={`text-xs flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                                            </Link>
+                                        )
+                                    })}
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {/* ──── CONTACT ──── */}
+                    {contact?.email && (
+                        <>
+                            {sep}
+                            <section className="pb-16 sm:pb-24" ref={contactRef}>
+                                <h2 className={`text-xs font-bold uppercase tracking-[0.2em] text-center mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Contact</h2>
+                                <p className={`text-center text-2xl sm:text-3xl font-bold mb-8 ${isLight ? 'text-slate-800' : 'text-white'}`}>Let's work together</p>
+                                <div className="space-y-3">
+                                    <div className="grid sm:grid-cols-2 gap-3">
+                                        <input type="text" placeholder="Name" value={contactForm.name} onChange={(e) => setContactForm({...contactForm, name: e.target.value})} className={inputCls} />
+                                        <input type="email" placeholder="Email" value={contactForm.sender_email} onChange={(e) => setContactForm({...contactForm, sender_email: e.target.value})} className={inputCls} />
+                                    </div>
+                                    <div className="grid sm:grid-cols-2 gap-3">
+                                        <input type="tel" placeholder="Phone (optional)" value={contactForm.phone} onChange={(e) => setContactForm({...contactForm, phone: e.target.value})} className={inputCls} />
+                                        {contact.subject?.length > 0 && (
+                                            <select value={contactForm.selectedSubject} onChange={(e) => setContactForm({...contactForm, selectedSubject: e.target.value})} className={inputCls}>
+                                                <option value="" disabled hidden>Subject</option>
+                                                {contact.subject.map((s, i) => <option key={i} value={s}>{s}</option>)}
+                                            </select>
+                                        )}
+                                    </div>
+                                    <textarea placeholder="Your message..." rows="4" value={contactForm.message}
+                                        onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
+                                        className={`${inputCls} resize-none`} />
+                                    <div className="flex justify-center pt-2">
+                                        <button onClick={handleContactSubmit} disabled={contactSubmitted}
+                                            className={`px-8 py-2.5 rounded-lg text-sm font-bold transition-all ${contactSubmitted
+                                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                                : (isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white text-gray-900 hover:bg-gray-100')
+                                            }`}>
+                                            {contactSubmitted ? 'Sending...' : 'Send Message'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    <div className="h-10" />
+                </div>
+            </div>
+        </div>
+    )
+}
+
 /* ═══════════════════════ MAIN ═══════════════════════ */
 
 const PortfolioView = ({ theme }) => {
@@ -598,13 +1396,17 @@ const PortfolioView = ({ theme }) => {
     const portfolio = useSelector((state) => state.portfolio.data)
     const notFound = useSelector((state) => state.portfolio.notFound)
     const published = useSelector((state) => state.portfolio.published)
+    const isLoading = useSelector((state) => state.portfolio.isLoading)
+    const currentUsername = useSelector((state) => state.portfolio.currentUsername)
     const isLight = theme === 'light'
 
     const contactRef = useRef(null)
 
     useEffect(() => {
-        if (username) dispatch(getPortfolioByUsername({ username }))
-    }, [dispatch, username])
+        if (username && username !== currentUsername) {
+            dispatch(getPortfolioByUsername({ username }))
+        }
+    }, [dispatch, username, currentUsername])
 
     if (notFound) {
         return (
@@ -647,21 +1449,42 @@ const PortfolioView = ({ theme }) => {
         )
     }
 
-    if (!portfolio || !portfolio.hero) {
+    if (isLoading || (!portfolio || !portfolio.hero)) {
         return (
             <div className={`flex items-center justify-center min-h-screen ${main.font} ${isLight ? light.body : dark.body}`}>
-                <div className="flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center gap-6">
                     <div className="relative w-14 h-14">
                         <div className={`absolute inset-0 rounded-full border-2 border-dashed animate-spin ${isLight ? 'border-slate-200' : 'border-white/10'}`} style={{ animationDuration: '3s' }} />
                         <div className={`absolute inset-2 rounded-full border-2 border-t-transparent animate-spin ${isLight ? 'border-blue-500' : 'border-blue-400'}`} />
                     </div>
                     <div className="text-center">
-                        <p className={`text-sm font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Loading Portfolio</p>
-                        <p className={`text-xs ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>Please wait a moment...</p>
+                        <p className={`text-sm font-semibold mb-3 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Loading Portfolio</p>
+                        <div className={`w-48 h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-white/10'}`}>
+                            <div className={`h-full rounded-full ${isLight ? 'bg-blue-500' : 'bg-blue-400'}`}
+                                style={{ animation: 'progressBar 1.8s ease-in-out infinite' }} />
+                        </div>
+                        <style>{`
+                            @keyframes progressBar {
+                                0% { width: 0%; }
+                                50% { width: 70%; }
+                                100% { width: 100%; }
+                            }
+                        `}</style>
+                        <p className={`text-xs mt-2 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>Please wait a moment...</p>
                     </div>
                 </div>
             </div>
         )
+    }
+
+    const layout = portfolio.layout || 'default'
+
+    if (layout === 'classic') {
+        return <ClassicLayout portfolio={portfolio} isLight={isLight} username={username} />
+    }
+
+    if (layout === 'minimal') {
+        return <MinimalLayout portfolio={portfolio} isLight={isLight} username={username} />
     }
 
     const scrollToContact = () => contactRef.current?.scrollIntoView({ behavior: 'smooth' })

@@ -10,7 +10,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
     const [sending, setSending] = useState(false)
     const [submitted, setSubmitted] = useState(false)
 
-    const [contact, setContact] = useState({ email: '', subject: [] })
+    const [contact, setContact] = useState({ email: '', subject: [], phone: '', location: '' })
     const [input, setInput] = useState('')
     const [showSubjectForm, setShowSubjectForm] = useState(false)
 
@@ -24,7 +24,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
     const isEmail = (t) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)
 
     useEffect(() => {
-        setContact({ ...contact, email: portfolio?.email || '', subject: portfolio?.subject || [] })
+        setContact({ ...contact, email: portfolio?.email || '', subject: portfolio?.subject || [], phone: portfolio?.phone || '', location: portfolio?.location || '' })
         setSubmitted(false); setSending(false)
     }, [portfolio])
 
@@ -33,6 +33,8 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
 
     const contactComplete = [
         { label: 'Email', done: isEmail(contact.email) },
+        { label: 'Phone', done: !!contact.phone },
+        { label: 'Location', done: !!contact.location },
         { label: 'Subjects', done: contact.subject.length > 0 },
     ]
 
@@ -103,6 +105,16 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
                         {contact.email && !isEmail(contact.email) && (
                             <p className="text-[11px] mt-1 text-red-500">Please enter a valid email address</p>
                         )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label className={labelCls}>Phone Number</label>
+                            <input type="text" className={inputCls} onChange={(e) => setContact({ ...contact, phone: e.target.value })} value={contact.phone} placeholder="+1 (555) 123-4567" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Location</label>
+                            <input type="text" className={inputCls} onChange={(e) => setContact({ ...contact, location: e.target.value })} value={contact.location} placeholder="City, Country" />
+                        </div>
                     </div>
                 </div>
             </div>

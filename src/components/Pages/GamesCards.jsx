@@ -93,7 +93,7 @@ const GamesCards = ({ id, heading, image, category, downloads, uploader, ratings
 
     const addDownloadCount = () => {
         var duplicate = false
-        downloads.forEach(item => { if(cookies.get('uid') === item) duplicate = true })
+        ;(downloads || []).forEach(item => { if(cookies.get('uid') === item) duplicate = true })
         if(!duplicate) {
             dispatch(addOneDownload({
                 id: cookies.get('uid'),
@@ -138,7 +138,7 @@ const GamesCards = ({ id, heading, image, category, downloads, uploader, ratings
                 </div>
                 <div className='absolute w-full px-4 bottom-2 left-0 text-sm'>
                     <div className='grid grid-cols-2 gap-2'>
-                        <p className='flex items-center text-xs text-[#94a9c9]'>{downloads.length > 0 ? downloads.length : 0} Download{downloads.length > 1 && 's'}</p>
+                        <p className='flex items-center text-xs text-[#94a9c9]'>{downloads?.length > 0 ? downloads.length : 0} Download{downloads?.length > 1 && 's'}</p>
                     </div>
                     <div className='grid grid-cols-3 gap-2 mt-2'>
                         <Link to={`/games/${id}`} className='col-span-2 '>

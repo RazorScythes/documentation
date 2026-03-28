@@ -10,7 +10,9 @@ const initialState = {
     notFound            : false,
     published           : false,
     project             : {},
-    mailStatus          : ''
+    mailStatus          : '',
+    currentUsername      : '',
+    currentProject      : ''
 }
 
 export const uploadHero = createAsyncThunk('portfolio/uploadHero', async (form, thunkAPI) => {
@@ -134,6 +136,39 @@ export const sendContactUs = createAsyncThunk('portfolio/sendContactUs', async (
   }
 });
 
+export const uploadEducation = createAsyncThunk('portfolio/uploadEducation', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioEducation(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const uploadLanguages = createAsyncThunk('portfolio/uploadLanguages', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioLanguages(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const uploadCertifications = createAsyncThunk('portfolio/uploadCertifications', async (form, thunkAPI) => {
+  try {
+      const response = await api.uploadPortfolioCertifications(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
 export const uploadContacts = createAsyncThunk('portfolio/uploadContacts', async (form, thunkAPI) => {
   try {
       const response = await api.uploadPortfolioContacts(form);
@@ -148,6 +183,17 @@ export const uploadContacts = createAsyncThunk('portfolio/uploadContacts', async
 export const getPortfolio = createAsyncThunk('portfolio/getPortfolio', async (form, thunkAPI) => {
   try {
       const response = await api.getPortfolio(form);
+      return response;
+  } catch (err) {
+      if (err.response && err.response.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+      return { variant: 'danger', message: "409: there was a problem with the server." };
+  }
+});
+
+export const updateLayout = createAsyncThunk('portfolio/updateLayout', async (form, thunkAPI) => {
+  try {
+      const response = await api.updatePortfolioLayout(form);
       return response;
   } catch (err) {
       if (err.response && err.response.data)
@@ -239,7 +285,13 @@ export const portfolioSlice = createSlice({
         state.variant           = action.payload.variant
       }),
 
+      builder.addCase(getProject.pending, (state) => {
+        state.isLoading         = true
+        state.notFound          = false
+        state.published         = false
+      }),
       builder.addCase(getProject.fulfilled, (state, action) => {
+        state.currentProject    = action.meta?.arg?.project_name || ''
         if(!action.payload.data.published) state.published = true
         else state.published = !action.payload.data.published
         state.project           = action.payload.data.result
@@ -252,8 +304,14 @@ export const portfolioSlice = createSlice({
         state.variant           = action.payload.variant
       }),
 
+      builder.addCase(getPortfolioByUsername.pending, (state, action) => {
+        state.isLoading         = true
+        state.notFound          = false
+        state.published         = false
+      }),
       builder.addCase(getPortfolioByUsername.fulfilled, (state, action) => {
         if(!action.payload.data.published) state.published = true
+        state.currentUsername    = action.meta?.arg?.username || ''
         state.data              = action.payload.data.result
         state.error             = ''
         state.isLoading         = false
@@ -393,6 +451,54 @@ export const portfolioSlice = createSlice({
       }),
 
       builder.addCase(updateExperience.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
+      }),
+
+      builder.addCase(uploadEducation.fulfilled, (state, action) => {
+        state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
+        state.error             = ''
+        state.isLoading         = false
+      }),
+      builder.addCase(uploadEducation.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
+      }),
+
+      builder.addCase(uploadLanguages.fulfilled, (state, action) => {
+        state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
+        state.error             = ''
+        state.isLoading         = false
+      }),
+      builder.addCase(uploadLanguages.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
+      }),
+
+      builder.addCase(uploadCertifications.fulfilled, (state, action) => {
+        state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
+        state.error             = ''
+        state.isLoading         = false
+      }),
+      builder.addCase(uploadCertifications.rejected, (state, action) => {
+        state.alert             = action.payload.message
+        state.variant           = action.payload.variant
+      }),
+
+      builder.addCase(updateLayout.fulfilled, (state, action) => {
+        state.data              = action.payload.data.result
+        state.alert             = action.payload.data.alert
+        state.variant           = action.payload.data.variant
+        state.error             = ''
+        state.isLoading         = false
+      }),
+      builder.addCase(updateLayout.rejected, (state, action) => {
         state.alert             = action.payload.message
         state.variant           = action.payload.variant
       })

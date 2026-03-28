@@ -18,7 +18,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
     const [input, setInput] = useState({
         image_overlay: '', company_logo: '',
         company_name: '', year_start: '', year_end: '', position: '',
-        company_location: '', remote_work: false, link: ''
+        company_location: '', remote_work: false, link: '', description: ''
     })
     const [addInput, setAddInput] = useState({ image_overlay: '', company_logo: '' })
 
@@ -31,7 +31,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
     }, [portfolio])
 
     const resetForm = () => {
-        setInput({ image_overlay: '', company_logo: '', company_name: '', year_start: '', year_end: '', position: '', company_location: '', remote_work: false, link: '' })
+        setInput({ image_overlay: '', company_logo: '', company_name: '', year_start: '', year_end: '', position: '', company_location: '', remote_work: false, link: '', description: '' })
         setAddInput({ image_overlay: '', company_logo: '' })
     }
 
@@ -67,7 +67,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
             image_overlay: '', company_logo: '',
             company_name: e.company_name || '', year_start: e.year_start || '', year_end: e.year_end || '',
             position: e.position || '', company_location: e.company_location || '',
-            remote_work: e.remote_work || false, link: e.link || ''
+            remote_work: e.remote_work || false, link: e.link || '', description: e.description || ''
         })
         setAddInput({ image_overlay: '', company_logo: '' })
         setShowForm(true)
@@ -80,7 +80,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
             ...arr[editingIndex],
             company_name: input.company_name, year_start: input.year_start, year_end: input.year_end,
             position: input.position, company_location: input.company_location,
-            remote_work: input.remote_work, link: input.link,
+            remote_work: input.remote_work, link: input.link, description: input.description,
             ...(input.image_overlay ? { image_overlay: input.image_overlay } : {}),
             ...(input.company_logo ? { company_logo: input.company_logo } : {}),
         }
@@ -192,6 +192,10 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
                             <input type="checkbox" checked={input.remote_work} onChange={() => setInput({ ...input, remote_work: !input.remote_work })} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                             <span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>Remote Work</span>
                         </label>
+                        <div className="mb-3">
+                            <label className={labelCls}>Description / Responsibilities (optional)</label>
+                            <textarea className={`${inputCls} resize-none`} rows="3" value={input.description} onChange={(e) => setInput({ ...input, description: e.target.value })} placeholder="Describe your key responsibilities..." />
+                        </div>
                         <div className="flex justify-end gap-2">
                             {editingIndex !== null ? (
                                 <>

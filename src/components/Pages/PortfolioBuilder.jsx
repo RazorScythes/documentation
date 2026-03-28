@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
     faUser, faBriefcase, faLaptopCode, faCogs, faProjectDiagram,
-    faAddressBook, faLayerGroup, faGlobe, faLock, faExternalLinkAlt
+    faAddressBook, faLayerGroup, faGlobe, faLock, faExternalLinkAlt, faPalette,
+    faGraduationCap, faLanguage, faCertificate
 } from '@fortawesome/free-solid-svg-icons'
 import { getPortfolio, publishPortfolio, unpublishPortfolio, clearAlert } from '../../actions/portfolio'
 import { main, dark, light } from '../../style'
@@ -20,6 +21,10 @@ import ServicesSection from '../PortfolioBuilder/sections/Services'
 import ExperienceSection from '../PortfolioBuilder/sections/Experience'
 import ProjectsSection from '../PortfolioBuilder/sections/Projects'
 import ContactSection from '../PortfolioBuilder/sections/Contact'
+import LayoutSection from '../PortfolioBuilder/sections/Layout'
+import EducationSection from '../PortfolioBuilder/sections/Education'
+import LanguagesSection from '../PortfolioBuilder/sections/Languages'
+import CertificationsSection from '../PortfolioBuilder/sections/Certifications'
 
 library.add(fas, far, fab)
 
@@ -30,6 +35,10 @@ const SECTION_TABS = [
     { id: 3, label: 'Experience', icon: faBriefcase },
     { id: 4, label: 'Projects', icon: faProjectDiagram },
     { id: 5, label: 'Contact', icon: faAddressBook },
+    { id: 6, label: 'Education', icon: faGraduationCap },
+    { id: 7, label: 'Languages', icon: faLanguage },
+    { id: 8, label: 'Certifications', icon: faCertificate },
+    { id: 9, label: 'Layout', icon: faPalette },
 ]
 
 const PortfolioBuilder = ({ user, theme }) => {
@@ -179,6 +188,10 @@ const PortfolioBuilder = ({ user, theme }) => {
                         {sectionIndex === 3 && <ExperienceSection portfolio={portfolio?.experience} {...sectionProps} />}
                         {sectionIndex === 4 && <ProjectsSection portfolio={portfolio?.projects} {...sectionProps} />}
                         {sectionIndex === 5 && <ContactSection portfolio={portfolio?.contact} {...sectionProps} />}
+                        {sectionIndex === 6 && <EducationSection portfolio={portfolio?.education} {...sectionProps} />}
+                        {sectionIndex === 7 && <LanguagesSection portfolio={portfolio?.languages} {...sectionProps} />}
+                        {sectionIndex === 8 && <CertificationsSection portfolio={portfolio?.certifications} {...sectionProps} />}
+                        {sectionIndex === 9 && <LayoutSection portfolio={portfolio} {...sectionProps} />}
 
                     </div>
                 </div>

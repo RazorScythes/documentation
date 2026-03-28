@@ -117,7 +117,7 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove, onRe
     };
     
     const addComment = () => {
-        if(!comment.length || !token) return 
+        if(!comment.length || !token || !user) return 
 
         const replies = [...data.replies]
 
@@ -196,9 +196,9 @@ const Template = ({ theme, data, token, user, image, setTrigger, setRemove, onRe
                                     <span className={`${theme === 'light' ? light.text : dark.text}`}> { data.dislikes.length } </span>
                                 </button>
 
-                                <button onClick={() => setToggle({...toggle, reply: !toggle.reply})} className={`${theme === 'light' ? light.text : dark.text} ${theme === 'light' ? light.link : dark.link}`}>Reply</button>
+                                {user && <button onClick={() => setToggle({...toggle, reply: !toggle.reply})} className={`${theme === 'light' ? light.text : dark.text} ${theme === 'light' ? light.link : dark.link}`}>Reply</button>}
                                 {
-                                    data.user_id === user._id &&
+                                    user && data.user_id === user._id &&
                                         <button onClick={() => setOpenModal(true)} className={`${theme === 'light' ? light.text : dark.text} ${theme === 'light' ? light.link : dark.link}`}>Delete</button>
                                 }
                                 

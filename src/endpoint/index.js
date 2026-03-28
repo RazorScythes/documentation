@@ -120,6 +120,14 @@ export const toggleSubscribe                   = (formData) => endpoint.patch('/
 export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, options)
 export const deleteVideoComment                = (id, video_id) => endpoint.delete(`/watch/deleteVideoComment/${id}/${video_id}`, options)
 
+/*
+    GAME COMMENTS
+*/
+export const getGameComment                    = (gameId) => endpoint.post('/game/getGameComments', { gameId }, options)
+export const addGameComment                    = (formData) => endpoint.post('/game/uploadGameComment', formData, options)
+export const updateGameComment                 = (formData) => endpoint.patch('/game/updateGameComment', formData, options)
+export const deleteGameComment                 = (id, game_id) => endpoint.delete(`/game/removeGameComment/${id}/${game_id}`, options)
+
 
 /*
     PLAYLIST
@@ -220,5 +228,25 @@ export const uploadPortfolioContacts           = (formData) => endpoint.post('/p
 export const sendTestEmail                     = (formData) => endpoint.post('/portfolio/testEmail', formData)
 export const sendEmail                         = (formData) => endpoint.post('/portfolio/sendEmail', formData)
 export const sendContactUs                     = (formData) => endpoint.post('/portfolio/sendContactUs', formData)
+export const uploadPortfolioEducation          = (formData) => endpoint.post('/portfolio/education', formData)
+export const uploadPortfolioLanguages          = (formData) => endpoint.post('/portfolio/languages', formData)
+export const uploadPortfolioCertifications     = (formData) => endpoint.post('/portfolio/certifications', formData)
+export const updatePortfolioLayout             = (formData) => endpoint.post('/portfolio/updateLayout', formData)
 export const publishPortfolio                  = (formData) => endpoint.post('/portfolio/publishPortfolio', formData)
 export const unpublishPortfolio                = (formData) => endpoint.post('/portfolio/unpublishPortfolio', formData)
+
+/*
+    GAME
+*/
+export const getMyGames                       = () => endpoint.get('/game')
+export const getGameById                      = (id) => endpoint.get(`/game/${id}`)
+export const createGame                       = (formData) => endpoint.post('/game', formData)
+export const updateGame                       = (id, formData) => endpoint.patch(`/game/${id}`, formData)
+export const deleteGame                       = (id) => endpoint.delete(`/game/${id}`)
+export const bulkDeleteGames                  = (formData) => endpoint.post('/game/bulkDelete', formData)
+export const toggleGamePrivacy                = (id) => endpoint.patch(`/game/${id}/privacy`)
+export const toggleGameStrict                 = (id) => endpoint.patch(`/game/${id}/strict`)
+export const getGameTrash                    = () => endpoint.get('/game/trash/list')
+export const restoreGame                     = (id) => endpoint.patch(`/game/trash/restore/${id}`)
+export const permanentDeleteGame             = (id) => endpoint.delete(`/game/trash/permanent/${id}`)
+export const emptyGameTrash                  = () => endpoint.delete('/game/trash/empty')

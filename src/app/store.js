@@ -23,6 +23,7 @@ import reportSlice from '../actions/report'
 import chatSlice from '../actions/chat'
 import manageUsersSlice from '../actions/manageUsers'
 import budgetSlice from '../actions/budget'
+import gameManagerSlice from '../actions/gameManager'
 
 export const store = configureStore({
     reducer: {
@@ -49,7 +50,8 @@ export const store = configureStore({
         report      : reportSlice,
         chat        : chatSlice,
         manageUsers : manageUsersSlice,
-        budget      : budgetSlice
+        budget      : budgetSlice,
+        gameManager : gameManagerSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({
