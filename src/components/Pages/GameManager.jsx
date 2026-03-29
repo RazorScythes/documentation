@@ -8,7 +8,7 @@ import {
     faLayerGroup, faSortUp, faSortDown, faSort, faFilter, faAngleDoubleLeft,
     faAngleDoubleRight, faHeart, faStar, faUndo, faClock
 } from '@fortawesome/free-solid-svg-icons'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, togglePrivacy, toggleStrict, clearGameAlert, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash } from '../../actions/gameManager'
 import { getFavoriteGamesPopulated, toggleFavoriteGame } from '../../actions/game'
 import { main, dark, light } from '../../style'
@@ -45,8 +45,13 @@ const GameManager = ({ user, theme }) => {
     const isLight = theme === 'light'
     const userId = user?._id || user?.result?._id || ''
 
+    const [searchParams, setSearchParams] = useSearchParams()
+    const VALID_TABS = ['games', 'favorites', 'trash']
+    const tabParam = searchParams.get('tab')
+    const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'games'
+    const setActiveTab = (tab) => setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
+
     const [view, setView] = useState('list')
-    const [activeTab, setActiveTab] = useState('games')
     const [form, setForm] = useState({ ...INITIAL_FORM })
     const [editId, setEditId] = useState(null)
     const [submitting, setSubmitting] = useState(false)
@@ -402,16 +407,16 @@ const GameManager = ({ user, theme }) => {
                             </div>
 
                             {view !== 'form' && (
-                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                     <button onClick={() => setActiveTab('games')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'games'
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'games'
                                             ? (isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400')
                                             : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
                                         }`}>
                                         <FontAwesomeIcon icon={faGamepad} className="text-[10px]" /> My Games
                                     </button>
                                     <button onClick={() => setActiveTab('favorites')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'favorites'
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'favorites'
                                             ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
                                             : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
                                         }`}>
@@ -424,7 +429,7 @@ const GameManager = ({ user, theme }) => {
                                         )}
                                     </button>
                                     <button onClick={() => setActiveTab('trash')}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === 'trash'
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'trash'
                                             ? (isLight ? 'bg-orange-50 text-orange-500' : 'bg-orange-900/20 text-orange-400')
                                             : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
                                         }`}>
@@ -447,7 +452,7 @@ const GameManager = ({ user, theme }) => {
                                 <div className={`relative w-full max-w-[750px] mx-4 rounded-2xl shadow-2xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#141414]'}`} onClick={e => e.stopPropagation()}>
 
                                     {/* Header */}
-                                    <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/60' : 'border-[#222] bg-[#111]'}`}>
+                                    <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/60' : 'border-[#222] bg-[#111]'}`}>
                                         <div className="flex items-center gap-2.5">
                                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                                 <FontAwesomeIcon icon={faGamepad} className={`text-xs ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
@@ -460,7 +465,7 @@ const GameManager = ({ user, theme }) => {
                                     </div>
 
                                     {/* Body */}
-                                    <div className="px-5 py-5 space-y-5">
+                                    <div className="px-4 sm:px-5 py-4 sm:py-5 space-y-5">
 
                                         {/* Top: Image + Info */}
                                         <div className="grid sm:grid-cols-5 grid-cols-1 gap-5">
@@ -538,7 +543,7 @@ const GameManager = ({ user, theme }) => {
                                                     <h4 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Gallery</h4>
                                                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500'}`}>{viewGame.gallery.length}</span>
                                                 </div>
-                                                <div className="grid grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
                                                     {viewGame.gallery.map((url, i) => (
                                                         <div key={i} className="aspect-video overflow-hidden rounded-lg cursor-pointer"
                                                             onClick={() => setLightbox({ open: true, images: viewGame.gallery, index: i })}>
@@ -592,9 +597,9 @@ const GameManager = ({ user, theme }) => {
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     {viewGame.access_key.map((k, i) => (
-                                                        <div key={i} className={`flex items-center gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#0e0e0e] border border-solid border-[#222]'}`}>
-                                                            <code className={`text-xs font-mono px-2.5 py-1 rounded-md ${isLight ? 'bg-white text-slate-700 border border-solid border-slate-200' : 'bg-[#1a1a1a] text-gray-200 border border-solid border-[#2B2B2B]'}`}>{k.key}</code>
-                                                            <div className="flex items-center gap-3 ml-auto text-xs">
+                                                        <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#0e0e0e] border border-solid border-[#222]'}`}>
+                                                            <code className={`text-xs font-mono px-2.5 py-1 rounded-md self-start ${isLight ? 'bg-white text-slate-700 border border-solid border-slate-200' : 'bg-[#1a1a1a] text-gray-200 border border-solid border-[#2B2B2B]'}`}>{k.key}</code>
+                                                            <div className="flex items-center gap-3 sm:ml-auto text-xs">
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>Limit</span>
                                                                     <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{k.download_limit || '∞'}</span>
@@ -682,8 +687,8 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== FAVORITES TAB ========== */}
                         {activeTab === 'favorites' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex items-center gap-2.5 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-red-100' : 'bg-red-900/30'}`}>
+                                <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-red-100' : 'bg-red-900/30'}`}>
                                         <FontAwesomeIcon icon={faHeart} className={`text-sm ${isLight ? 'text-red-500' : 'text-red-400'}`} />
                                     </div>
                                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
@@ -693,8 +698,8 @@ const GameManager = ({ user, theme }) => {
                                 </div>
 
                                 {favoriteGamesData?.length > 0 ? (
-                                    <div className="p-4">
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                    <div className="p-3 sm:p-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                                             {favoriteGamesData.map((g) => {
                                                 const r = g.ratings?.length > 0
                                                     ? (g.ratings.reduce((s, i) => s + i.rating, 0) / g.ratings.length).toFixed(1)
@@ -760,9 +765,9 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== TRASH TAB ========== */}
                         {activeTab === 'trash' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                     <div className="flex items-center gap-2.5">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-orange-100' : 'bg-orange-900/30'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-orange-100' : 'bg-orange-900/30'}`}>
                                             <FontAwesomeIcon icon={faTrash} className={`text-sm ${isLight ? 'text-orange-500' : 'text-orange-400'}`} />
                                         </div>
                                         <div>
@@ -775,7 +780,7 @@ const GameManager = ({ user, theme }) => {
                                     </div>
                                     {trash?.length > 0 && (
                                         <button onClick={handleEmptyTrash}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid ${isLight
+                                            className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid whitespace-nowrap self-start sm:self-auto ${isLight
                                                 ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100'
                                                 : 'bg-red-900/20 text-red-400 border-red-800/30 hover:bg-red-900/30'
                                             }`}>
@@ -793,46 +798,50 @@ const GameManager = ({ user, theme }) => {
                                         {trash.map((g) => {
                                             const daysLeft = getDaysRemaining(g.deleted_at)
                                             return (
-                                                <div key={g._id} className={`flex items-center gap-4 px-5 py-3 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#111]'}`}>
-                                                    <div className="relative w-14 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                                                        {g.featured_image ? (
-                                                            <img src={g.featured_image} alt={g.title} className="w-full h-full object-cover" loading="lazy" />
-                                                        ) : (
-                                                            <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                                                <FontAwesomeIcon icon={faGamepad} className={`text-sm ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                                                            </div>
-                                                        )}
+                                                <div key={g._id} className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#111]'}`}>
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        <div className="relative w-12 h-9 sm:w-14 sm:h-10 rounded-lg overflow-hidden flex-shrink-0">
+                                                            {g.featured_image ? (
+                                                                <img src={g.featured_image} alt={g.title} className="w-full h-full object-cover" loading="lazy" />
+                                                            ) : (
+                                                                <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                                    <FontAwesomeIcon icon={faGamepad} className={`text-sm ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <h4 className={`text-xs font-semibold truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.title}</h4>
+                                                            <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                                {g.category} · {g.details?.developer || 'Unknown'}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className={`text-xs font-semibold truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.title}</h4>
-                                                        <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                            {g.category} · {g.details?.developer || 'Unknown'}
-                                                        </p>
-                                                    </div>
-                                                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium flex-shrink-0 ${daysLeft <= 2
-                                                        ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
-                                                        : daysLeft <= 5
-                                                            ? (isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400')
-                                                            : (isLight ? 'bg-slate-50 text-slate-500' : 'bg-white/5 text-gray-400')
-                                                    }`}>
-                                                        <FontAwesomeIcon icon={faClock} className="text-[8px]" />
-                                                        {daysLeft}d left
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                        <button onClick={() => handleRestore(g._id)}
-                                                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border border-solid ${isLight
-                                                                ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
-                                                                : 'bg-green-900/20 text-green-400 border-green-800/30 hover:bg-green-900/30'
-                                                            }`}>
-                                                            <FontAwesomeIcon icon={faUndo} className="text-[9px]" /> Restore
-                                                        </button>
-                                                        <button onClick={() => handlePermanentDelete(g._id)}
-                                                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border border-solid ${isLight
-                                                                ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100'
-                                                                : 'bg-red-900/20 text-red-400 border-red-800/30 hover:bg-red-900/30'
-                                                            }`}>
-                                                            <FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete
-                                                        </button>
+                                                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 pl-[3.75rem] sm:pl-0">
+                                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-medium flex-shrink-0 ${daysLeft <= 2
+                                                            ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
+                                                            : daysLeft <= 5
+                                                                ? (isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400')
+                                                                : (isLight ? 'bg-slate-50 text-slate-500' : 'bg-white/5 text-gray-400')
+                                                        }`}>
+                                                            <FontAwesomeIcon icon={faClock} className="text-[8px]" />
+                                                            {daysLeft}d left
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                            <button onClick={() => handleRestore(g._id)}
+                                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border border-solid ${isLight
+                                                                    ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+                                                                    : 'bg-green-900/20 text-green-400 border-green-800/30 hover:bg-green-900/30'
+                                                                }`}>
+                                                                <FontAwesomeIcon icon={faUndo} className="text-[9px]" /> Restore
+                                                            </button>
+                                                            <button onClick={() => handlePermanentDelete(g._id)}
+                                                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border border-solid ${isLight
+                                                                    ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100'
+                                                                    : 'bg-red-900/20 text-red-400 border-red-800/30 hover:bg-red-900/30'
+                                                                }`}>
+                                                                <FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )
@@ -854,7 +863,7 @@ const GameManager = ({ user, theme }) => {
                         {view === 'list' && activeTab === 'games' && (
                             <div className={`${card} overflow-hidden`}>
                                 {/* Toolbar */}
-                                <div className={`flex flex-col gap-3 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setShowFilters(!showFilters)}
@@ -1045,7 +1054,7 @@ const GameManager = ({ user, theme }) => {
                                 )}
 
                                 {/* Footer: Pagination + Page size */}
-                                <div className={`flex items-center justify-between gap-3 px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                     <div className="flex items-center gap-2 sm:gap-3">
                                         <p className={`text-[11px] whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                             {processed.length > 0
@@ -1107,8 +1116,8 @@ const GameManager = ({ user, theme }) => {
                             <div className="space-y-4">
                                 {/* Basic Info */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                             <FontAwesomeIcon icon={faGamepad} className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
                                         </div>
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editId ? 'Edit Game' : 'Upload Game'}</h3>
@@ -1167,14 +1176,14 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Details */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-cyan-100' : 'bg-cyan-900/30'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-cyan-100' : 'bg-cyan-900/30'}`}>
                                             <FontAwesomeIcon icon={faDesktop} className={`text-sm ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
                                         </div>
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Game Details</h3>
                                     </div>
                                     <div className="px-4 sm:px-5 py-4">
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                             <div>
                                                 <label className={labelCls}>Version</label>
                                                 <input type="text" className={inputCls} value={form.details.latest_version} onChange={(e) => setForm({ ...form, details: { ...form.details, latest_version: e.target.value } })} placeholder="1.0.0" />
@@ -1207,8 +1216,8 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Tags */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                                             <FontAwesomeIcon icon={faTag} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
                                         </div>
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Tags ({form.tags.length})</h3>
@@ -1236,20 +1245,20 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Download Links */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                         <div className="flex items-center gap-2.5">
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
                                                 <FontAwesomeIcon icon={faDownload} className={`text-sm ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
                                             </div>
                                             <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Download Links ({form.download_link.length})</h3>
                                         </div>
                                     </div>
                                     <div className="px-4 sm:px-5 py-4">
-                                        <div className="flex gap-2 mb-4">
+                                        <div className="flex flex-col sm:flex-row gap-2 mb-4">
                                             <select className={`${selectCls} flex-1`} value={storageInput} onChange={(e) => setStorageInput(e.target.value)}>
                                                 {STORAGES.map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
-                                            <button onClick={addDownloadBucket} className={btnPrimary}><FontAwesomeIcon icon={faPlus} className="text-xs mr-1.5" /> Add Storage</button>
+                                            <button onClick={addDownloadBucket} className={`${btnPrimary} whitespace-nowrap`}><FontAwesomeIcon icon={faPlus} className="text-xs mr-1.5" /> Add Storage</button>
                                         </div>
                                         <div className="space-y-4">
                                             {form.download_link.map((bucket, bi) => (
@@ -1283,36 +1292,36 @@ const GameManager = ({ user, theme }) => {
                                 {/* Access Keys */}
                                 {form.privacy && (
                                     <div className={`${card} overflow-hidden`}>
-                                        <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                             <div className="flex items-center gap-2.5">
-                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-rose-100' : 'bg-rose-900/30'}`}>
+                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-rose-100' : 'bg-rose-900/30'}`}>
                                                     <FontAwesomeIcon icon={faKey} className={`text-sm ${isLight ? 'text-rose-600' : 'text-rose-400'}`} />
                                                 </div>
                                                 <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Access Keys ({form.access_key.length})</h3>
                                             </div>
-                                            <button onClick={generateKey} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white'}`}>
+                                            <button onClick={generateKey} className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all self-start sm:self-auto ${isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white'}`}>
                                                 <FontAwesomeIcon icon={faKey} className="text-[10px]" /> Generate
                                             </button>
                                         </div>
                                         {form.access_key.length > 0 && (
                                             <div className="px-4 sm:px-5 py-3 space-y-2">
                                                 {form.access_key.map((k, i) => (
-                                                    <div key={i} className={`flex items-center gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
-                                                        <code className={`text-xs font-mono px-2.5 py-1.5 rounded-md flex-shrink-0 ${isLight ? 'bg-white text-slate-700 border border-solid border-slate-200' : 'bg-[#1a1a1a] text-gray-200 border border-solid border-[#2B2B2B]'}`}>{k.key}</code>
-                                                        <div className="flex items-center gap-1.5 ml-auto">
+                                                    <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                        <code className={`text-xs font-mono px-2.5 py-1.5 rounded-md self-start ${isLight ? 'bg-white text-slate-700 border border-solid border-slate-200' : 'bg-[#1a1a1a] text-gray-200 border border-solid border-[#2B2B2B]'}`}>{k.key}</code>
+                                                        <div className="flex items-center gap-2 sm:ml-auto">
                                                             <label className={`text-[11px] flex-shrink-0 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Limit</label>
                                                             <input type="number" className={`${inputCls} w-16 text-center !py-1.5`} value={k.download_limit} onChange={(e) => updateKeyLimit(i, e.target.value)} min="0" />
-                                                        </div>
-                                                        <div className={`flex items-center gap-1 ml-1 pl-2 border-l border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`}>
-                                                            <button onClick={() => { navigator.clipboard.writeText(editId ? `${window.location.origin}/games/${editId}?access_key=${k.key}` : k.key) }}
-                                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'}`}
-                                                                title="Copy link with access key">
-                                                                <FontAwesomeIcon icon={faCopy} className="text-[10px]" />
-                                                            </button>
-                                                            <button onClick={() => removeKey(i)}
-                                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-slate-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}>
-                                                                <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
-                                                            </button>
+                                                            <div className={`flex items-center gap-1 ml-1 pl-2 border-l border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`}>
+                                                                <button onClick={() => { navigator.clipboard.writeText(editId ? `${window.location.origin}/games/${editId}?access_key=${k.key}` : k.key) }}
+                                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-slate-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'}`}
+                                                                    title="Copy link with access key">
+                                                                    <FontAwesomeIcon icon={faCopy} className="text-[10px]" />
+                                                                </button>
+                                                                <button onClick={() => removeKey(i)}
+                                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-slate-400 hover:text-red-500 hover:bg-red-50' : 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'}`}>
+                                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -1323,8 +1332,8 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Gallery */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-100' : 'bg-indigo-900/30'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-100' : 'bg-indigo-900/30'}`}>
                                             <FontAwesomeIcon icon={faImages} className={`text-sm ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
                                         </div>
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Gallery ({form.gallery.length})</h3>
@@ -1341,7 +1350,7 @@ const GameManager = ({ user, theme }) => {
                                             <span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>Enable Carousel</span>
                                         </label>
                                         {form.gallery.length > 0 && (
-                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                                 {form.gallery.map((url, i) => (
                                                     <div key={i} className="relative group aspect-video rounded-lg overflow-hidden">
                                                         <img src={url} alt="" className="w-full h-full object-cover" />

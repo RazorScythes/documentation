@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
@@ -8,8 +8,10 @@ import {
     faWallet, faChartPie, faCalendarDay, faCalendarAlt, faTags, faPlus, faMinus,
     faTrash, faPen, faCheck, faTimes, faArrowUp, faArrowDown, faEllipsisH,
     faMoneyBillWave, faCreditCard, faMobileAlt, faUniversity, faCoins,
-    faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory
+    faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf
 } from '@fortawesome/free-solid-svg-icons'
+import html2canvas from 'html2canvas-pro'
+import { jsPDF } from 'jspdf'
 import { 
     getBudgetDashboard, getBudgetCategories, createBudgetCategory, updateBudgetCategory, 
     deleteBudgetCategory, getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
@@ -22,7 +24,7 @@ const PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit C
 const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings']
+const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'summary']
 
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
@@ -270,6 +272,7 @@ const Budget = ({ user, theme }) => {
         { id: 'monthly', label: 'Monthly Budget', icon: faCalendarAlt },
         { id: 'categories', label: 'Categories', icon: faTags },
         { id: 'savings', label: 'Savings', icon: faPiggyBank },
+        { id: 'summary', label: 'Summary', icon: faFilePdf },
     ]
 
     const paymentIcon = (m) => {
@@ -329,13 +332,13 @@ const Budget = ({ user, theme }) => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={prevMonth} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                    <button onClick={prevMonth} disabled={isLoading} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
                                         <FontAwesomeIcon icon={faArrowRight} className="text-xs rotate-180" />
                                     </button>
                                     <span className={`text-xs sm:text-sm font-semibold min-w-[120px] sm:min-w-[140px] text-center ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                                         {MONTHS[month - 1]} {year}
                                     </span>
-                                    <button onClick={nextMonth} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                    <button onClick={nextMonth} disabled={isLoading} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
                                         <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
                                     </button>
                                     <button onClick={refreshData} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`} title="Refresh">
@@ -383,7 +386,7 @@ const Budget = ({ user, theme }) => {
                                 deleteConfirm={deleteConfirm} isLight={isLight} card={card} inputCls={inputCls}
                                 selectCls={selectCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
                                 formatCurrency={formatCurrency} paymentIcon={paymentIcon}
-                                emptyExpense={emptyExpense}
+                                emptyExpense={emptyExpense} isLoading={isLoading}
                                 selectedExpenses={selectedExpenses} toggleSelectExpense={toggleSelectExpense}
                                 toggleSelectAll={toggleSelectAll} handleBulkDelete={handleBulkDelete}
                                 bulkDeleteConfirm={bulkDeleteConfirm} setSelectedExpenses={setSelectedExpenses}
@@ -395,7 +398,7 @@ const Budget = ({ user, theme }) => {
                             <MonthlyBudgetTab
                                 monthlyBudgetData={monthlyBudgetData} dashboard={dashboard}
                                 isLight={isLight} card={card} formatCurrency={formatCurrency} statusColor={statusColor}
-                                month={month} year={year}
+                                month={month} year={year} isLoading={isLoading}
                             />
                         )}
                         {activeTab === 'categories' && (
@@ -407,11 +410,20 @@ const Budget = ({ user, theme }) => {
                                 setEditingCategory={setEditingCategory} deleteConfirm={deleteConfirm}
                                 isLight={isLight} card={card} inputCls={inputCls} selectCls={selectCls}
                                 btnPrimary={btnPrimary} btnSecondary={btnSecondary} formatCurrency={formatCurrency}
-                                emptyCategory={emptyCategory}
+                                emptyCategory={emptyCategory} isLoading={isLoading}
                             />
                         )}
                         {activeTab === 'savings' && (
-                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} />
+                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isLoading} />
+                        )}
+                        {activeTab === 'summary' && (
+                            <SummaryTab
+                                dashboard={dashboard} expenses={expenses} categories={categories}
+                                monthlyBudgetData={monthlyBudgetData} groupedByDate={groupedByDate}
+                                month={month} year={year} isLight={isLight} card={card}
+                                formatCurrency={formatCurrency} statusColor={statusColor}
+                                paymentIcon={paymentIcon} isLoading={isLoading}
+                            />
                         )}
                     </div>
                 </div>
@@ -423,10 +435,51 @@ const Budget = ({ user, theme }) => {
 // ==================== DASHBOARD TAB ====================
 
 const DashboardTab = ({ dashboard, isLight, card, formatCurrency, statusColor, isLoading }) => {
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
     if (isLoading || !dashboard) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <FontAwesomeIcon icon={faSyncAlt} className={`text-2xl animate-spin ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className={`${card} p-5`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className={`h-3 w-20 ${pulse}`} />
+                                <div className={`w-8 h-8 rounded-lg ${pulse}`} />
+                            </div>
+                            <div className={`h-6 w-28 ${pulse}`} />
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {[...Array(2)].map((_, i) => (
+                        <div key={i} className={`${card} p-5`}>
+                            <div className={`h-4 w-40 mb-4 ${pulse}`} />
+                            <div className="space-y-3">
+                                {[...Array(4)].map((_, j) => (
+                                    <div key={j}>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <div className={`h-3 w-24 ${pulse}`} />
+                                            <div className={`h-3 w-16 ${pulse}`} />
+                                        </div>
+                                        <div className={`h-1.5 rounded-full ${pulse}`} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className={`${card} p-5`}>
+                    <div className={`h-4 w-32 mb-4 ${pulse}`} />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="text-center">
+                                <div className={`h-7 w-20 mx-auto ${pulse}`} />
+                                <div className={`h-3 w-16 mx-auto mt-2 ${pulse}`} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         )
     }
@@ -564,7 +617,7 @@ const DailyExpensesTab = ({
     expenseItems, setExpenseItems, emptyItem,
     showExpenseForm, setShowExpenseForm, handleExpenseSubmit, handleEditExpense,
     handleDeleteExpense, setEditingExpense, deleteConfirm, isLight, card, inputCls,
-    selectCls, btnPrimary, btnSecondary, formatCurrency, paymentIcon, emptyExpense,
+    selectCls, btnPrimary, btnSecondary, formatCurrency, paymentIcon, emptyExpense, isLoading,
     selectedExpenses, toggleSelectExpense, toggleSelectAll, handleBulkDelete,
     bulkDeleteConfirm, setSelectedExpenses, setBulkDeleteConfirm,
     handleBulkCategoryUpdate
@@ -608,6 +661,43 @@ const DailyExpensesTab = ({
     const clearFilters = () => { setFilterDate(''); setFilterMethod(''); setFilterCategory('') }
 
     const usedMethods = [...new Set(expenses.map(e => e.paymentMethod))].sort()
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                <div className={`${card} p-4`}>
+                    <div className="flex items-center justify-between">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="text-center flex-1">
+                                <div className={`h-3 w-16 mx-auto mb-2 ${pulse}`} />
+                                <div className={`h-5 w-20 mx-auto ${pulse}`} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className={`${card} overflow-hidden`}>
+                        <div className={`px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className={`h-4 w-36 ${pulse}`} />
+                        </div>
+                        <div className="divide-y divide-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                            {[...Array(3)].map((_, j) => (
+                                <div key={j} className="flex items-center gap-3 px-4 py-3">
+                                    <div className={`w-8 h-8 rounded-lg ${pulse}`} />
+                                    <div className="flex-1 space-y-1.5">
+                                        <div className={`h-3.5 w-32 ${pulse}`} />
+                                        <div className={`h-2.5 w-20 ${pulse}`} />
+                                    </div>
+                                    <div className={`h-4 w-16 ${pulse}`} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-4">
@@ -976,7 +1066,39 @@ const DailyExpensesTab = ({
 
 // ==================== MONTHLY BUDGET TAB ====================
 
-const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year }) => {
+const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year, isLoading }) => {
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    if (isLoading || !dashboard) {
+        return (
+            <div className="space-y-4">
+                <div className={`${card} p-5`}>
+                    <div className="flex items-center justify-between mb-3">
+                        <div className={`h-4 w-32 ${pulse}`} />
+                        <div className={`h-4 w-24 ${pulse}`} />
+                    </div>
+                    <div className={`h-3 rounded-full w-full ${pulse}`} />
+                    <div className="flex justify-between mt-2">
+                        <div className={`h-3 w-20 ${pulse}`} />
+                        <div className={`h-3 w-20 ${pulse}`} />
+                    </div>
+                </div>
+                <div className={`${card} overflow-hidden`}>
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                            <div className={`w-3 h-3 rounded-full ${pulse}`} />
+                            <div className="flex-1 space-y-1.5">
+                                <div className={`h-3.5 w-28 ${pulse}`} />
+                                <div className={`h-2 rounded-full w-full ${pulse}`} />
+                            </div>
+                            <div className={`h-4 w-20 ${pulse}`} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     const totalBudget = dashboard?.totalBudget || 0
     const totalSpent = dashboard?.totalExpenses || 0
     const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
@@ -1063,8 +1185,35 @@ const CategoriesTab = ({
     categories, categoryForm, setCategoryForm, editingCategory, showCategoryForm,
     setShowCategoryForm, handleCategorySubmit, handleEditCategory, handleDeleteCategory,
     setEditingCategory, deleteConfirm, isLight, card, inputCls, selectCls, btnPrimary,
-    btnSecondary, formatCurrency, emptyCategory
+    btnSecondary, formatCurrency, emptyCategory, isLoading
 }) => {
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    if (isLoading) {
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {[...Array(2)].map((_, g) => (
+                    <div key={g} className={`${card} overflow-hidden`}>
+                        <div className={`px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className={`h-4 w-32 ${pulse}`} />
+                        </div>
+                        <div className="p-4 space-y-3">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-full ${pulse}`} />
+                                    <div className="flex-1">
+                                        <div className={`h-3.5 w-24 ${pulse}`} />
+                                    </div>
+                                    <div className={`h-3 w-16 ${pulse}`} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     const expenseCats = categories.filter(c => c.type === 'expense')
     const incomeCats = categories.filter(c => c.type === 'income')
 
@@ -1211,7 +1360,7 @@ const DENOMINATIONS = [
     { label: '₱ 1', value: 1, type: 'coin' },
 ]
 
-const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory }) => {
+const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading }) => {
     const [counts, setCounts] = useState(() => {
         const init = {}
         DENOMINATIONS.forEach(d => { init[d.value] = '' })
@@ -1289,6 +1438,32 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
         { id: 'counter', label: 'Counter', icon: faCoins },
         { id: 'history', label: 'History', icon: faHistory },
     ]
+
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                <div className={`${card} p-5`}>
+                    <div className={`h-4 w-28 mb-4 ${pulse}`} />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {[...Array(8)].map((_, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-lg ${pulse}`} />
+                                <div className="flex-1 space-y-1">
+                                    <div className={`h-3 w-10 ${pulse}`} />
+                                    <div className={`h-3 w-14 ${pulse}`} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className={`${card} p-5`}>
+                    <div className={`h-6 w-32 mx-auto ${pulse}`} />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-5">
@@ -1454,6 +1629,454 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                     </div>
                 )
             )}
+        </div>
+    )
+}
+
+// ==================== SUMMARY TAB ====================
+
+const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, statusColor, paymentIcon, isLoading }) => {
+    const summaryRef = useRef(null)
+    const [downloading, setDownloading] = useState(false)
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    const PDF_WIDTH = 800
+
+    const handleDownloadPDF = async () => {
+        if (!summaryRef.current || downloading) return
+        setDownloading(true)
+
+        const el = summaryRef.current
+        const origWidth = el.style.width
+        const origMinWidth = el.style.minWidth
+        const origMaxWidth = el.style.maxWidth
+
+        try {
+            el.style.width = `${PDF_WIDTH}px`
+            el.style.minWidth = `${PDF_WIDTH}px`
+            el.style.maxWidth = `${PDF_WIDTH}px`
+
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+            const canvas = await html2canvas(el, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: isLight ? '#ffffff' : '#0a0a0a',
+                windowWidth: PDF_WIDTH,
+                width: PDF_WIDTH,
+            })
+
+            el.style.width = origWidth
+            el.style.minWidth = origMinWidth
+            el.style.maxWidth = origMaxWidth
+
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            const pdfW = pdf.internal.pageSize.getWidth()
+            const imgW = canvas.width
+            const imgH = canvas.height
+            const ratio = pdfW / imgW
+            const pdfH = imgH * ratio
+            const pageH = pdf.internal.pageSize.getHeight()
+
+            let pos = 0
+            pdf.addImage(imgData, 'PNG', 0, pos, pdfW, pdfH)
+            let remaining = pdfH - pageH
+            while (remaining > 0) {
+                pos -= pageH
+                pdf.addPage()
+                pdf.addImage(imgData, 'PNG', 0, pos, pdfW, pdfH)
+                remaining -= pageH
+            }
+
+            pdf.save(`Budget_Summary_${MONTHS[month - 1]}_${year}.pdf`)
+        } catch (err) {
+            console.error('PDF generation failed:', err)
+            el.style.width = origWidth
+            el.style.minWidth = origMinWidth
+            el.style.maxWidth = origMaxWidth
+        } finally {
+            setDownloading(false)
+        }
+    }
+
+    if (isLoading || !dashboard) {
+        return (
+            <div className="space-y-4">
+                <div className={`${card} p-5`}>
+                    <div className={`h-5 w-48 mb-4 ${pulse}`} />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i}>
+                                <div className={`h-3 w-20 mb-2 ${pulse}`} />
+                                <div className={`h-6 w-28 ${pulse}`} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className={`${card} p-5`}>
+                    <div className={`h-4 w-40 mb-4 ${pulse}`} />
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center justify-between py-2">
+                            <div className={`h-3 w-32 ${pulse}`} />
+                            <div className={`h-3 w-20 ${pulse}`} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    const d = dashboard
+    const totalIncome = d.totalIncome || 0
+    const totalExpenses = d.totalExpenses || 0
+    const balance = d.balance || 0
+    const totalBudget = d.totalBudget || 0
+    const budgetUsedPct = totalBudget > 0 ? Math.round((totalExpenses / totalBudget) * 100) : 0
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const dailyAvg = d.transactionCount > 0 ? totalExpenses / daysInMonth : 0
+
+    const expenseCats = categories.filter(c => c.type === 'expense')
+    const incomeCats = categories.filter(c => c.type === 'income')
+
+    const catSpending = expenseCats.map(cat => {
+        const spent = expenses.filter(e => e.category?._id === cat._id && e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+        return { ...cat, spent }
+    }).filter(c => c.spent > 0).sort((a, b) => b.spent - a.spent)
+
+    const catIncome = incomeCats.map(cat => {
+        const earned = expenses.filter(e => e.category?._id === cat._id && e.type === 'income').reduce((s, e) => s + e.amount, 0)
+        return { ...cat, earned }
+    }).filter(c => c.earned > 0).sort((a, b) => b.earned - a.earned)
+
+    const paymentTotals = d.paymentMethodTotals || {}
+    const sortedPayments = Object.entries(paymentTotals).sort((a, b) => b[1] - a[1])
+
+    const sectionTitle = `text-xs font-bold uppercase tracking-wider mb-3 pb-2 border-b border-solid ${isLight ? 'text-slate-400 border-slate-100' : 'text-gray-500 border-[#1f1f1f]'}`
+    const rowCls = `flex items-center justify-between py-1.5 text-xs`
+    const labelCls = isLight ? 'text-slate-600' : 'text-gray-300'
+    const valueCls = `font-semibold ${isLight ? 'text-slate-800' : 'text-gray-100'}`
+
+    return (
+        <div className="space-y-4">
+            {/* Download Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={handleDownloadPDF}
+                    disabled={downloading}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${isLight
+                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                >
+                    {downloading ? (
+                        <>
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <FontAwesomeIcon icon={faFilePdf} className="text-xs" />
+                            Download PDF
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Printable Summary */}
+            <div ref={summaryRef} className={`${card} overflow-hidden`} style={{ minWidth: 600 }}>
+                {/* Header */}
+                <div className={`px-6 py-5 border-b border-solid ${isLight ? 'border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50' : 'border-[#1f1f1f] bg-gradient-to-r from-blue-900/10 to-indigo-900/10'}`}>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                Monthly Budget Summary
+                            </h2>
+                            <p className={`text-sm mt-0.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
+                                {MONTHS[month - 1]} {year}
+                            </p>
+                        </div>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isLight ? 'bg-white shadow-sm' : 'bg-[#1a1a1a]'}`}>
+                            <FontAwesomeIcon icon={faWallet} className={`text-lg ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-5 space-y-6">
+                    {/* Overview Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                            { label: 'Total Income', value: formatCurrency(totalIncome), color: 'emerald' },
+                            { label: 'Total Expenses', value: formatCurrency(totalExpenses), color: 'red' },
+                            { label: 'Net Balance', value: formatCurrency(balance), color: balance >= 0 ? 'blue' : 'red' },
+                            { label: 'Budget Used', value: totalBudget > 0 ? `${budgetUsedPct}%` : '—', color: budgetUsedPct >= 100 ? 'red' : budgetUsedPct >= 80 ? 'amber' : 'emerald' },
+                        ].map((item, i) => {
+                            const colors = {
+                                emerald: isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-900/15 text-emerald-400 border-emerald-800/30',
+                                red: isLight ? 'bg-red-50 text-red-700 border-red-200' : 'bg-red-900/15 text-red-400 border-red-800/30',
+                                blue: isLight ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-900/15 text-blue-400 border-blue-800/30',
+                                amber: isLight ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-amber-900/15 text-amber-400 border-amber-800/30',
+                            }
+                            return (
+                                <div key={i} className={`rounded-lg p-3 border border-solid ${colors[item.color]}`}>
+                                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-70">{item.label}</p>
+                                    <p className="text-base font-bold mt-1">{item.value}</p>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    {/* Quick Stats Row */}
+                    <div className={`flex flex-wrap gap-4 px-4 py-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Transactions</span>
+                            <span className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{d.transactionCount}</span>
+                        </div>
+                        <div className={`w-px h-4 ${isLight ? 'bg-slate-200' : 'bg-[#2B2B2B]'}`} />
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Budget</span>
+                            <span className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrency(totalBudget)}</span>
+                        </div>
+                        <div className={`w-px h-4 ${isLight ? 'bg-slate-200' : 'bg-[#2B2B2B]'}`} />
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Daily Avg</span>
+                            <span className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrency(dailyAvg)}</span>
+                        </div>
+                        <div className={`w-px h-4 ${isLight ? 'bg-slate-200' : 'bg-[#2B2B2B]'}`} />
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Remaining</span>
+                            <span className={`text-xs font-bold ${d.remainingBudget >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(d.remainingBudget)}</span>
+                        </div>
+                    </div>
+
+                    {/* Two Column: Expense Categories + Income Sources */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {/* Expense Breakdown */}
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faArrowDown} className="mr-1.5 text-red-400 text-[10px]" />
+                                Expense Breakdown
+                            </h4>
+                            {catSpending.length > 0 ? (
+                                <div className="space-y-0.5">
+                                    {catSpending.map((cat) => {
+                                        const pct = totalExpenses > 0 ? Math.round((cat.spent / totalExpenses) * 100) : 0
+                                        return (
+                                            <div key={cat._id} className={rowCls}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                                    <span className={labelCls}>{cat.name}</span>
+                                                    <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{pct}%</span>
+                                                </div>
+                                                <span className={valueCls}>{formatCurrency(cat.spent)}</span>
+                                            </div>
+                                        )
+                                    })}
+                                    <div className={`flex items-center justify-between pt-2 mt-1 border-t border-solid text-xs font-bold ${isLight ? 'border-slate-100 text-red-600' : 'border-[#1f1f1f] text-red-400'}`}>
+                                        <span>Total Expenses</span>
+                                        <span>{formatCurrency(totalExpenses)}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No expenses recorded.</p>
+                            )}
+                        </div>
+
+                        {/* Income Breakdown */}
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faArrowUp} className="mr-1.5 text-emerald-400 text-[10px]" />
+                                Income Sources
+                            </h4>
+                            {catIncome.length > 0 ? (
+                                <div className="space-y-0.5">
+                                    {catIncome.map((cat) => {
+                                        const pct = totalIncome > 0 ? Math.round((cat.earned / totalIncome) * 100) : 0
+                                        return (
+                                            <div key={cat._id} className={rowCls}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                                    <span className={labelCls}>{cat.name}</span>
+                                                    <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{pct}%</span>
+                                                </div>
+                                                <span className={valueCls}>{formatCurrency(cat.earned)}</span>
+                                            </div>
+                                        )
+                                    })}
+                                    <div className={`flex items-center justify-between pt-2 mt-1 border-t border-solid text-xs font-bold ${isLight ? 'border-slate-100 text-emerald-600' : 'border-[#1f1f1f] text-emerald-400'}`}>
+                                        <span>Total Income</span>
+                                        <span>{formatCurrency(totalIncome)}</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No income recorded.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Budget per Category */}
+                    {monthlyBudgetData.length > 0 && (
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faChartPie} className="mr-1.5 text-blue-400 text-[10px]" />
+                                Budget vs Actual
+                            </h4>
+                            <div className="overflow-hidden rounded-lg border border-solid" style={{ borderColor: isLight ? '#e2e8f0' : '#1f1f1f' }}>
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className={isLight ? 'bg-slate-50 text-slate-400' : 'bg-[#111] text-gray-500'}>
+                                            <th className="px-3 py-2 text-left font-semibold">Category</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Budget</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Spent</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Remaining</th>
+                                            <th className="px-3 py-2 text-center font-semibold">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {monthlyBudgetData.map((cat, i) => {
+                                            const sc = statusColor(cat.percentage)
+                                            return (
+                                                <tr key={cat._id} className={`${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-50' : 'border-[#1a1a1a]'}` : ''}`}>
+                                                    <td className={`px-3 py-2 ${labelCls}`}>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                                            {cat.name}
+                                                        </div>
+                                                    </td>
+                                                    <td className={`px-3 py-2 text-right ${valueCls}`}>{formatCurrency(cat.budget)}</td>
+                                                    <td className={`px-3 py-2 text-right ${valueCls}`}>{formatCurrency(cat.spent)}</td>
+                                                    <td className={`px-3 py-2 text-right font-semibold ${cat.remaining >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                        {formatCurrency(cat.remaining)}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center">
+                                                        <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${sc.text} ${sc.bg}`}>
+                                                            {cat.budget > 0 ? `${cat.percentage}%` : '—'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className={`border-t-2 border-solid ${isLight ? 'border-slate-200 bg-slate-50' : 'border-[#2B2B2B] bg-[#111]'}`}>
+                                            <td className={`px-3 py-2 font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Total</td>
+                                            <td className={`px-3 py-2 text-right font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrency(totalBudget)}</td>
+                                            <td className={`px-3 py-2 text-right font-bold text-red-500`}>{formatCurrency(totalExpenses)}</td>
+                                            <td className={`px-3 py-2 text-right font-bold ${d.remainingBudget >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(d.remainingBudget)}</td>
+                                            <td className="px-3 py-2 text-center">
+                                                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor(budgetUsedPct).text} ${statusColor(budgetUsedPct).bg}`}>
+                                                    {budgetUsedPct}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Payment Methods */}
+                    {sortedPayments.length > 0 && (
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faCreditCard} className="mr-1.5 text-indigo-400 text-[10px]" />
+                                Payment Methods
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {sortedPayments.map(([method, amount]) => {
+                                    const pct = totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0
+                                    return (
+                                        <div key={method} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                            <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+                                                <FontAwesomeIcon icon={paymentIcon(method)} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className={`text-[11px] font-medium truncate ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{method}</p>
+                                                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(amount)} · {pct}%</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Daily Transaction Log */}
+                    {groupedByDate.length > 0 && (
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faCalendarDay} className="mr-1.5 text-amber-400 text-[10px]" />
+                                Daily Transactions
+                            </h4>
+                            <div className="overflow-hidden rounded-lg border border-solid" style={{ borderColor: isLight ? '#e2e8f0' : '#1f1f1f' }}>
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className={isLight ? 'bg-slate-50 text-slate-400' : 'bg-[#111] text-gray-500'}>
+                                            <th className="px-3 py-2 text-left font-semibold">Date</th>
+                                            <th className="px-3 py-2 text-left font-semibold">Description</th>
+                                            <th className="px-3 py-2 text-left font-semibold">Category</th>
+                                            <th className="px-3 py-2 text-left font-semibold">Method</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {groupedByDate.map(([date, group]) => (
+                                            <React.Fragment key={date}>
+                                                <tr className={isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]'}>
+                                                    <td colSpan={3} className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                        {date}
+                                                    </td>
+                                                    <td className="px-3 py-1.5 text-right" colSpan={2}>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {group.totalIncome > 0 && <span className="text-[10px] font-semibold text-emerald-500">+{formatCurrency(group.totalIncome)}</span>}
+                                                            {group.totalExpense > 0 && <span className="text-[10px] font-semibold text-red-500">-{formatCurrency(group.totalExpense)}</span>}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {group.items.map(e => (
+                                                    <tr key={e._id} className={`border-t border-solid ${isLight ? 'border-slate-50' : 'border-[#1a1a1a]'}`}>
+                                                        <td className={`px-3 py-1.5 whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                            {new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </td>
+                                                        <td className={`px-3 py-1.5 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</td>
+                                                        <td className={`px-3 py-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.category?.color || '#94a3b8' }} />
+                                                                {e.category?.name || 'Uncategorized'}
+                                                            </div>
+                                                        </td>
+                                                        <td className={`px-3 py-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{e.paymentMethod}</td>
+                                                        <td className={`px-3 py-1.5 text-right font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                            {e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className={`border-t-2 border-solid ${isLight ? 'border-slate-200 bg-slate-50' : 'border-[#2B2B2B] bg-[#111]'}`}>
+                                            <td colSpan={4} className={`px-3 py-2 font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                                Net Total ({expenses.length} transactions)
+                                            </td>
+                                            <td className={`px-3 py-2 text-right font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                {balance >= 0 ? '+' : ''}{formatCurrency(balance)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className={`flex items-center justify-between pt-4 mt-2 border-t border-solid text-[10px] ${isLight ? 'border-slate-100 text-slate-300' : 'border-[#1f1f1f] text-gray-600'}`}>
+                        <span>Generated on {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                        <span>Budget Manager · {MONTHS[month - 1]} {year}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }
