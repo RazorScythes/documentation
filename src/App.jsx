@@ -32,6 +32,7 @@ import ProjectView from './components/Pages/ProjectView';
 import ChatWidget from './components/Custom/ChatWidget'
 import GameManager from './components/Pages/GameManager';
 import GamesPage from './components/Pages/GamesPage';
+import ProjectManager from './components/Pages/ProjectManager';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
@@ -89,6 +90,7 @@ const App = () => {
                     <Route path='/games/developer/:developer' element={<><GamesPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/games/:id' element={<><GamesSingle user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/games/manage' element={<><GameManager user={user} theme={theme}/></>} />
+                    <Route path='/projects/manage' element={<><ProjectManager user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />

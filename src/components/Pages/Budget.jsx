@@ -8,7 +8,8 @@ import {
     faWallet, faChartPie, faCalendarDay, faCalendarAlt, faTags, faPlus, faMinus,
     faTrash, faPen, faCheck, faTimes, faArrowUp, faArrowDown, faEllipsisH,
     faMoneyBillWave, faCreditCard, faMobileAlt, faUniversity, faCoins,
-    faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf
+    faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf,
+    faHandHoldingUsd, faUserFriends, faCalendarCheck, faChevronDown, faChevronUp
 } from '@fortawesome/free-solid-svg-icons'
 import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
@@ -16,7 +17,9 @@ import {
     getBudgetDashboard, getBudgetCategories, createBudgetCategory, updateBudgetCategory, 
     deleteBudgetCategory, getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
     deleteBudgetExpense, bulkDeleteBudgetExpenses, bulkUpdateBudgetCategory,
-    getBudgetSavings, saveBudgetSavings, getBudgetSavingsHistory, deleteBudgetSavingsHistory, clearAlert 
+    getBudgetSavings, saveBudgetSavings, getBudgetSavingsHistory, deleteBudgetSavingsHistory,
+    getDebts, createDebt, updateDebt, deleteDebt, addDebtPayment, removeDebtPayment, toggleDebtStatus,
+    clearAlert 
 } from '../../actions/budget'
 import Notification from '../Custom/Notification'
 
@@ -24,11 +27,11 @@ const PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit C
 const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'summary']
+const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'summary']
 
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
-    const { dashboard, categories, expenses, savings, savingsHistory, alert: budgetAlert, isLoading } = useSelector(state => state.budget)
+    const { dashboard, categories, expenses, savings, savingsHistory, debts, alert: budgetAlert, isLoading } = useSelector(state => state.budget)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isLight = theme === 'light'
@@ -272,6 +275,7 @@ const Budget = ({ user, theme }) => {
         { id: 'monthly', label: 'Monthly Budget', icon: faCalendarAlt },
         { id: 'categories', label: 'Categories', icon: faTags },
         { id: 'savings', label: 'Savings', icon: faPiggyBank },
+        { id: 'debts', label: 'Debts', icon: faHandHoldingUsd },
         { id: 'summary', label: 'Summary', icon: faFilePdf },
     ]
 
@@ -415,6 +419,13 @@ const Budget = ({ user, theme }) => {
                         )}
                         {activeTab === 'savings' && (
                             <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isLoading} />
+                        )}
+                        {activeTab === 'debts' && (
+                            <DebtTab
+                                debts={debts} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
+                                inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
+                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isLoading}
+                            />
                         )}
                         {activeTab === 'summary' && (
                             <SummaryTab
@@ -1629,6 +1640,391 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                     </div>
                 )
             )}
+        </div>
+    )
+}
+
+// ==================== DEBT TAB ====================
+
+const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading }) => {
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+    const [showForm, setShowForm] = useState(false)
+    const [editing, setEditing] = useState(null)
+    const [form, setForm] = useState({ name: '', type: 'owe', person: '', total_amount: '', due_date: '', notes: '' })
+    const [paymentForm, setPaymentForm] = useState({ debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' })
+    const [expandedId, setExpandedId] = useState(null)
+    const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const [filterStatus, setFilterStatus] = useState('all')
+
+    useEffect(() => { dispatch(getDebts()) }, [])
+
+    const resetForm = () => {
+        setForm({ name: '', type: 'owe', person: '', total_amount: '', due_date: '', notes: '' })
+        setEditing(null)
+        setShowForm(false)
+    }
+
+    const handleSubmit = async () => {
+        if (!form.name || !form.total_amount) return
+        const data = { ...form, total_amount: parseFloat(form.total_amount) }
+        if (editing) {
+            await dispatch(updateDebt({ ...data, id: editing }))
+        } else {
+            await dispatch(createDebt(data))
+        }
+        resetForm()
+    }
+
+    const handleEdit = (d) => {
+        setForm({
+            name: d.name, type: d.type, person: d.person || '',
+            total_amount: d.total_amount.toString(),
+            due_date: d.due_date ? new Date(d.due_date).toISOString().split('T')[0] : '',
+            notes: d.notes || ''
+        })
+        setEditing(d._id)
+        setShowForm(true)
+    }
+
+    const handleDelete = async (id) => {
+        if (deleteConfirm === id) {
+            await dispatch(deleteDebt(id))
+            setDeleteConfirm(null)
+        } else {
+            setDeleteConfirm(id)
+            setTimeout(() => setDeleteConfirm(null), 3000)
+        }
+    }
+
+    const handlePayment = async () => {
+        if (!paymentForm.amount || !paymentForm.debtId) return
+        await dispatch(addDebtPayment({ id: paymentForm.debtId, amount: parseFloat(paymentForm.amount), notes: paymentForm.notes, category: paymentForm.category || null, paymentMethod: paymentForm.paymentMethod }))
+        setPaymentForm({ debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' })
+    }
+
+    const handleRemovePayment = async (debtId, paymentId) => {
+        await dispatch(removeDebtPayment({ id: debtId, paymentId }))
+    }
+
+    const handleToggle = async (id) => {
+        await dispatch(toggleDebtStatus(id))
+    }
+
+    const filtered = useMemo(() => {
+        if (!debts) return []
+        if (filterStatus === 'all') return debts
+        return debts.filter(d => d.status === filterStatus)
+    }, [debts, filterStatus])
+
+    const totalOwed = debts?.filter(d => d.type === 'owe' && d.status === 'active').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0) || 0
+    const totalOwedToYou = debts?.filter(d => d.type === 'owed' && d.status === 'active').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0) || 0
+    const activeCount = debts?.filter(d => d.status === 'active').length || 0
+    const paidCount = debts?.filter(d => d.status === 'paid').length || 0
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className={`${card} p-4`}>
+                            <div className={`h-3 w-24 mb-2 ${pulse}`} />
+                            <div className={`h-6 w-32 ${pulse}`} />
+                        </div>
+                    ))}
+                </div>
+                <div className={`${card} overflow-hidden`}>
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                            <div className={`w-10 h-10 rounded-lg ${pulse}`} />
+                            <div className="flex-1 space-y-1.5">
+                                <div className={`h-3.5 w-40 ${pulse}`} />
+                                <div className={`h-2.5 w-24 ${pulse}`} />
+                            </div>
+                            <div className={`h-5 w-20 ${pulse}`} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
+
+    return (
+        <div className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`${card} p-4`}>
+                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>You Owe</p>
+                    <p className={`text-lg font-bold mt-1 text-red-500`}>{formatCurrency(totalOwed)}</p>
+                </div>
+                <div className={`${card} p-4`}>
+                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Owed to You</p>
+                    <p className={`text-lg font-bold mt-1 text-emerald-500`}>{formatCurrency(totalOwedToYou)}</p>
+                </div>
+                <div className={`${card} p-4`}>
+                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Active / Paid</p>
+                    <p className={`text-lg font-bold mt-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                        {activeCount} <span className={`text-sm font-normal ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>/ {paidCount}</span>
+                    </p>
+                </div>
+            </div>
+
+            {/* Toolbar */}
+            <div className={`${card} overflow-hidden`}>
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                            <FontAwesomeIcon icon={faHandHoldingUsd} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                        </div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                            Debts
+                            <span className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500'}`}>{debts?.length || 0}</span>
+                        </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                            className={`${selectCls} text-xs py-1.5`}>
+                            <option value="all">All</option>
+                            <option value="active">Active</option>
+                            <option value="paid">Paid</option>
+                        </select>
+                        <button onClick={() => { resetForm(); setShowForm(true) }}
+                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                            <FontAwesomeIcon icon={faPlus} className="text-[10px]" /> Add Debt
+                        </button>
+                    </div>
+                </div>
+
+                {/* Form */}
+                {showForm && (
+                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#0a0a0a]'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className={labelCls}>Name *</label>
+                                <input type="text" className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Car loan, Rent" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Type</label>
+                                <select className={`${selectCls} w-full`} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                                    <option value="owe">I Owe (Payable)</option>
+                                    <option value="owed">Owed to Me (Receivable)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={labelCls}>Person / Entity</label>
+                                <input type="text" className={inputCls} value={form.person} onChange={e => setForm({ ...form, person: e.target.value })} placeholder="Who?" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Total Amount *</label>
+                                <input type="number" className={inputCls} value={form.total_amount} onChange={e => setForm({ ...form, total_amount: e.target.value })} placeholder="0.00" min="0" step="0.01" />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Due Date</label>
+                                <input type="date" className={inputCls} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className={labelCls}>Notes</label>
+                                <input type="text" className={inputCls} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={resetForm} className={`${btnSecondary} text-xs px-3 py-1.5`}>Cancel</button>
+                            <button onClick={handleSubmit} disabled={!form.name || !form.total_amount}
+                                className={`${btnPrimary} text-xs px-3 py-1.5 disabled:opacity-50`}>
+                                <FontAwesomeIcon icon={faCheck} className="text-[10px] mr-1.5" />
+                                {editing ? 'Update' : 'Add Debt'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Debt List */}
+                {filtered.length > 0 ? (
+                    <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#1f1f1f]'}`}>
+                        {filtered.map(debt => {
+                            const remaining = debt.total_amount - debt.amount_paid
+                            const pct = debt.total_amount > 0 ? Math.round((debt.amount_paid / debt.total_amount) * 100) : 0
+                            const isPaid = debt.status === 'paid'
+                            const isOverdue = debt.due_date && !isPaid && new Date(debt.due_date) < new Date()
+                            const isExpanded = expandedId === debt._id
+                            const isPaymentOpen = paymentForm.debtId === debt._id
+
+                            return (
+                                <div key={debt._id}>
+                                    <div className={`px-4 sm:px-5 py-3.5 transition-colors ${isLight ? 'hover:bg-slate-50/50' : 'hover:bg-[#111]'}`}>
+                                        <div className="flex items-start gap-3">
+                                            {/* Type icon */}
+                                            <button onClick={() => handleToggle(debt._id)}
+                                                className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${isPaid
+                                                    ? (isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400')
+                                                    : debt.type === 'owe'
+                                                        ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
+                                                        : (isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400')
+                                                }`} title={isPaid ? 'Mark as active' : 'Mark as paid'}>
+                                                <FontAwesomeIcon icon={isPaid ? faCheckCircle : (debt.type === 'owe' ? faArrowUp : faArrowDown)} className="text-xs" />
+                                            </button>
+
+                                            {/* Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                                    <h4 className={`text-sm font-semibold ${isPaid ? 'line-through opacity-50' : ''} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{debt.name}</h4>
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${debt.type === 'owe'
+                                                            ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
+                                                            : (isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400')
+                                                        }`}>{debt.type === 'owe' ? 'Payable' : 'Receivable'}</span>
+                                                        {isPaid && <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Paid</span>}
+                                                        {isOverdue && <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>Overdue</span>}
+                                                    </div>
+                                                </div>
+                                                <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                    {debt.person && (
+                                                        <span className="flex items-center gap-1">
+                                                            <FontAwesomeIcon icon={faUserFriends} className="text-[9px]" /> {debt.person}
+                                                        </span>
+                                                    )}
+                                                    {debt.due_date && (
+                                                        <span className={`flex items-center gap-1 ${isOverdue ? 'text-amber-500' : ''}`}>
+                                                            <FontAwesomeIcon icon={faCalendarCheck} className="text-[9px]" />
+                                                            {new Date(debt.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        </span>
+                                                    )}
+                                                    {debt.notes && <span className="truncate max-w-[200px]">{debt.notes}</span>}
+                                                </div>
+
+                                                {/* Progress bar */}
+                                                <div className="mt-2">
+                                                    <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                        <div className={`h-full rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                                                            style={{ width: `${Math.min(pct, 100)}%` }} />
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-1">
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                            {formatCurrency(debt.amount_paid)} / {formatCurrency(debt.total_amount)}
+                                                        </span>
+                                                        <span className={`text-[10px] font-semibold ${pct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-500' : 'text-gray-400')}`}>{pct}%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                {!isPaid && (
+                                                    <button onClick={() => setPaymentForm(prev => prev.debtId === debt._id ? { debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' } : { debtId: debt._id, amount: '', notes: '', category: '', paymentMethod: 'Cash' })}
+                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isPaymentOpen
+                                                            ? (isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400')
+                                                            : (isLight ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20')
+                                                        }`} title="Add payment">
+                                                        <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
+                                                    </button>
+                                                )}
+                                                <button onClick={() => setExpandedId(isExpanded ? null : debt._id)}
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]'}`}
+                                                    title="Payment history">
+                                                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[10px]" />
+                                                </button>
+                                                <button onClick={() => handleEdit(debt)}
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-amber-400 hover:text-amber-300 hover:bg-amber-900/20'}`}
+                                                    title="Edit">
+                                                    <FontAwesomeIcon icon={faPen} className="text-[10px]" />
+                                                </button>
+                                                <button onClick={() => handleDelete(debt._id)}
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${deleteConfirm === debt._id
+                                                        ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400')
+                                                        : (isLight ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20')
+                                                    }`} title="Delete">
+                                                    <FontAwesomeIcon icon={deleteConfirm === debt._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Payment form inline */}
+                                        {isPaymentOpen && (
+                                            <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                                                    <div>
+                                                        <label className={`text-[10px] font-medium mb-1 block ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Amount *</label>
+                                                        <input type="number" className={`${inputCls} text-xs`} value={paymentForm.amount} onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                                                            placeholder={`Remaining: ${formatCurrency(remaining)}`} min="0" step="0.01" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={`text-[10px] font-medium mb-1 block ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Payment Method</label>
+                                                        <select className={`${selectCls} w-full text-xs`} value={paymentForm.paymentMethod} onChange={e => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}>
+                                                            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className={`text-[10px] font-medium mb-1 block ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Category</label>
+                                                        <select className={`${selectCls} w-full text-xs`} value={paymentForm.category} onChange={e => setPaymentForm({ ...paymentForm, category: e.target.value })}>
+                                                            <option value="">Uncategorized</option>
+                                                            {categories.filter(c => c.type === (debt.type === 'owe' ? 'expense' : 'income')).map(c => (
+                                                                <option key={c._id} value={c._id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className={`text-[10px] font-medium mb-1 block ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Notes</label>
+                                                        <input type="text" className={`${inputCls} text-xs`} value={paymentForm.notes} onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })} placeholder="Optional" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-end">
+                                                    <button onClick={handlePayment} disabled={!paymentForm.amount}
+                                                        className={`${btnPrimary} text-xs px-3 py-2 disabled:opacity-50 whitespace-nowrap`}>
+                                                        <FontAwesomeIcon icon={faCheck} className="text-[10px] mr-1" /> Record Payment
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Payment history (expanded) */}
+                                    {isExpanded && (
+                                        <div className={`px-4 sm:px-5 pb-3 ${isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]'}`}>
+                                            {debt.payments?.length > 0 ? (
+                                                <div className={`rounded-lg overflow-hidden border border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                                    <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#111] text-gray-500'}`}>
+                                                        Payment History ({debt.payments.length})
+                                                    </div>
+                                                    {debt.payments.slice().reverse().map((p, pi) => (
+                                                        <div key={p._id || pi} className={`flex items-center justify-between px-3 py-2 text-xs ${pi > 0 ? `border-t border-solid ${isLight ? 'border-slate-50' : 'border-[#1a1a1a]'}` : `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`} ${isLight ? 'bg-white' : 'bg-[#0e0e0e]'}`}>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>
+                                                                    {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                </span>
+                                                                {p.notes && <span className={`${isLight ? 'text-slate-300' : 'text-gray-600'}`}>· {p.notes}</span>}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-semibold text-emerald-500">{formatCurrency(p.amount)}</span>
+                                                                <button onClick={() => handleRemovePayment(debt._id, p._id)}
+                                                                    className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isLight ? 'text-slate-300 hover:text-red-500 hover:bg-red-50' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20'}`}>
+                                                                    <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className={`text-xs text-center py-4 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No payments recorded yet.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center py-16 px-5">
+                        <FontAwesomeIcon icon={faHandHoldingUsd} className={`text-3xl mb-3 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                        <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                            {filterStatus !== 'all' ? 'No debts match this filter.' : 'No debts tracked yet.'}
+                        </p>
+                        <p className={`text-xs mt-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>
+                            {filterStatus !== 'all' ? 'Try a different filter.' : 'Click "Add Debt" to start tracking.'}
+                        </p>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

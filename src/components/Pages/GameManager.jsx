@@ -6,9 +6,10 @@ import {
     faLock, faLockOpen, faShieldAlt, faChevronLeft, faChevronRight, faImage,
     faDownload, faKey, faCopy, faClone, faTag, faImages, faLink, faDesktop, faList,
     faLayerGroup, faSortUp, faSortDown, faSort, faFilter, faAngleDoubleLeft,
-    faAngleDoubleRight, faHeart, faStar, faUndo, faClock
+    faAngleDoubleRight, faHeart, faStar, faUndo, faClock, faCloudUploadAlt
 } from '@fortawesome/free-solid-svg-icons'
 import { Link, useSearchParams } from 'react-router-dom'
+import { put, del } from '@vercel/blob'
 import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, togglePrivacy, toggleStrict, clearGameAlert, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash } from '../../actions/gameManager'
 import { getFavoriteGamesPopulated, toggleFavoriteGame } from '../../actions/game'
 import { main, dark, light } from '../../style'
@@ -55,6 +56,7 @@ const GameManager = ({ user, theme }) => {
     const [form, setForm] = useState({ ...INITIAL_FORM })
     const [editId, setEditId] = useState(null)
     const [submitting, setSubmitting] = useState(false)
+    const [uploadingImage, setUploadingImage] = useState(false)
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(0)
     const [pageSize, setPageSize] = useState(10)
@@ -294,6 +296,34 @@ const GameManager = ({ user, theme }) => {
         const k = [...form.access_key]
         k[i] = { ...k[i], download_limit: parseInt(val) || 0 }
         setForm({ ...form, access_key: k })
+    }
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files?.[0]
+        if (!file || !file.type.startsWith('image/')) return
+        setUploadingImage(true)
+        try {
+            if (form.featured_image?.includes('vercel-storage')) {
+                await del(form.featured_image, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN }).catch(() => {})
+            }
+            const blob = await put(`games/${Date.now()}_${file.name}`, file, {
+                access: 'public',
+                token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
+            })
+            setForm(prev => ({ ...prev, featured_image: blob.url }))
+        } catch (err) {
+            console.error('Image upload failed:', err)
+        } finally {
+            setUploadingImage(false)
+            e.target.value = ''
+        }
+    }
+
+    const removeImage = async () => {
+        if (form.featured_image?.includes('vercel-storage')) {
+            await del(form.featured_image, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN }).catch(() => {})
+        }
+        setForm(prev => ({ ...prev, featured_image: '' }))
     }
 
     const card = `rounded-xl border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`
@@ -1124,9 +1154,46 @@ const GameManager = ({ user, theme }) => {
                                     </div>
                                     <div className="px-4 sm:px-5 py-4 space-y-3">
                                         <div>
-                                            <label className={labelCls}>Featured Image URL</label>
-                                            <input type="text" className={inputCls} value={form.featured_image} onChange={(e) => setForm({ ...form, featured_image: e.target.value })} placeholder="https://..." />
-                                            {form.featured_image && <img src={form.featured_image} alt="" className="mt-2 h-32 object-cover rounded-lg" />}
+                                            <label className={labelCls}>Featured Image</label>
+                                            {form.featured_image ? (
+                                                <div className="relative group w-fit">
+                                                    <img src={form.featured_image} alt="" className={`h-36 sm:h-40 object-cover rounded-xl border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} />
+                                                    <button onClick={removeImage} type="button"
+                                                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                                                        <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className={`flex flex-col sm:flex-row items-stretch gap-2`}>
+                                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition-all ${uploadingImage ? 'opacity-50 pointer-events-none' : ''} ${isLight
+                                                        ? 'border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 text-slate-400 hover:text-blue-500'
+                                                        : 'border-[#333] hover:border-blue-500 hover:bg-blue-900/10 text-gray-500 hover:text-blue-400'
+                                                    }`}>
+                                                        {uploadingImage ? (
+                                                            <>
+                                                                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                                <span className="text-xs font-medium">Uploading...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <FontAwesomeIcon icon={faCloudUploadAlt} className="text-lg" />
+                                                                <span className="text-xs font-medium">Upload Image</span>
+                                                            </>
+                                                        )}
+                                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+                                                    </label>
+                                                    <div className={`flex items-center gap-2 text-[10px] font-medium ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>
+                                                        <div className={`h-px flex-1 sm:w-px sm:h-6 sm:flex-none ${isLight ? 'bg-slate-200' : 'bg-[#2B2B2B]'}`} />
+                                                        OR
+                                                        <div className={`h-px flex-1 sm:w-px sm:h-6 sm:flex-none ${isLight ? 'bg-slate-200' : 'bg-[#2B2B2B]'}`} />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <input type="text" className={`${inputCls} h-full`} value={form.featured_image}
+                                                            onChange={(e) => setForm({ ...form, featured_image: e.target.value })}
+                                                            placeholder="Paste image URL..." />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div>

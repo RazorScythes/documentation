@@ -26,11 +26,11 @@ const StarRating = ({ rating, isLight }) => {
     return (
         <div className="flex items-center gap-0.5">
             {[...Array(5)].map((_, i) => (
-                <span key={i} className="relative text-[10px]">
-                    <FontAwesomeIcon icon={faStar} className={isLight ? 'text-slate-200' : 'text-gray-700'} />
-                    {i < full && <FontAwesomeIcon icon={faStar} className="text-amber-400 absolute inset-0" />}
+                <span key={i} className="relative inline-flex items-center justify-center w-[10px] h-[10px] text-[10px] leading-none">
+                    <FontAwesomeIcon icon={faStar} className={`${isLight ? 'text-slate-200' : 'text-gray-700'}`} />
+                    {i < full && <FontAwesomeIcon icon={faStar} className="text-amber-400 absolute left-0 top-0" />}
                     {i === full && partial > 0 && (
-                        <span className="absolute inset-0 overflow-hidden" style={{ width: `${partial * 100}%` }}>
+                        <span className="absolute left-0 top-0 overflow-hidden" style={{ width: `${partial * 100}%` }}>
                             <FontAwesomeIcon icon={faStar} className="text-amber-400" />
                         </span>
                     )}

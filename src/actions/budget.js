@@ -7,6 +7,7 @@ const initialState = {
     expenses        : [],
     savings         : {},
     savingsHistory  : [],
+    debts           : [],
     alert           : {},
     isLoading       : false,
 }
@@ -197,6 +198,85 @@ export const deleteBudgetSavingsHistory = createAsyncThunk('budget/deleteSavings
     }
 })
 
+// ==================== DEBTS ====================
+
+export const getDebts = createAsyncThunk('budget/getDebts', async (_, thunkAPI) => {
+    try {
+        const response = await api.getDebts()
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to load debts' } })
+    }
+})
+
+export const createDebt = createAsyncThunk('budget/createDebt', async (formData, thunkAPI) => {
+    try {
+        const response = await api.createDebt(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to create debt' } })
+    }
+})
+
+export const updateDebt = createAsyncThunk('budget/updateDebt', async (formData, thunkAPI) => {
+    try {
+        const response = await api.updateDebt(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update debt' } })
+    }
+})
+
+export const deleteDebt = createAsyncThunk('budget/deleteDebt', async (id, thunkAPI) => {
+    try {
+        const response = await api.deleteDebt(id)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to delete debt' } })
+    }
+})
+
+export const addDebtPayment = createAsyncThunk('budget/addDebtPayment', async ({ id, amount, notes, category, paymentMethod }, thunkAPI) => {
+    try {
+        const response = await api.addDebtPayment(id, { amount, notes, category, paymentMethod })
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to add payment' } })
+    }
+})
+
+export const removeDebtPayment = createAsyncThunk('budget/removeDebtPayment', async ({ id, paymentId }, thunkAPI) => {
+    try {
+        const response = await api.removeDebtPayment(id, paymentId)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to remove payment' } })
+    }
+})
+
+export const toggleDebtStatus = createAsyncThunk('budget/toggleDebtStatus', async (id, thunkAPI) => {
+    try {
+        const response = await api.toggleDebtStatus(id)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update status' } })
+    }
+})
+
 export const budgetSlice = createSlice({
     name: 'budget',
     initialState,
@@ -323,6 +403,61 @@ export const budgetSlice = createSlice({
             state.alert = action.payload.data.alert
         }),
         builder.addCase(deleteBudgetSavingsHistory.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(getDebts.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+        }),
+        builder.addCase(getDebts.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(createDebt.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(createDebt.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(updateDebt.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(updateDebt.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(deleteDebt.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(deleteDebt.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(addDebtPayment.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(addDebtPayment.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(removeDebtPayment.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(removeDebtPayment.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(toggleDebtStatus.fulfilled, (state, action) => {
+            state.debts = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(toggleDebtStatus.rejected, (state, action) => {
             state.alert = action.payload?.alert || {}
         })
     },

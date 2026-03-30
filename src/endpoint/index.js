@@ -209,6 +209,13 @@ export const getSavings                        = () => endpoint.get('/budget/sav
 export const saveSavings                       = (formData) => endpoint.post('/budget/savings', formData)
 export const getSavingsHistory                 = () => endpoint.get('/budget/savings/history')
 export const deleteSavingsHistory              = (id) => endpoint.delete(`/budget/savings/history/${id}`)
+export const getDebts                          = () => endpoint.get('/budget/debts')
+export const createDebt                        = (formData) => endpoint.post('/budget/debt', formData)
+export const updateDebt                        = (formData) => endpoint.patch('/budget/debt', formData)
+export const deleteDebt                        = (id) => endpoint.delete(`/budget/debt/${id}`)
+export const addDebtPayment                    = (id, formData) => endpoint.post(`/budget/debt/${id}/payment`, formData)
+export const removeDebtPayment                 = (id, paymentId) => endpoint.delete(`/budget/debt/${id}/payment/${paymentId}`)
+export const toggleDebtStatus                  = (id) => endpoint.patch(`/budget/debt/${id}/toggle`)
 
 /*
     PORTFOLIO
