@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useSearchParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
     faProjectDiagram, faPlus, faTimes, faCheck, faTrash, faPen, faEye, faSearch,
@@ -14,7 +15,7 @@ import { fas } from '@fortawesome/free-solid-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
 import { put, del } from '@vercel/blob'
-import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, clearAlert } from '../../actions/project'
+import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert } from '../../actions/project'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
 import Notification from '../Custom/Notification'
@@ -89,6 +90,28 @@ function createElement(type) {
     }
 }
 
+const COMMON_ICONS = [
+    'folder', 'code', 'laptop-code', 'paint-brush', 'palette', 'camera', 'film', 'music',
+    'gamepad', 'puzzle-piece', 'cube', 'cubes', 'cogs', 'wrench', 'tools', 'database',
+    'server', 'cloud', 'globe', 'sitemap', 'network-wired', 'mobile-alt', 'desktop',
+    'tablet-alt', 'robot', 'microchip', 'brain', 'lightbulb', 'rocket', 'flask',
+    'atom', 'dna', 'shield-alt', 'lock', 'key', 'user-shield', 'chart-bar', 'chart-line',
+    'chart-pie', 'shopping-cart', 'store', 'credit-card', 'wallet', 'money-bill-wave',
+    'file-alt', 'file-code', 'file-image', 'file-video', 'file-audio', 'file-pdf',
+    'book', 'book-open', 'graduation-cap', 'university', 'chalkboard-teacher',
+    'pen-fancy', 'pencil-alt', 'marker', 'highlighter', 'ruler-combined',
+    'drafting-compass', 'bezier-curve', 'vector-square', 'layer-group', 'object-group',
+    'th-large', 'th', 'border-all', 'draw-polygon', 'project-diagram',
+    'tasks', 'clipboard-list', 'calendar-alt', 'clock', 'stopwatch', 'hourglass-half',
+    'bullhorn', 'comments', 'envelope', 'paper-plane', 'share-alt', 'hashtag',
+    'at', 'link', 'wifi', 'bluetooth', 'satellite-dish', 'broadcast-tower',
+    'heart', 'star', 'trophy', 'medal', 'award', 'gem', 'crown', 'flag',
+    'map-marker-alt', 'map', 'compass', 'route', 'car', 'plane', 'ship',
+    'home', 'building', 'city', 'warehouse', 'hospital', 'church',
+    'leaf', 'seedling', 'tree', 'sun', 'moon', 'wind', 'bolt', 'fire',
+    'tint', 'snowflake', 'mountain', 'water',
+]
+
 const ProjectManager = ({ user, theme }) => {
     const dispatch = useDispatch()
     const project = useSelector((state) => state.project.project)
@@ -99,6 +122,12 @@ const ProjectManager = ({ user, theme }) => {
 
     const isLight = theme === 'light'
     const userId = user?._id || user?.result?._id || ''
+
+    const [searchParams, setSearchParams] = useSearchParams()
+    const VALID_TABS = ['projects', 'categories']
+    const tabParam = searchParams.get('tab')
+    const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'projects'
+    const setActiveTab = (tab) => setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
 
     const [view, setView] = useState('list')
     const [form, setForm] = useState({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)) })
@@ -128,6 +157,19 @@ const ProjectManager = ({ user, theme }) => {
     const [contentGrid1Selected, setContentGrid1Selected] = useState('')
     const [contentGrid2Selected, setContentGrid2Selected] = useState('')
 
+    const [catForm, setCatForm] = useState({ name: '', image: '' })
+    const [editCatId, setEditCatId] = useState(null)
+    const [catSubmitting, setCatSubmitting] = useState(false)
+    const [showCatForm, setShowCatForm] = useState(false)
+    const [iconSearch, setIconSearch] = useState('')
+    const [showIconPicker, setShowIconPicker] = useState(false)
+
+    const filteredIcons = useMemo(() => {
+        if (!iconSearch) return COMMON_ICONS
+        const s = iconSearch.toLowerCase()
+        return COMMON_ICONS.filter(ic => ic.includes(s))
+    }, [iconSearch])
+
     const activeFilterCount = [filterCategory, filterPurpose].filter(Boolean).length
 
     useEffect(() => {
@@ -151,9 +193,17 @@ const ProjectManager = ({ user, theme }) => {
             setShowNotif(true)
             dispatch(clearAlert())
             setSubmitting(false)
+            setCatSubmitting(false)
             if (projVariant === 'success' && view === 'form') {
                 resetForm()
                 setView('list')
+            }
+            if (projVariant === 'success' && activeTab === 'categories') {
+                setCatForm({ name: '', image: '' })
+                setEditCatId(null)
+                setShowCatForm(false)
+                setIconSearch('')
+                setShowIconPicker(false)
             }
         }
     }, [projAlert, projVariant])
@@ -241,7 +291,7 @@ const ProjectManager = ({ user, theme }) => {
     }
 
     const handleSubmit = () => {
-        if (!form.post_title || !form.categories || submitting) return
+        if (!form.post_title || submitting) return
         setSubmitting(true)
         const data = { ...form }
         if (editIndex !== null) {
@@ -261,6 +311,51 @@ const ProjectManager = ({ user, theme }) => {
                 setConfirmModal(prev => ({ ...prev, open: false }))
             }
         })
+    }
+
+    /* ─── Category CRUD ─── */
+
+    const handleCatSubmit = () => {
+        if (!catForm.name || catSubmitting) return
+        setCatSubmitting(true)
+        if (editCatId) {
+            dispatch(editProjectCategory({ category_id: editCatId, name: catForm.name, image: catForm.image }))
+        } else {
+            dispatch(addProjectCategory({ id: userId, name: catForm.name, image: catForm.image }))
+        }
+    }
+
+    const handleCatEdit = (cat) => {
+        setCatForm({ name: cat.name || '', image: cat.image || '' })
+        setEditCatId(cat._id)
+        setShowCatForm(true)
+        setShowIconPicker(false)
+        setIconSearch('')
+    }
+
+    const handleCatDelete = (cat) => {
+        setConfirmModal({
+            open: true, title: 'Delete Category', variant: 'danger', icon: faTrash,
+            message: `Are you sure you want to delete "${cat.name}"? This will not remove projects using this category.`,
+            onConfirm: () => {
+                dispatch(removeProjectCategory({ category_id: cat._id }))
+                setConfirmModal(prev => ({ ...prev, open: false }))
+            }
+        })
+    }
+
+    const cancelCatEdit = () => {
+        setCatForm({ name: '', image: '' })
+        setEditCatId(null)
+        setShowCatForm(false)
+        setShowIconPicker(false)
+        setIconSearch('')
+    }
+
+    const selectIcon = (iconName) => {
+        setCatForm(prev => ({ ...prev, image: iconName }))
+        setShowIconPicker(false)
+        setIconSearch('')
     }
 
     /* ─── Tags ─── */
@@ -459,8 +554,9 @@ const ProjectManager = ({ user, theme }) => {
     /* ─── Helpers ─── */
 
     const getCategoryName = (id) => {
+        if (!id) return 'N/A'
         const cat = category?.find(c => c._id === id)
-        return cat?.category || id || 'N/A'
+        return cat?.name || cat?.category || id
     }
 
     const resolveIcon = (iconStr) => {
@@ -1008,29 +1104,195 @@ const ProjectManager = ({ user, theme }) => {
                         )}
 
                         {/* ── Header Card ── */}
-                        <div className={`${card} p-4 sm:p-5 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
-                                    <FontAwesomeIcon icon={faProjectDiagram} className={`text-lg ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
+                        <div className={`${card} p-4 sm:p-5 mb-4`}>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
+                                        <FontAwesomeIcon icon={faProjectDiagram} className={`text-lg ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
+                                    </div>
+                                    <div>
+                                        <h1 className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Project Manager</h1>
+                                        <p className={`text-xs ${subText}`}>{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h1 className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Project Manager</h1>
-                                    <p className={`text-xs ${subText}`}>{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
-                                </div>
+                                {activeTab === 'projects' && (view === 'form' ? (
+                                    <button onClick={() => { resetForm(); setView('list') }} className={`${btnSecondary} flex items-center gap-2`}>
+                                        <FontAwesomeIcon icon={faList} className="text-xs" /><span>Back to List</span>
+                                    </button>
+                                ) : (
+                                    <button onClick={openCreate} className={`${btnPrimary} flex items-center gap-2`}>
+                                        <FontAwesomeIcon icon={faPlus} className="text-xs" /><span>Add Project</span>
+                                    </button>
+                                ))}
                             </div>
-                            {view === 'form' ? (
-                                <button onClick={() => { resetForm(); setView('list') }} className={`${btnSecondary} flex items-center gap-2`}>
-                                    <FontAwesomeIcon icon={faList} className="text-xs" /><span>Back to List</span>
-                                </button>
-                            ) : (
-                                <button onClick={openCreate} className={`${btnPrimary} flex items-center gap-2`}>
-                                    <FontAwesomeIcon icon={faPlus} className="text-xs" /><span>Add Project</span>
-                                </button>
+                            {view !== 'form' && (
+                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <button onClick={() => setActiveTab('projects')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'projects'
+                                            ? (isLight ? 'bg-purple-50 text-purple-600' : 'bg-purple-900/20 text-purple-400')
+                                            : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
+                                        }`}>
+                                        <FontAwesomeIcon icon={faProjectDiagram} className="text-[10px]" /> My Projects
+                                    </button>
+                                    <button onClick={() => setActiveTab('categories')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'categories'
+                                            ? (isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400')
+                                            : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
+                                        }`}>
+                                        <FontAwesomeIcon icon={faLayerGroup} className="text-[10px]" /> Categories
+                                        {category?.length > 0 && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'categories'
+                                                ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400')
+                                                : (isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500')
+                                            }`}>{category.length}</span>
+                                        )}
+                                    </button>
+                                </div>
                             )}
                         </div>
 
+                        {/* ========== CATEGORIES TAB ========== */}
+                        {activeTab === 'categories' && (
+                            <div className={`${card} overflow-hidden`}>
+                                <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${sectionBorder}`}>
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
+                                            <FontAwesomeIcon icon={faLayerGroup} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+                                        </div>
+                                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Manage Categories</h3>
+                                    </div>
+                                    <button onClick={() => { if (showCatForm && !editCatId) { setShowCatForm(false) } else { cancelCatEdit(); setShowCatForm(true) } }}
+                                        className={`flex items-center gap-1.5 ${showCatForm ? btnSecondary : btnPrimary} text-xs`}>
+                                        <FontAwesomeIcon icon={showCatForm ? faTimes : faPlus} className="text-[10px]" />
+                                        <span>{showCatForm ? 'Close' : 'Add Category'}</span>
+                                    </button>
+                                </div>
+                                <div className="px-4 sm:px-5 py-4 space-y-4">
+                                    {/* Add / Edit Form */}
+                                    {showCatForm && (
+                                        <div className={`rounded-xl border border-solid p-4 ${editCatId
+                                            ? (isLight ? 'border-blue-200 bg-blue-50/30' : 'border-blue-800/50 bg-blue-900/10')
+                                            : (isLight ? 'border-slate-200 bg-slate-50/50' : 'border-[#2B2B2B] bg-[#0a0a0a]')
+                                        }`}>
+                                            <p className={`text-xs font-semibold mb-3 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{editCatId ? 'Edit Category' : 'New Category'}</p>
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <div className="flex-1">
+                                                    <label className={labelCls}>Name *</label>
+                                                    <input type="text" className={inputCls} value={catForm.name}
+                                                        onChange={e => setCatForm({ ...catForm, name: e.target.value })} placeholder="Category name"
+                                                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCatSubmit() } }} />
+                                                </div>
+                                                <div className="flex-1 relative">
+                                                    <label className={labelCls}>Icon</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <button type="button" onClick={() => setShowIconPicker(!showIconPicker)}
+                                                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border border-solid transition-all w-full ${isLight ? 'bg-white border-slate-200 hover:border-blue-400 text-slate-600' : 'bg-[#1a1a1a] border-[#333] hover:border-blue-500 text-gray-300'}`}>
+                                                            {catForm.image ? (
+                                                                <><FontAwesomeIcon icon={resolveIcon(catForm.image)} className="text-blue-500" /><span className="text-xs truncate">{catForm.image}</span></>
+                                                            ) : (
+                                                                <><FontAwesomeIcon icon={faImage} className={mutedText} /><span className={`text-xs ${mutedText}`}>Select icon</span></>
+                                                            )}
+                                                        </button>
+                                                        {catForm.image && (
+                                                            <button onClick={() => setCatForm({ ...catForm, image: '' })}
+                                                                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${isLight ? 'text-red-400 hover:bg-red-50' : 'text-red-500 hover:bg-red-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {showIconPicker && (
+                                                        <div className={`absolute z-50 mt-1 left-0 w-full sm:w-80 rounded-xl border border-solid shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#141414] border-[#2B2B2B]'}`}>
+                                                            <div className={`p-3 border-b border-solid ${sectionBorder}`}>
+                                                                <div className="relative">
+                                                                    <FontAwesomeIcon icon={faSearch} className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${mutedText}`} />
+                                                                    <input type="text" className={`${inputCls} pl-8`} placeholder="Search icons..."
+                                                                        value={iconSearch} onChange={e => setIconSearch(e.target.value)} autoFocus />
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-8 gap-1 p-3 max-h-52 overflow-y-auto">
+                                                                {filteredIcons.length > 0 ? filteredIcons.map(ic => {
+                                                                    const def = findIconDefinition({ prefix: 'fas', iconName: ic })
+                                                                    if (!def) return null
+                                                                    return (
+                                                                        <button key={ic} type="button" onClick={() => selectIcon(ic)} title={ic}
+                                                                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${catForm.image === ic
+                                                                                ? (isLight ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-400' : 'bg-blue-900/30 text-blue-400 ring-2 ring-blue-500')
+                                                                                : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1a1a1a] text-gray-400')
+                                                                            }`}>
+                                                                            <FontAwesomeIcon icon={def} className="text-sm" />
+                                                                        </button>
+                                                                    )
+                                                                }) : (
+                                                                    <div className={`col-span-8 py-4 text-center text-xs ${mutedText}`}>No icons found</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-3">
+                                                <button onClick={handleCatSubmit} disabled={catSubmitting || !catForm.name}
+                                                    className={`${btnPrimary} flex items-center gap-2 text-xs disabled:opacity-50`}>
+                                                    {catSubmitting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                                    <FontAwesomeIcon icon={editCatId ? faCheck : faPlus} className="text-[10px]" />
+                                                    <span>{editCatId ? 'Update' : 'Add'}</span>
+                                                </button>
+                                                {editCatId && (
+                                                    <button onClick={cancelCatEdit} className={`${btnSecondary} text-xs`}>Cancel</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Category List */}
+                                    {isLoading ? (
+                                        <div className="flex items-center justify-center py-10">
+                                            <span className={`w-8 h-8 border-2 border-t-transparent rounded-full animate-spin ${isLight ? 'border-amber-400' : 'border-amber-600'}`} />
+                                        </div>
+                                    ) : category?.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {category.map(cat => (
+                                                <div key={cat._id}
+                                                    className={`flex items-center justify-between px-4 py-3 rounded-xl border border-solid transition-all ${editCatId === cat._id
+                                                        ? (isLight ? 'border-blue-200 bg-blue-50/50' : 'border-blue-800 bg-blue-900/10')
+                                                        : (isLight ? 'border-slate-100 hover:border-slate-200 bg-white' : 'border-[#1f1f1f] hover:border-[#2B2B2B] bg-[#0e0e0e]')
+                                                    }`}>
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-50' : 'bg-amber-900/20'}`}>
+                                                            <FontAwesomeIcon icon={resolveIcon(cat.image)} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</p>
+                                                            {cat.image && <p className={`text-[10px] truncate ${mutedText}`}>{cat.image}</p>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                                                        <button onClick={() => handleCatEdit(cat)} title="Edit"
+                                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'text-amber-500 hover:bg-amber-50' : 'text-amber-400 hover:bg-amber-900/20'}`}>
+                                                            <FontAwesomeIcon icon={faPen} className="text-xs" />
+                                                        </button>
+                                                        <button onClick={() => handleCatDelete(cat)} title="Delete"
+                                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'text-red-400 hover:bg-red-50' : 'text-red-500 hover:bg-red-900/20'}`}>
+                                                            <FontAwesomeIcon icon={faTrash} className="text-xs" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-3 py-10">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                <FontAwesomeIcon icon={faLayerGroup} className={`text-xl ${mutedText}`} />
+                                            </div>
+                                            <p className={`text-sm font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>No categories yet</p>
+                                            <p className={`text-xs ${mutedText}`}>Click "Add Category" to get started</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* ── List View ── */}
-                        {view === 'list' && (
+                        {activeTab === 'projects' && view === 'list' && (
                             <div className={`${card} overflow-hidden`}>
                                 {/* Toolbar */}
                                 <div className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-solid ${sectionBorder}`}>
@@ -1055,7 +1317,7 @@ const ProjectManager = ({ user, theme }) => {
                                     <div className={`flex flex-wrap items-center gap-2 px-4 sm:px-5 py-2.5 border-b border-solid ${sectionBorder}`}>
                                         <select className={`${selectCls} text-xs py-1.5`} value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setPage(0) }}>
                                             <option value="">All Categories</option>
-                                            {category?.map((c, i) => <option key={i} value={c._id}>{c.category}</option>)}
+                                            {category?.map((c, i) => <option key={i} value={c._id}>{c.name || c.category}</option>)}
                                         </select>
                                         <select className={`${selectCls} text-xs py-1.5`} value={filterPurpose} onChange={e => { setFilterPurpose(e.target.value); setPage(0) }}>
                                             <option value="">All Purposes</option>
@@ -1191,7 +1453,7 @@ const ProjectManager = ({ user, theme }) => {
                         )}
 
                         {/* ── Form View ── */}
-                        {view === 'form' && (
+                        {activeTab === 'projects' && view === 'form' && (
                             <div className="space-y-4">
                                 {/* Basic Info Section */}
                                 <div className={`${card} overflow-hidden`}>
@@ -1259,11 +1521,11 @@ const ProjectManager = ({ user, theme }) => {
                                                     {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
                                                 </select>
                                             </div>
-                                            <div><label className={labelCls}>Category *</label>
+                                            <div><label className={labelCls}>Category</label>
                                                 <select className={`${selectCls} w-full`} value={form.categories}
                                                     onChange={e => setForm({ ...form, categories: e.target.value })}>
-                                                    {category?.length > 0 ? category.map((c, i) => <option key={i} value={c._id}>{c.category}</option>)
-                                                        : <option value="">No categories</option>}
+                                                    <option value="">Select category</option>
+                                                {category?.length > 0 && category.map((c, i) => <option key={i} value={c._id}>{c.name || c.category}</option>)}
                                                 </select>
                                             </div>
                                         </div>

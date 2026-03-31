@@ -1,6 +1,5 @@
 import * as api from '../api'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { requestAPI } from '../api/function'
 
 const initialState = {
     error               : '',
@@ -21,154 +20,99 @@ const initialState = {
     latestProjects      : []
 }
 
+const rejectErr = (thunkAPI, err) => {
+    if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+    return thunkAPI.rejectWithValue({ variant: 'danger', message: 'There was a problem with the server.' })
+}
+
 export const getProjectByID = createAsyncThunk('project/getProjectByID', async (form, thunkAPI) => {
-    try {
-        const response = await api.getProjectByID(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getProjectByID(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const uploadProject = createAsyncThunk('project/uploadProject', async (form, thunkAPI) => {
-    try {
-        const response = await api.uploadProject(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.uploadProject(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getCategory = createAsyncThunk('project/getCategory', async (form, thunkAPI) => {
-    try {
-        const response = await api.getCategory(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getCategory(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getUserProject = createAsyncThunk('project/getUserProject', async (form, thunkAPI) => {
-    try {
-        const response = await api.getUserProject(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getUserProject(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getAdminCategory = createAsyncThunk('project/getAdminCategory', async (form, thunkAPI) => {
-    try {
-        const response = await api.getAdminCategory(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getAdminCategory(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const addProjectCategory = createAsyncThunk('project/addProjectCategory', async (form, thunkAPI) => {
+    try { return await api.addProjectCategory(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const editProjectCategory = createAsyncThunk('project/editProjectCategory', async (form, thunkAPI) => {
+    try { return await api.editProjectCategory(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const removeProjectCategory = createAsyncThunk('project/removeProjectCategory', async (form, thunkAPI) => {
+    try { return await api.removeProjectCategory(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getProjects = createAsyncThunk('project/getProjects', async (form, thunkAPI) => {
-    try {
-        const response = await api.getProjects(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getProjectsByCategories = createAsyncThunk('project/getProjectsByCategories', async (form, thunkAPI) => {
-    try {
-        const response = await api.getProjectsByCategories(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getProjectsByCategories(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getProjectsBySearchKey = createAsyncThunk('project/getProjectsBySearchKey', async (form, thunkAPI) => {
-    try {
-        const response = await api.getProjectsBySearchKey(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getProjectsBySearchKey(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const editUserProject = createAsyncThunk('project/editUserProject', async (form, thunkAPI) => {
-    try {
-        const response = await api.editUserProject(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.editUserProject(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const removeUserProject = createAsyncThunk('project/removeUserProject', async (form, thunkAPI) => {
-    try {
-        const response = await api.removeUserProject(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.removeUserProject(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const projectCountTags = createAsyncThunk('project/projectCountTags', async (form, thunkAPI) => {
-    try {
-        const response = await api.projectCountTags(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.projectCountTags(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getProjectComments = createAsyncThunk('project/getProjectComments', async (form, thunkAPI) => {
-    try {
-        const response = await api.getProjectComments(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getProjectComments(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const uploadProjectComment = createAsyncThunk('project/uploadProjectComment', async (form, thunkAPI) => {
-    try {
-        const response = await api.uploadProjectComment(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.uploadProjectComment(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const removeProjectComment = createAsyncThunk('project/removeProjectComment', async (form, thunkAPI) => {
-    try {
-        const response = await api.removeProjectComment(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.removeProjectComment(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getLatestProjects = createAsyncThunk('project/getLatestProjects', async (form, thunkAPI) => {
-    try {
-        const response = await api.getLatestProjects(form);
-        return response;
-    } catch (err) {
-        if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
-    }
+    try { return await api.getLatestProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 
@@ -187,10 +131,10 @@ export const projectSlice = createSlice({
             state.isLoading         = true
         }),
         builder.addCase(getProjectByID.rejected, (state, action) => {
-            state.forbiden          = action.payload.forbiden
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
-            state.notFound          = action.payload.notFound
+            state.forbiden          = action.payload?.forbiden
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.notFound          = action.payload?.notFound
             state.isLoading         = false
         }),
         
@@ -214,6 +158,39 @@ export const projectSlice = createSlice({
         builder.addCase(getAdminCategory.pending, (state, action) => {
             state.notFound          = false
             state.isLoading         = true
+        }),
+
+        builder.addCase(addProjectCategory.fulfilled, (state, action) => {
+            state.category          = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+            state.error             = ''
+        }),
+        builder.addCase(addProjectCategory.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        builder.addCase(editProjectCategory.fulfilled, (state, action) => {
+            state.category          = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+            state.error             = ''
+        }),
+        builder.addCase(editProjectCategory.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        builder.addCase(removeProjectCategory.fulfilled, (state, action) => {
+            state.category          = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+            state.error             = ''
+        }),
+        builder.addCase(removeProjectCategory.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(getProjects.fulfilled, (state, action) => {
@@ -267,8 +244,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(uploadProject.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(getUserProject.fulfilled, (state, action) => {
@@ -277,8 +254,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(getUserProject.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(editUserProject.fulfilled, (state, action) => {
@@ -289,8 +266,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(editUserProject.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(removeUserProject.fulfilled, (state, action) => {
@@ -301,8 +278,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(removeUserProject.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(projectCountTags.fulfilled, (state, action) => {
@@ -311,8 +288,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(projectCountTags.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(getProjectComments.fulfilled, (state, action) => {
@@ -321,8 +298,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(getProjectComments.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(removeProjectComment.fulfilled, (state, action) => {
@@ -331,8 +308,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(removeProjectComment.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(uploadProjectComment.fulfilled, (state, action) => {
@@ -341,8 +318,8 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
         builder.addCase(uploadProjectComment.rejected, (state, action) => {
-            state.alert             = action.payload.message
-            state.variant           = action.payload.variant
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         }),
 
         builder.addCase(getLatestProjects.fulfilled, (state, action) => {
