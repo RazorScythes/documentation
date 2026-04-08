@@ -90,6 +90,10 @@ const App = () => {
                     <Route path='/games/developer/:developer' element={<><GamesPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/games/:id' element={<><GamesSingle user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/games/manage' element={<><GameManager user={user} theme={theme}/></>} />
+                    <Route path='/projects' element={<><Projects user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/projects/search/:key' element={<><Projects user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/projects/category/:cat' element={<><Projects user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/projects/:id' element={<><ProjectsSingle user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/projects/manage' element={<><ProjectManager user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />

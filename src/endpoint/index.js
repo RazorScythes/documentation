@@ -216,6 +216,10 @@ export const deleteDebt                        = (id) => endpoint.delete(`/budge
 export const addDebtPayment                    = (id, formData) => endpoint.post(`/budget/debt/${id}/payment`, formData)
 export const removeDebtPayment                 = (id, paymentId) => endpoint.delete(`/budget/debt/${id}/payment/${paymentId}`)
 export const toggleDebtStatus                  = (id) => endpoint.patch(`/budget/debt/${id}/toggle`)
+export const getBudgetLists                    = () => endpoint.get('/budget/lists')
+export const createBudgetList                  = (formData) => endpoint.post('/budget/list', formData)
+export const updateBudgetList                  = (formData) => endpoint.patch('/budget/list', formData)
+export const deleteBudgetList                  = (id) => endpoint.delete(`/budget/list/${id}`)
 
 /*
     PORTFOLIO

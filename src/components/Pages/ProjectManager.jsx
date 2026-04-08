@@ -8,7 +8,8 @@ import {
     faSortUp, faSortDown, faSort, faFilter, faAngleDoubleLeft, faAngleDoubleRight,
     faArrowUp, faArrowDown, faCode, faCloudUploadAlt, faCalendar, faFile,
     faQuoteRight, faListOl, faListUl, faColumns, faDownload, faImages, faLink,
-    faExternalLinkAlt, faHeading, faParagraph, faPhotoVideo
+    faExternalLinkAlt, faHeading, faParagraph, faPhotoVideo,
+    faLock, faCopy, faKey, faBook
 } from '@fortawesome/free-solid-svg-icons'
 import { library, findIconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
@@ -16,6 +17,7 @@ import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
 import { put, del } from '@vercel/blob'
 import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert } from '../../actions/project'
+import { getDocs } from '../../actions/documentation'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
 import Notification from '../Custom/Notification'
@@ -31,6 +33,7 @@ const PURPOSES = ['Personal', 'School', 'Client', 'Others']
 const INITIAL_FORM = {
     featured_image: '', post_title: '', date_start: '', date_end: '',
     created_for: 'Personal',
+    privacy: false, access_key: [], documentation_link: '',
     content: [{ header: 'Container Box', container: [{ header: 'Heading', element: 'heading', heading: '' }] }],
     tags: [], categories: ''
 }
@@ -119,6 +122,7 @@ const ProjectManager = ({ user, theme }) => {
     const projVariant = useSelector((state) => state.project.variant)
     const category = useSelector((state) => state.project.category)
     const isLoading = useSelector((state) => state.project.isLoading)
+    const docsData = useSelector((state) => state.docs.docs)
 
     const isLight = theme === 'light'
     const userId = user?._id || user?.result?._id || ''
@@ -157,7 +161,7 @@ const ProjectManager = ({ user, theme }) => {
     const [contentGrid1Selected, setContentGrid1Selected] = useState('')
     const [contentGrid2Selected, setContentGrid2Selected] = useState('')
 
-    const [catForm, setCatForm] = useState({ name: '', image: '' })
+    const [catForm, setCatForm] = useState({ name: '', image: '', description: '' })
     const [editCatId, setEditCatId] = useState(null)
     const [catSubmitting, setCatSubmitting] = useState(false)
     const [showCatForm, setShowCatForm] = useState(false)
@@ -176,6 +180,7 @@ const ProjectManager = ({ user, theme }) => {
         if (user) {
             dispatch(getUserProject({ id: userId }))
             dispatch(getAdminCategory())
+            dispatch(getDocs())
         }
     }, [dispatch, user])
 
@@ -199,7 +204,7 @@ const ProjectManager = ({ user, theme }) => {
                 setView('list')
             }
             if (projVariant === 'success' && activeTab === 'categories') {
-                setCatForm({ name: '', image: '' })
+                setCatForm({ name: '', image: '', description: '' })
                 setEditCatId(null)
                 setShowCatForm(false)
                 setIconSearch('')
@@ -256,7 +261,7 @@ const ProjectManager = ({ user, theme }) => {
     /* ─── Form ─── */
 
     const resetForm = () => {
-        setForm({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)), tags: [] })
+        setForm({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)), tags: [], access_key: [], privacy: false, documentation_link: '' })
         setEditIndex(null)
         setTagInput('')
         setContentSelected('')
@@ -281,6 +286,9 @@ const ProjectManager = ({ user, theme }) => {
             date_start: p.date_start || '',
             date_end: p.date_end || '',
             created_for: p.created_for || 'Personal',
+            privacy: p.privacy || false,
+            access_key: JSON.parse(JSON.stringify(p.access_key || [])),
+            documentation_link: p.documentation_link || '',
             content: copiedContent,
             tags: [...(p.tags || [])],
             categories: p.categories || ''
@@ -319,14 +327,14 @@ const ProjectManager = ({ user, theme }) => {
         if (!catForm.name || catSubmitting) return
         setCatSubmitting(true)
         if (editCatId) {
-            dispatch(editProjectCategory({ category_id: editCatId, name: catForm.name, image: catForm.image }))
+            dispatch(editProjectCategory({ category_id: editCatId, name: catForm.name, image: catForm.image, description: catForm.description }))
         } else {
-            dispatch(addProjectCategory({ id: userId, name: catForm.name, image: catForm.image }))
+            dispatch(addProjectCategory({ id: userId, name: catForm.name, image: catForm.image, description: catForm.description }))
         }
     }
 
     const handleCatEdit = (cat) => {
-        setCatForm({ name: cat.name || '', image: cat.image || '' })
+        setCatForm({ name: cat.name || '', image: cat.image || '', description: cat.description || '' })
         setEditCatId(cat._id)
         setShowCatForm(true)
         setShowIconPicker(false)
@@ -345,7 +353,7 @@ const ProjectManager = ({ user, theme }) => {
     }
 
     const cancelCatEdit = () => {
-        setCatForm({ name: '', image: '' })
+        setCatForm({ name: '', image: '', description: '' })
         setEditCatId(null)
         setShowCatForm(false)
         setShowIconPicker(false)
@@ -367,6 +375,17 @@ const ProjectManager = ({ user, theme }) => {
         }
     }
     const removeTag = (i) => { const t = [...form.tags]; t.splice(i, 1); setForm({ ...form, tags: t }) }
+
+    const generateKey = () => {
+        const key = Math.random().toString(36).substring(2, 10).toUpperCase()
+        setForm({ ...form, access_key: [...form.access_key, { key, download_limit: 0, user_downloaded: [] }] })
+    }
+    const removeKey = (i) => { const k = [...form.access_key]; k.splice(i, 1); setForm({ ...form, access_key: k }) }
+    const updateKeyLimit = (i, val) => {
+        const k = [...form.access_key]
+        k[i] = { ...k[i], download_limit: parseInt(val) || 0 }
+        setForm({ ...form, access_key: k })
+    }
 
     /* ─── Image Upload ─── */
 
@@ -391,6 +410,29 @@ const ProjectManager = ({ user, theme }) => {
             await del(form.featured_image, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN }).catch(() => {})
         }
         setForm(prev => ({ ...prev, featured_image: '' }))
+    }
+
+    const [contentUploading, setContentUploading] = useState({})
+
+    const handleContentImageUpload = async (e, index, box_index, field, isGrid = false, gridType = '', gridParent = -1, gridSub = -1) => {
+        const file = e.target.files?.[0]
+        if (!file || !file.type.startsWith('image/')) return
+        const uploadKey = `${box_index}-${index}-${field}`
+        setContentUploading(prev => ({ ...prev, [uploadKey]: true }))
+        try {
+            const blob = await put(`projects/content/${Date.now()}_${file.name}`, file, {
+                access: 'public', token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
+            })
+            updateContent(arr => {
+                const el = isGrid ? arr[box_index].container[gridParent][gridType][gridSub] : arr[box_index].container[index]
+                if (field === 'image') {
+                    el.image = blob.url
+                } else if (field === 'input') {
+                    el.input = blob.url
+                }
+            })
+        } catch (err) { console.error('Content image upload failed:', err) }
+        finally { setContentUploading(prev => ({ ...prev, [uploadKey]: false })); e.target.value = '' }
     }
 
     /* ─── Content Builder Helpers ─── */
@@ -590,8 +632,8 @@ const ProjectManager = ({ user, theme }) => {
 
     /* ─── Reusable: Element Picker ─── */
 
-    const ElementPicker = ({ value, onChange, onAdd, types = ELEMENT_TYPES }) => (
-        <div className="flex items-center gap-2">
+    const ElementPicker = ({ value, onChange, onAdd, types = ELEMENT_TYPES, sticky = false }) => (
+        <div className={`flex items-center gap-2 ${sticky ? `sticky top-0 z-10 py-2 -mx-1 px-1 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-[#0a0a0a]/95 backdrop-blur-sm'}` : ''}`}>
             <select className={`${selectCls} flex-1 text-xs py-1.5`} value={value} onChange={e => onChange(e.target.value)}>
                 <option value="" disabled>Select Element</option>
                 {types.map(g => (
@@ -788,43 +830,66 @@ const ProjectManager = ({ user, theme }) => {
                     }
                 </div>
 
-            case 'single_image':
+            case 'single_image': {
+                const singleImgH = el.type === 'boxed-full' ? 'h-64' : el.type === 'rectangular' ? 'h-40' : 'h-auto max-h-60'
+                const singleUploadKey = `${box_index}-${currentIndex}-image`
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
-                    <input type="text" className={inputCls} placeholder="Image URL"
-                        onChange={e => isGrid ? singleInputValueGrid(e, gridParent, box_index, gridSub, gridType) : singleInputValue(e, index, box_index)}
-                        value={el.image || ''} />
-                    <div className="mt-2">
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-2">
+                        <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed cursor-pointer transition-all text-xs flex-shrink-0 ${contentUploading[singleUploadKey] ? 'opacity-50 pointer-events-none' : ''} ${isLight ? 'border-slate-200 hover:border-blue-400 text-slate-400' : 'border-[#333] hover:border-blue-500 text-gray-500'}`}>
+                            {contentUploading[singleUploadKey]
+                                ? <><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />Uploading</>
+                                : <><FontAwesomeIcon icon={faCloudUploadAlt} />Upload</>
+                            }
+                            <input type="file" accept="image/*" className="hidden"
+                                onChange={e => handleContentImageUpload(e, index, box_index, 'image', isGrid, gridType, gridParent, gridSub)} />
+                        </label>
+                        <input type="text" className={`${inputCls} flex-1`} placeholder="or paste image URL"
+                            onChange={e => isGrid ? singleInputValueGrid(e, gridParent, box_index, gridSub, gridType) : singleInputValue(e, index, box_index)}
+                            value={el.image || ''} />
+                    </div>
+                    <div className="mb-2">
                         <label className={labelCls}>Dimension</label>
                         <select className={`${selectCls} w-full text-xs`} value={el.type || 'rectangular'}
                             onChange={e => isGrid ? typeValueGrid(e, gridParent, box_index, gridSub, gridType) : typeValue(e, index, box_index)}>
-                            <option value="rectangular">Rectangular</option>
-                            <option value="boxed_full">Boxed Full</option>
+                            <option value="rectangular">Rectangular (240px)</option>
+                            <option value="boxed-full">Boxed Full (500px)</option>
                             <option value="auto">Auto</option>
                         </select>
                     </div>
-                    {el.image && <img src={el.image} alt="" className="w-full h-40 object-cover rounded-lg mt-2" />}
+                    {el.image && <img src={el.image} alt="" className={`w-full ${singleImgH} object-cover rounded-lg`} />}
                 </div>
+            }
 
-            case 'grid_image':
+            case 'grid_image': {
+                const gridImgH = el.type === 'boxed-full' ? 'h-52' : el.type === 'boxed' ? 'h-28' : 'h-28'
+                const gridUploadKey = `${box_index}-${currentIndex}-input`
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
                     <div className="flex items-center gap-2 mb-2">
-                        <input type="text" className={`${inputCls} flex-1`} placeholder="Image URL"
+                        <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed cursor-pointer transition-all text-xs flex-shrink-0 ${contentUploading[gridUploadKey] ? 'opacity-50 pointer-events-none' : ''} ${isLight ? 'border-slate-200 hover:border-blue-400 text-slate-400' : 'border-[#333] hover:border-blue-500 text-gray-500'}`}>
+                            {contentUploading[gridUploadKey]
+                                ? <><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />Uploading</>
+                                : <><FontAwesomeIcon icon={faCloudUploadAlt} />Upload</>
+                            }
+                            <input type="file" accept="image/*" className="hidden"
+                                onChange={e => handleContentImageUpload(e, index, box_index, 'input', isGrid, gridType, gridParent, gridSub)} />
+                        </label>
+                        <input type="text" className={`${inputCls} flex-1`} placeholder="or paste image URL"
                             onChange={e => isGrid ? gridInputValueGrid(e, gridParent, box_index, gridSub, gridType) : gridInputValue(e, index, box_index)}
                             value={el.input || ''} />
                         <button onClick={() => isGrid ? addGridContentImageGrid(gridParent, box_index, gridSub, gridType) : addGridContentImage(index, box_index)}
                             className={`${btnPrimary} py-2 px-3 text-xs`}>Add</button>
                     </div>
-                    <div><label className={labelCls}>Dimension</label>
+                    <div className="mb-2"><label className={labelCls}>Dimension</label>
                         <select className={`${selectCls} w-full text-xs`} value={el.type || 'boxed'}
                             onChange={e => isGrid ? typeValueGrid(e, gridParent, box_index, gridSub, gridType) : typeValue(e, index, box_index)}>
-                            <option value="boxed">Boxed</option><option value="boxed_full">Boxed Full</option>
-                            <option value="rectangular">Rectangular</option><option value="auto">Auto</option>
+                            <option value="boxed">Boxed (2 columns)</option>
+                            <option value="boxed-full">Boxed Full (1 column, 500px)</option>
                         </select>
                     </div>
                     {el.grid_image?.length > 0 && <div className={`grid ${el.type === 'boxed' ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-2`}>
                         {el.grid_image.map((img, gi) => (
                             <div key={gi} className="relative group">
-                                <img src={img} alt="" className="w-full h-28 object-cover rounded-lg" />
+                                <img src={img} alt="" className={`w-full ${gridImgH} object-cover rounded-lg`} />
                                 <button onClick={() => isGrid ? removeGridContentImageGrid(gridParent, gi, box_index, gridSub, gridType) : removeGridContentImage(index, gi, box_index)}
                                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[8px]">
                                     <FontAwesomeIcon icon={faTimes} />
@@ -833,11 +898,21 @@ const ProjectManager = ({ user, theme }) => {
                         ))}
                     </div>}
                 </div>
+            }
 
-            case 'slider':
+            case 'slider': {
+                const sliderUploadKey = `${box_index}-${currentIndex}-input`
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
                     <div className="flex items-center gap-2 mb-2">
-                        <input type="text" className={`${inputCls} flex-1`} placeholder="Image URL"
+                        <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed cursor-pointer transition-all text-xs flex-shrink-0 ${contentUploading[sliderUploadKey] ? 'opacity-50 pointer-events-none' : ''} ${isLight ? 'border-slate-200 hover:border-blue-400 text-slate-400' : 'border-[#333] hover:border-blue-500 text-gray-500'}`}>
+                            {contentUploading[sliderUploadKey]
+                                ? <><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />Uploading</>
+                                : <><FontAwesomeIcon icon={faCloudUploadAlt} />Upload</>
+                            }
+                            <input type="file" accept="image/*" className="hidden"
+                                onChange={e => handleContentImageUpload(e, index, box_index, 'input', isGrid, gridType, gridParent, gridSub)} />
+                        </label>
+                        <input type="text" className={`${inputCls} flex-1`} placeholder="or paste image URL"
                             onChange={e => isGrid ? gridInputValueGrid(e, gridParent, box_index, gridSub, gridType) : gridInputValue(e, index, box_index)}
                             value={el.input || ''} />
                         <button onClick={() => isGrid ? addGridContentImageGrid(gridParent, box_index, gridSub, gridType) : addGridContentImage(index, box_index)}
@@ -846,7 +921,7 @@ const ProjectManager = ({ user, theme }) => {
                     {el.grid_image?.length > 0 && <Carousel responsive={CAROUSEL_RESPONSIVE} showDots infinite autoPlay swipeable slidesToSlide={1} className="rounded-lg overflow-hidden">
                         {el.grid_image.map((img, si) => (
                             <div key={si} className="relative">
-                                <img src={img} alt="" className="w-full h-40 object-cover" />
+                                <img src={img} alt="" className="w-full h-48 object-cover" />
                                 <button onClick={() => isGrid ? removeGridContentImageGrid(gridParent, si, box_index, gridSub, gridType) : removeGridContentImage(index, si, box_index)}
                                     className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500/80 text-white flex items-center justify-center text-[8px]">
                                     <FontAwesomeIcon icon={faTimes} />
@@ -855,9 +930,12 @@ const ProjectManager = ({ user, theme }) => {
                         ))}
                     </Carousel>}
                 </div>
+            }
 
             case 'bullet_list':
-            case 'number_list':
+            case 'number_list': {
+                const ListTag = item.element === 'number_list' ? 'ol' : 'ul'
+                const listStyle = item.element === 'number_list' ? 'list-decimal' : 'list-disc'
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
                     <div className="flex items-center gap-2 mb-2">
                         <input type="text" className={`${inputCls} flex-1`} placeholder="List item"
@@ -867,17 +945,21 @@ const ProjectManager = ({ user, theme }) => {
                         <button onClick={() => isGrid ? addListsGrid(gridParent, box_index, gridSub, gridType) : addLists(index, box_index)}
                             className={`${btnPrimary} py-2 px-3 text-xs`}>Add</button>
                     </div>
-                    {el.list?.length > 0 && <div className="flex flex-wrap gap-1">
+                    {el.list?.length > 0 && <ListTag className={`${listStyle} pl-5 space-y-1`}>
                         {el.list.map((li, li_i) => (
-                            <span key={li_i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${isLight ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-400'}`}>
-                                {li}
-                                <button onClick={() => isGrid ? removeListsGrid(gridParent, li_i, box_index, gridSub, gridType) : removeLists(index, li_i, box_index)} className="hover:text-red-500">
-                                    <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
-                                </button>
-                            </span>
+                            <li key={li_i} className={`text-xs group/li ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="flex-1">{li}</span>
+                                    <button onClick={() => isGrid ? removeListsGrid(gridParent, li_i, box_index, gridSub, gridType) : removeLists(index, li_i, box_index)}
+                                        className="opacity-0 group-hover/li:opacity-100 text-red-400 hover:text-red-500 transition-opacity flex-shrink-0">
+                                        <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
+                                    </button>
+                                </div>
+                            </li>
                         ))}
-                    </div>}
+                    </ListTag>}
                 </div>
+            }
 
             case 'list_image':
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
@@ -1153,7 +1235,7 @@ const ProjectManager = ({ user, theme }) => {
 
                         {/* ========== CATEGORIES TAB ========== */}
                         {activeTab === 'categories' && (
-                            <div className={`${card} overflow-hidden`}>
+                            <div className={`${card}`}>
                                 <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${sectionBorder}`}>
                                     <div className="flex items-center gap-2.5">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
@@ -1180,6 +1262,12 @@ const ProjectManager = ({ user, theme }) => {
                                                     <label className={labelCls}>Name *</label>
                                                     <input type="text" className={inputCls} value={catForm.name}
                                                         onChange={e => setCatForm({ ...catForm, name: e.target.value })} placeholder="Category name"
+                                                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCatSubmit() } }} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className={labelCls}>Short Name</label>
+                                                    <input type="text" className={inputCls} value={catForm.description}
+                                                        onChange={e => setCatForm({ ...catForm, description: e.target.value })} placeholder="e.g. web, mobile, api"
                                                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCatSubmit() } }} />
                                                 </div>
                                                 <div className="flex-1 relative">
@@ -1261,8 +1349,12 @@ const ProjectManager = ({ user, theme }) => {
                                                             <FontAwesomeIcon icon={resolveIcon(cat.image)} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</p>
-                                                            {cat.image && <p className={`text-[10px] truncate ${mutedText}`}>{cat.image}</p>}
+                                                            <div className="flex items-center gap-2">
+                                                                <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</p>
+                                                                {cat.description && (
+                                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>{cat.description}</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
@@ -1551,6 +1643,65 @@ const ProjectManager = ({ user, theme }) => {
                                                 </div>
                                             )}
                                         </div>
+                                        {/* Documentation Link */}
+                                        <div>
+                                            <label className={labelCls}><FontAwesomeIcon icon={faBook} className="mr-1" />Documentation Link</label>
+                                            {Array.isArray(docsData) && docsData.length > 0 ? (
+                                                <select className={`${selectCls} w-full`} value={form.documentation_link}
+                                                    onChange={e => setForm({ ...form, documentation_link: e.target.value })}>
+                                                    <option value="">No documentation linked</option>
+                                                    {docsData.map((doc, i) => (
+                                                        <option key={doc._id || i} value={`/documentation/${doc.doc_name || doc._id}`}>{doc.doc_name}{doc.description ? ` — ${doc.description}` : ''}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input type="text" className={inputCls} value={form.documentation_link}
+                                                    onChange={e => setForm({ ...form, documentation_link: e.target.value })} placeholder="Paste documentation URL or path" />
+                                            )}
+                                        </div>
+                                        {/* Privacy */}
+                                        <div className={`rounded-lg p-3 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input type="checkbox" checked={form.privacy} onChange={() => setForm({ ...form, privacy: !form.privacy })}
+                                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                                <span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>
+                                                    <FontAwesomeIcon icon={faLock} className="mr-1.5" />Private Project
+                                                </span>
+                                            </label>
+                                            <p className={`text-[10px] mt-1 ml-6 ${mutedText}`}>Only accessible via access key when enabled</p>
+                                        </div>
+                                        {/* Access Keys */}
+                                        {form.privacy && (
+                                            <div className={`rounded-lg p-3 space-y-3 ${isLight ? 'bg-amber-50/50 border border-solid border-amber-200/50' : 'bg-amber-900/5 border border-solid border-amber-800/20'}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <label className={`text-xs font-semibold ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
+                                                        <FontAwesomeIcon icon={faKey} className="mr-1.5" />Access Keys
+                                                    </label>
+                                                    <button onClick={generateKey} className={`${btnPrimary} py-1 px-2.5 text-[10px] flex items-center gap-1`}>
+                                                        <FontAwesomeIcon icon={faPlus} className="text-[8px]" /> Generate Key
+                                                    </button>
+                                                </div>
+                                                {form.access_key.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {form.access_key.map((k, ki) => (
+                                                            <div key={ki} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-white border border-solid border-amber-200/60' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B]'}`}>
+                                                                <code className={`font-mono font-bold flex-1 ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>{k.key}</code>
+                                                                <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/projects/${editIndex !== null ? projects[editIndex]?._id : 'ID'}?access_key=${k.key}`)}
+                                                                    title="Copy link" className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#222] text-gray-500'}`}>
+                                                                    <FontAwesomeIcon icon={faCopy} className="text-[10px]" />
+                                                                </button>
+                                                                <button onClick={() => removeKey(ki)} title="Remove"
+                                                                    className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${isLight ? 'hover:bg-red-50 text-red-400' : 'hover:bg-red-900/20 text-red-500'}`}>
+                                                                    <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className={`text-[10px] ${mutedText}`}>No keys generated yet. Generate a key to share private access.</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1580,9 +1731,9 @@ const ProjectManager = ({ user, theme }) => {
                                                         onRemove={() => removeContainer(box_index)} />
                                                 </div>
                                                 {/* Container Body */}
-                                                <div className="px-3 sm:px-4 py-3 space-y-2">
+                                                <div className="px-3 sm:px-4 py-3 space-y-2 relative">
                                                     <ElementPicker value={contentSelected} onChange={setContentSelected}
-                                                        onAdd={() => addContentElements(box_index)} />
+                                                        onAdd={() => addContentElements(box_index)} sticky />
                                                     {form.content[box_index]?.container?.map((item, index) =>
                                                         renderElementEditor(item, index, box_index)
                                                     )}

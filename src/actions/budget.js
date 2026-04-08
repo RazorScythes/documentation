@@ -8,6 +8,7 @@ const initialState = {
     savings         : {},
     savingsHistory  : [],
     debts           : [],
+    budgetLists     : [],
     alert           : {},
     isLoading       : false,
 }
@@ -277,6 +278,52 @@ export const toggleDebtStatus = createAsyncThunk('budget/toggleDebtStatus', asyn
     }
 })
 
+// ==================== BUDGET LISTS ====================
+
+export const getBudgetLists = createAsyncThunk('budget/getBudgetLists', async (_, thunkAPI) => {
+    try {
+        const response = await api.getBudgetLists()
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to load lists' } })
+    }
+})
+
+export const createBudgetList = createAsyncThunk('budget/createBudgetList', async (formData, thunkAPI) => {
+    try {
+        const response = await api.createBudgetList(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to create list' } })
+    }
+})
+
+export const updateBudgetList = createAsyncThunk('budget/updateBudgetList', async (formData, thunkAPI) => {
+    try {
+        const response = await api.updateBudgetList(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update list' } })
+    }
+})
+
+export const deleteBudgetList = createAsyncThunk('budget/deleteBudgetList', async (id, thunkAPI) => {
+    try {
+        const response = await api.deleteBudgetList(id)
+        return response
+    } catch (err) {
+        if (err.response?.data)
+            return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to delete list' } })
+    }
+})
+
 export const budgetSlice = createSlice({
     name: 'budget',
     initialState,
@@ -458,6 +505,37 @@ export const budgetSlice = createSlice({
             state.alert = action.payload.data.alert
         }),
         builder.addCase(toggleDebtStatus.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(getBudgetLists.fulfilled, (state, action) => {
+            state.budgetLists = action.payload.data.result
+        }),
+        builder.addCase(getBudgetLists.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(createBudgetList.fulfilled, (state, action) => {
+            state.budgetLists = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(createBudgetList.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(updateBudgetList.fulfilled, (state, action) => {
+            state.budgetLists = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(updateBudgetList.rejected, (state, action) => {
+            state.alert = action.payload?.alert || {}
+        }),
+
+        builder.addCase(deleteBudgetList.fulfilled, (state, action) => {
+            state.budgetLists = action.payload.data.result
+            state.alert = action.payload.data.alert
+        }),
+        builder.addCase(deleteBudgetList.rejected, (state, action) => {
             state.alert = action.payload?.alert || {}
         })
     },

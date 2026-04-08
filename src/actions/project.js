@@ -16,8 +16,10 @@ const initialState = {
     tagsCount           : [],
     data                : {},
     forbiden            : '',
+    notFound            : false,
     categories          : [],
-    latestProjects      : []
+    latestProjects      : [],
+    sideAlert           : {},
 }
 
 const rejectErr = (thunkAPI, err) => {
@@ -100,18 +102,35 @@ export const getProjectComments = createAsyncThunk('project/getProjectComments',
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
-export const uploadProjectComment = createAsyncThunk('project/uploadProjectComment', async (form, thunkAPI) => {
+export const addProjectComment = createAsyncThunk('project/addProjectComment', async (form, thunkAPI) => {
     try { return await api.uploadProjectComment(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
-export const removeProjectComment = createAsyncThunk('project/removeProjectComment', async (form, thunkAPI) => {
-    try { return await api.removeProjectComment(form) }
+export const updateProjectComment = createAsyncThunk('project/updateProjectComment', async (form, thunkAPI) => {
+    try { return await api.updateProjectComment(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const deleteProjectComment = createAsyncThunk('project/deleteProjectComment', async (data, thunkAPI) => {
+    try {
+        const { id, project_id } = data;
+        return await api.removeProjectComment(id, project_id);
+    } catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const toggleProjectLike = createAsyncThunk('project/toggleProjectLike', async (form, thunkAPI) => {
+    try { return await api.toggleProjectLike(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
 export const getLatestProjects = createAsyncThunk('project/getLatestProjects', async (form, thunkAPI) => {
     try { return await api.getLatestProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const viewProject = createAsyncThunk('project/viewProject', async (form, thunkAPI) => {
+    try { return await api.viewProject(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
@@ -122,12 +141,19 @@ export const projectSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(getProjectByID.fulfilled, (state, action) => {
             state.notFound          = false
-            state.data              = action.payload.data.result
+            if (action.payload.data.forbiden) {
+                state.forbiden      = action.payload.data.forbiden
+                state.data          = {}
+            } else {
+                state.forbiden      = false
+                state.data          = action.payload.data.result
+            }
             state.error             = ''
             state.isLoading         = false
         }),
         builder.addCase(getProjectByID.pending, (state, action) => {
             state.notFound          = false
+            state.forbiden          = false
             state.isLoading         = true
         }),
         builder.addCase(getProjectByID.rejected, (state, action) => {
@@ -293,31 +319,41 @@ export const projectSlice = createSlice({
         }),
 
         builder.addCase(getProjectComments.fulfilled, (state, action) => {
-            state.comments          = action.payload.data.comments
+            state.comments          = action.payload.data.result
             state.error             = ''
-            state.isLoading         = false
         }),
         builder.addCase(getProjectComments.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
         }),
 
-        builder.addCase(removeProjectComment.fulfilled, (state, action) => {
-            state.comments          = action.payload.data.comments
-            state.error             = ''
-            state.isLoading         = false
+        builder.addCase(addProjectComment.fulfilled, (state, action) => {
+            state.comments          = action.payload.data.result
+            state.sideAlert         = action.payload.data.alert || {}
         }),
-        builder.addCase(removeProjectComment.rejected, (state, action) => {
-            state.alert             = action.payload?.message
-            state.variant           = action.payload?.variant
+        builder.addCase(addProjectComment.rejected, (state, action) => {
+            state.alert             = action.payload?.alert?.message || ''
         }),
 
-        builder.addCase(uploadProjectComment.fulfilled, (state, action) => {
-            state.comments          = action.payload.data.comments
-            state.error             = ''
-            state.isLoading         = false
+        builder.addCase(updateProjectComment.fulfilled, (state, action) => {
+            state.comments          = action.payload.data.result
         }),
-        builder.addCase(uploadProjectComment.rejected, (state, action) => {
+        builder.addCase(updateProjectComment.rejected, (state, action) => {
+            state.alert             = action.payload?.alert?.message || ''
+        }),
+
+        builder.addCase(deleteProjectComment.fulfilled, (state, action) => {
+            state.comments          = action.payload.data.result
+            state.sideAlert         = action.payload.data.alert || {}
+        }),
+        builder.addCase(deleteProjectComment.rejected, (state, action) => {
+            state.alert             = action.payload?.alert?.message || ''
+        }),
+
+        builder.addCase(toggleProjectLike.fulfilled, (state, action) => {
+            if (state.data) state.data.likes = action.payload.data.result
+        }),
+        builder.addCase(toggleProjectLike.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
         }),
@@ -331,6 +367,11 @@ export const projectSlice = createSlice({
         builder.addCase(getLatestProjects.pending, (state, action) => {
             state.notFound          = false
             state.isLoading         = true
+        }),
+        builder.addCase(viewProject.fulfilled, (state, action) => {
+            if (state.data && action.payload?.data?.result?.views) {
+                state.data.views = action.payload.data.result.views
+            }
         })
     },
     reducers: {
@@ -341,9 +382,12 @@ export const projectSlice = createSlice({
       clearMailStatus: (state) => {
         state.mailStatus        = ''
       },
+      updateProjectComments: (state, action) => {
+        state.comments = action.payload.comments
+      },
     },
 })
 
-export const { clearAlert, clearMailStatus } = projectSlice.actions
+export const { clearAlert, clearMailStatus, updateProjectComments } = projectSlice.actions
 
 export default projectSlice.reducer
