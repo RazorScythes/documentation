@@ -10,7 +10,7 @@ const baseURL   = import.meta.env.VITE_DEVELOPMENT == "true" ?
 const endpoint  = axios.create({ baseURL })
 
 endpoint.interceptors.request.use((config) => {
-    const token = cookies.get('token');
+    const token = cookies.get('token', { doNotParse: true });
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -30,12 +30,11 @@ endpoint.interceptors.response.use(
     }
 );
 
-const options   = {
+const getOptions = () => ({
     headers: {
-        Authorization: `Bearer ${cookies.get('token')}`,
-        ContentType: "application/json",
+        'Content-Type': 'application/json',
     },
-};
+});
 
 /*
     USER
@@ -43,116 +42,116 @@ const options   = {
 export const login                              = (formData) => endpoint.post('/user/login', formData)
 export const register                           = (formData) => endpoint.post('/user/register', formData)
 export const googleLogin                        = (formData) => endpoint.post('/user/googleLogin', formData)
-export const getProfile                         = () => endpoint.get(`/user/getProfile`, options)
-export const updateProfile                      = (formData) => endpoint.post(`/user/updateProfile`, formData, options)
-export const getAllUsers                         = () => endpoint.get('/user/getAllUsers', options)
-export const updateUserRole                     = (formData) => endpoint.patch('/user/updateRole', formData, options)
-export const deleteUser                         = (id) => endpoint.delete(`/user/deleteUser/${id}`, options)
-export const banUser                            = (formData) => endpoint.post('/user/banUser', formData, options)
-export const unbanUser                          = (id) => endpoint.delete(`/user/unbanUser/${id}`, options)
-export const getSettings                        = () => endpoint.get('/user/getSettings', options)
-export const updateSettings                     = (formData) => endpoint.post('/user/updateSettings', formData, options)
-export const deleteAccount                      = (formData) => endpoint.delete('/user/deleteAccount', { ...options, data: formData })
-export const sendVerificationEmail              = () => endpoint.post('/user/sendVerificationEmail', {}, options)
+export const getProfile                         = () => endpoint.get(`/user/getProfile`, getOptions())
+export const updateProfile                      = (formData) => endpoint.post(`/user/updateProfile`, formData, getOptions())
+export const getAllUsers                         = () => endpoint.get('/user/getAllUsers', getOptions())
+export const updateUserRole                     = (formData) => endpoint.patch('/user/updateRole', formData, getOptions())
+export const deleteUser                         = (id) => endpoint.delete(`/user/deleteUser/${id}`, getOptions())
+export const banUser                            = (formData) => endpoint.post('/user/banUser', formData, getOptions())
+export const unbanUser                          = (id) => endpoint.delete(`/user/unbanUser/${id}`, getOptions())
+export const getSettings                        = () => endpoint.get('/user/getSettings', getOptions())
+export const updateSettings                     = (formData) => endpoint.post('/user/updateSettings', formData, getOptions())
+export const deleteAccount                      = (formData) => endpoint.delete('/user/deleteAccount', { ...getOptions(), data: formData })
+export const sendVerificationEmail              = () => endpoint.post('/user/sendVerificationEmail', {}, getOptions())
 export const verifyEmailToken                   = (formData) => endpoint.post('/user/verifyEmail', formData)
 export const getPublicProfile                   = (username) => endpoint.get(`/user/profile/${username}`)
 
 /*
     GROUPS
 */
-export const getGroups                          = (type) => endpoint.get(`/groups/getGroups/${type}`, options)
-export const newGroups                          = (formData) => endpoint.post('/groups/newGroups', formData, options)
-export const updateGroups                       = (formData) => endpoint.patch('/groups/updateGroups', formData, options)
-export const deleteGroups                       = (id, type) => endpoint.delete(`/groups/deleteGroups/${id}/${type}`, options)
-export const deleteMultipleGroups               = (formData) => endpoint.patch('/groups/deleteMultipleGroups', formData, options)
+export const getGroups                          = (type) => endpoint.get(`/groups/getGroups/${type}`, getOptions())
+export const newGroups                          = (formData) => endpoint.post('/groups/newGroups', formData, getOptions())
+export const updateGroups                       = (formData) => endpoint.patch('/groups/updateGroups', formData, getOptions())
+export const deleteGroups                       = (id, type) => endpoint.delete(`/groups/deleteGroups/${id}/${type}`, getOptions())
+export const deleteMultipleGroups               = (formData) => endpoint.patch('/groups/deleteMultipleGroups', formData, getOptions())
 
 /*
     TAGS
 */
-export const getTags                            = (type, option) => endpoint.get(`/tags/getTags/${type}${option ? '/1' : ''}`, options)
-export const newTags                            = (formData) => endpoint.post('/tags/newTags', formData, options)
-export const updateTags                         = (formData) => endpoint.patch('/tags/updateTags', formData, options)
-export const updateTagsSettings                 = (formData) => endpoint.patch('/tags/updateTagsSettings', formData, options) 
-export const deleteTags                         = (id, type) => endpoint.delete(`/tags/deleteTags/${id}/${type}`, options)
-export const deleteMultipleTags                 = (formData) => endpoint.patch('/tags/deleteMultipleTags', formData, options)
+export const getTags                            = (type, option) => endpoint.get(`/tags/getTags/${type}${option ? '/1' : ''}`, getOptions())
+export const newTags                            = (formData) => endpoint.post('/tags/newTags', formData, getOptions())
+export const updateTags                         = (formData) => endpoint.patch('/tags/updateTags', formData, getOptions())
+export const updateTagsSettings                 = (formData) => endpoint.patch('/tags/updateTagsSettings', formData, getOptions()) 
+export const deleteTags                         = (id, type) => endpoint.delete(`/tags/deleteTags/${id}/${type}`, getOptions())
+export const deleteMultipleTags                 = (formData) => endpoint.patch('/tags/deleteMultipleTags', formData, getOptions())
 
 /*
     CATEGORY
 */
-export const getCategory                        = (type, option) => endpoint.get(`/category/getCategory/${type}${option ? '/1' : ''}`, options)
-export const newCategory                        = (formData) => endpoint.post('/category/newCategory', formData, options)
-export const updateCategory                     = (formData) => endpoint.patch('/category/updateCategory', formData, options)
-export const updateCategorySettings             = (formData) => endpoint.patch('/category/updateCategorySettings', formData, options) 
-export const deleteCategory                     = (id, type) => endpoint.delete(`/category/deleteCategory/${id}/${type}`, options)
-export const deleteMultipleCategory             = (formData) => endpoint.patch('/category/deleteMultipleCategory', formData, options)
+export const getCategory                        = (type, option) => endpoint.get(`/category/getCategory/${type}${option ? '/1' : ''}`, getOptions())
+export const newCategory                        = (formData) => endpoint.post('/category/newCategory', formData, getOptions())
+export const updateCategory                     = (formData) => endpoint.patch('/category/updateCategory', formData, getOptions())
+export const updateCategorySettings             = (formData) => endpoint.patch('/category/updateCategorySettings', formData, getOptions()) 
+export const deleteCategory                     = (id, type) => endpoint.delete(`/category/deleteCategory/${id}/${type}`, getOptions())
+export const deleteMultipleCategory             = (formData) => endpoint.patch('/category/deleteMultipleCategory', formData, getOptions())
 
 /*
     AUTHOR
 */
-export const getAuthor                          = (type, option) => endpoint.get(`/author/getAuthor/${type}${option ? '/1' : ''}`, options)
-export const newAuthor                          = (formData) => endpoint.post('/author/newAuthor', formData, options)
-export const updateAuthor                       = (formData) => endpoint.patch('/author/updateAuthor', formData, options)
-export const deleteAuthor                       = (id, type) => endpoint.delete(`/author/deleteAuthor/${id}/${type}`, options)
-export const deleteMultipleAuthor               = (formData) => endpoint.patch('/author/deleteMultipleAuthor', formData, options)
+export const getAuthor                          = (type, option) => endpoint.get(`/author/getAuthor/${type}${option ? '/1' : ''}`, getOptions())
+export const newAuthor                          = (formData) => endpoint.post('/author/newAuthor', formData, getOptions())
+export const updateAuthor                       = (formData) => endpoint.patch('/author/updateAuthor', formData, getOptions())
+export const deleteAuthor                       = (id, type) => endpoint.delete(`/author/deleteAuthor/${id}/${type}`, getOptions())
+export const deleteMultipleAuthor               = (formData) => endpoint.patch('/author/deleteMultipleAuthor', formData, getOptions())
 
 /*
     VIDEOS
 */
-export const getUserVideos                      = () => endpoint.get('/videos/getUserVideos', options)
-export const newVideo                           = (formData) => endpoint.post('/videos/newVideo', formData, options) 
-export const updateVideo                        = (formData) => endpoint.patch('/videos/updateVideo', formData, options) 
-export const updateVideoSettings                = (formData) => endpoint.patch('/videos/updateVideoSettings', formData, options) 
-export const deleteVideo                        = (id) => endpoint.delete(`/videos/deleteVideo/${id}`, options) 
-export const deleteMultipleVideos               = (formData) => endpoint.patch(`/videos/deleteMultipleVideos`, formData, options) 
+export const getUserVideos                      = () => endpoint.get('/videos/getUserVideos', getOptions())
+export const newVideo                           = (formData) => endpoint.post('/videos/newVideo', formData, getOptions()) 
+export const updateVideo                        = (formData) => endpoint.patch('/videos/updateVideo', formData, getOptions()) 
+export const updateVideoSettings                = (formData) => endpoint.patch('/videos/updateVideoSettings', formData, getOptions()) 
+export const deleteVideo                        = (id) => endpoint.delete(`/videos/deleteVideo/${id}`, getOptions()) 
+export const deleteMultipleVideos               = (formData) => endpoint.patch(`/videos/deleteMultipleVideos`, formData, getOptions()) 
 
 /*
     PUBLIC
 */
-export const getVideosByType                   = (type, params) => endpoint.get(`/watch/getVideosByType/${type}`, { ...options, params })
-export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, options)
-export const getVideoList                      = (id) => endpoint.get(`/watch/getVideoList/${id}`, options)
-export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, options)
-export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, options)
-export const viewVideo                         = (formData) => endpoint.patch('/watch/viewVideo', formData, options)
-export const likeVideo                         = (formData) => endpoint.patch('/watch/likeVideo', formData, options)
-export const dislikeVideo                      = (formData) => endpoint.patch('/watch/dislikeVideo', formData, options)
-export const toggleSubscribe                   = (formData) => endpoint.patch('/watch/toggleSubscribe', formData, options)
-export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, options)
-export const deleteVideoComment                = (id, video_id) => endpoint.delete(`/watch/deleteVideoComment/${id}/${video_id}`, options)
+export const getVideosByType                   = (type, params) => endpoint.get(`/watch/getVideosByType/${type}`, { ...getOptions(), params })
+export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, getOptions())
+export const getVideoList                      = (id) => endpoint.get(`/watch/getVideoList/${id}`, getOptions())
+export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, getOptions())
+export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, getOptions())
+export const viewVideo                         = (formData) => endpoint.patch('/watch/viewVideo', formData, getOptions())
+export const likeVideo                         = (formData) => endpoint.patch('/watch/likeVideo', formData, getOptions())
+export const dislikeVideo                      = (formData) => endpoint.patch('/watch/dislikeVideo', formData, getOptions())
+export const toggleSubscribe                   = (formData) => endpoint.patch('/watch/toggleSubscribe', formData, getOptions())
+export const updateVideoComment                = (formData) => endpoint.patch('/watch/updateVideoComment', formData, getOptions())
+export const deleteVideoComment                = (id, video_id) => endpoint.delete(`/watch/deleteVideoComment/${id}/${video_id}`, getOptions())
 
 /*
     GAME COMMENTS
 */
-export const getGameComment                    = (gameId) => endpoint.post('/game/getGameComments', { gameId }, options)
-export const addGameComment                    = (formData) => endpoint.post('/game/uploadGameComment', formData, options)
-export const updateGameComment                 = (formData) => endpoint.patch('/game/updateGameComment', formData, options)
-export const deleteGameComment                 = (id, game_id) => endpoint.delete(`/game/removeGameComment/${id}/${game_id}`, options)
+export const getGameComment                    = (gameId) => endpoint.post('/game/getGameComments', { gameId }, getOptions())
+export const addGameComment                    = (formData) => endpoint.post('/game/uploadGameComment', formData, getOptions())
+export const updateGameComment                 = (formData) => endpoint.patch('/game/updateGameComment', formData, getOptions())
+export const deleteGameComment                 = (id, game_id) => endpoint.delete(`/game/removeGameComment/${id}/${game_id}`, getOptions())
 
 
 /*
     PLAYLIST
 */
-export const getPlaylists                      = () => endpoint.get(`/playlist/getPlaylists`, options)
-export const getPlaylistById                   = (id) => endpoint.get(`/playlist/getPlaylistById/${id}`, options)
-export const createPlaylist                    = (formData) => endpoint.post('/playlist/createPlaylist', formData, options)
-export const updatePlaylist                    = (formData) => endpoint.patch('/playlist/updatePlaylist', formData, options)
-export const toggleVideoInPlaylist             = (formData) => endpoint.patch('/playlist/toggleVideo', formData, options)
-export const removeVideoFromPlaylist           = (formData) => endpoint.patch('/playlist/removeVideo', formData, options)
-export const deletePlaylist                    = (id) => endpoint.delete(`/playlist/deletePlaylist/${id}`, options)
+export const getPlaylists                      = () => endpoint.get(`/playlist/getPlaylists`, getOptions())
+export const getPlaylistById                   = (id) => endpoint.get(`/playlist/getPlaylistById/${id}`, getOptions())
+export const createPlaylist                    = (formData) => endpoint.post('/playlist/createPlaylist', formData, getOptions())
+export const updatePlaylist                    = (formData) => endpoint.patch('/playlist/updatePlaylist', formData, getOptions())
+export const toggleVideoInPlaylist             = (formData) => endpoint.patch('/playlist/toggleVideo', formData, getOptions())
+export const removeVideoFromPlaylist           = (formData) => endpoint.patch('/playlist/removeVideo', formData, getOptions())
+export const deletePlaylist                    = (id) => endpoint.delete(`/playlist/deletePlaylist/${id}`, getOptions())
 
 /*
     ACCOUNT / LOGS
 */
-export const getLogs                           = (params) => endpoint.get(`/account/getLogs`, { ...options, params })
-export const clearLogs                         = () => endpoint.delete(`/account/clearLogs`, options)
+export const getLogs                           = (params) => endpoint.get(`/account/getLogs`, { ...getOptions(), params })
+export const clearLogs                         = () => endpoint.delete(`/account/clearLogs`, getOptions())
 
 /*
     ACCOUNT / REPORTS
 */
-export const createReport                     = (formData) => endpoint.post('/account/createReport', formData, options)
-export const getReports                       = (params) => endpoint.get('/account/getReports', { ...options, params })
-export const updateReportStatus               = (formData) => endpoint.patch('/account/updateReportStatus', formData, options)
-export const deleteReport                     = (id) => endpoint.delete(`/account/deleteReport/${id}`, options)
+export const createReport                     = (formData) => endpoint.post('/account/createReport', formData, getOptions())
+export const getReports                       = (params) => endpoint.get('/account/getReports', { ...getOptions(), params })
+export const updateReportStatus               = (formData) => endpoint.patch('/account/updateReportStatus', formData, getOptions())
+export const deleteReport                     = (id) => endpoint.delete(`/account/deleteReport/${id}`, getOptions())
 
 /*
     DOCUMENTATION
@@ -175,20 +174,20 @@ export const addDocSubCategory                 = (formData) => endpoint.post('/d
 /*
     CHAT
 */
-export const getConversations                  = () => endpoint.get('/chat/conversations', options)
-export const getOrCreateConversation           = (formData) => endpoint.post('/chat/conversation', formData, options)
-export const getMessages                       = (conversationId, params) => endpoint.get(`/chat/messages/${conversationId}`, { ...options, params })
-export const sendMessage                       = (formData) => endpoint.post('/chat/message', formData, options)
-export const chatSearchUsers                   = (q) => endpoint.get('/chat/searchUsers', { ...options, params: { q } })
-export const getUnreadCount                    = () => endpoint.get('/chat/unreadCount', options)
-export const deleteMessageForMe                = (messageId) => endpoint.delete(`/chat/message/${messageId}`, options)
-export const deleteMessageForAll               = (messageId) => endpoint.delete(`/chat/message/${messageId}/all`, options)
-export const deleteConversationForMe           = (conversationId) => endpoint.delete(`/chat/conversation/${conversationId}/me`, options)
-export const deleteConversationForAll          = (conversationId) => endpoint.delete(`/chat/conversation/${conversationId}/all`, options)
-export const blockUser                         = (formData) => endpoint.post('/chat/block', formData, options)
-export const unblockUser                       = (targetUserId) => endpoint.delete(`/chat/block/${targetUserId}`, options)
-export const getBlockedUsers                   = () => endpoint.get('/chat/blocked', options)
-export const checkBlocked                      = (targetUserId) => endpoint.get(`/chat/blocked/${targetUserId}`, options)
+export const getConversations                  = () => endpoint.get('/chat/conversations', getOptions())
+export const getOrCreateConversation           = (formData) => endpoint.post('/chat/conversation', formData, getOptions())
+export const getMessages                       = (conversationId, params) => endpoint.get(`/chat/messages/${conversationId}`, { ...getOptions(), params })
+export const sendMessage                       = (formData) => endpoint.post('/chat/message', formData, getOptions())
+export const chatSearchUsers                   = (q) => endpoint.get('/chat/searchUsers', { ...getOptions(), params: { q } })
+export const getUnreadCount                    = () => endpoint.get('/chat/unreadCount', getOptions())
+export const deleteMessageForMe                = (messageId) => endpoint.delete(`/chat/message/${messageId}`, getOptions())
+export const deleteMessageForAll               = (messageId) => endpoint.delete(`/chat/message/${messageId}/all`, getOptions())
+export const deleteConversationForMe           = (conversationId) => endpoint.delete(`/chat/conversation/${conversationId}/me`, getOptions())
+export const deleteConversationForAll          = (conversationId) => endpoint.delete(`/chat/conversation/${conversationId}/all`, getOptions())
+export const blockUser                         = (formData) => endpoint.post('/chat/block', formData, getOptions())
+export const unblockUser                       = (targetUserId) => endpoint.delete(`/chat/block/${targetUserId}`, getOptions())
+export const getBlockedUsers                   = () => endpoint.get('/chat/blocked', getOptions())
+export const checkBlocked                      = (targetUserId) => endpoint.get(`/chat/blocked/${targetUserId}`, getOptions())
 
 /*
     BUDGET
@@ -261,3 +260,22 @@ export const getGameTrash                    = () => endpoint.get('/game/trash/l
 export const restoreGame                     = (id) => endpoint.patch(`/game/trash/restore/${id}`)
 export const permanentDeleteGame             = (id) => endpoint.delete(`/game/trash/permanent/${id}`)
 export const emptyGameTrash                  = () => endpoint.delete('/game/trash/empty')
+
+/*
+    PAGE BUILDER
+*/
+export const getPages                        = () => endpoint.get('/page/pages', getOptions())
+export const getTrashPages                   = () => endpoint.get('/page/trash', getOptions())
+export const getPageForEdit                  = (id) => endpoint.get(`/page/edit/${id}`, getOptions())
+export const getPageBySlug                   = (slug) => endpoint.get(`/page/${slug}`)
+export const createPage                      = (formData) => endpoint.post('/page/', formData, getOptions())
+export const updatePage                      = (formData) => endpoint.patch('/page/', formData, getOptions())
+export const deletePage                      = (id) => endpoint.delete(`/page/${id}`, getOptions())
+export const duplicatePage                   = (formData) => endpoint.post('/page/duplicate', formData, getOptions())
+export const togglePagePrivacy               = (id) => endpoint.patch(`/page/privacy/${id}`, {}, getOptions())
+export const restorePage                     = (id) => endpoint.patch(`/page/restore/${id}`, {}, getOptions())
+export const permanentDeletePage             = (id) => endpoint.delete(`/page/permanent/${id}`, getOptions())
+export const emptyTrash                      = () => endpoint.delete('/page/empty-trash', getOptions())
+export const getPageImages                   = () => endpoint.get('/page/images/all', getOptions())
+export const uploadPageImages                = (formData) => endpoint.post('/page/images', formData, getOptions())
+export const deletePageImage                 = (id) => endpoint.delete(`/page/images/${id}`, getOptions())

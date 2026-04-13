@@ -33,6 +33,9 @@ import ChatWidget from './components/Custom/ChatWidget'
 import GameManager from './components/Pages/GameManager';
 import GamesPage from './components/Pages/GamesPage';
 import ProjectManager from './components/Pages/ProjectManager';
+import PagesList from './components/Pages/PageBuilder/PagesList';
+import PageBuilder from './components/Pages/PageBuilder/PageBuilder';
+import PageRenderer from './components/Pages/PageBuilder/PageRenderer';
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
@@ -95,6 +98,8 @@ const App = () => {
                     <Route path='/projects/category/:cat' element={<><Projects user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/projects/:id' element={<><ProjectsSingle user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/projects/manage' element={<><ProjectManager user={user} theme={theme}/></>} />
+                    <Route path='/pages' element={<><PagesList user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/page/:slug' element={<><PageRenderer theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
@@ -114,6 +119,8 @@ const App = () => {
                     <Route path='/account/globallist/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
+
+                <Route path='/pages/builder' element={<PageBuilder user={user} theme={theme}/>} />
 
                 <Route path="account_verify" element={<><Verify /></>} />
 
