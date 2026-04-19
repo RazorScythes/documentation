@@ -25,7 +25,6 @@ import manageUsersSlice from '../actions/manageUsers'
 import budgetSlice from '../actions/budget'
 import gameManagerSlice from '../actions/gameManager'
 import pageBuilderSlice from '../actions/pageBuilder'
-
 export const store = configureStore({
     reducer: {
         auth        : authReducer,

@@ -1,0 +1,118 @@
+.gaming-container {
+  --hud-bg: rgba(8, 8, 12, 0.82);
+  --hud-border: rgba(255, 255, 255, 0.06);
+  --hud-glow: rgba(200, 60, 60, 0.15);
+  --accent: #b03030;
+  --accent-dim: #6b2020;
+  --stat-hp: #c23030;
+  --stat-sta: #2a9a2a;
+  --stat-food: #c8862a;
+  --stat-water: #2878b8;
+}
+
+.gaming-container {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  user-select: none;
+  cursor: crosshair;
+  background: #000;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.gaming-container canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.gaming-container ::-webkit-scrollbar { width: 4px; }
+.gaming-container ::-webkit-scrollbar-track { background: transparent; }
+.gaming-container ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+.gaming-container ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes drip {
+  0% { transform: scaleY(0); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: scaleY(1); opacity: 0.6; }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes glitchFlicker {
+  0%, 90%, 100% { opacity: 1; transform: translate(0); }
+  92% { opacity: 0.8; transform: translate(-2px, 1px); }
+  94% { opacity: 1; transform: translate(1px, -1px); }
+  96% { opacity: 0.9; transform: translate(-1px, 0); }
+}
+
+.gaming-container .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.gaming-container .animate-slide-up { animation: slideUp 0.4s ease-out; }
+.gaming-container .animate-flicker { animation: flicker 3s ease-in-out infinite; }
+.gaming-container .animate-breathe { animation: breathe 4s ease-in-out infinite; }
+.gaming-container .animate-glitch { animation: glitchFlicker 6s ease-in-out infinite; }
+
+.gaming-container .hud-panel {
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  backdrop-filter: blur(12px);
+}
+
+.gaming-container .btn-danger {
+  background: linear-gradient(180deg, #8b2020 0%, #5a1515 100%);
+  border: 1px solid rgba(200, 60, 60, 0.3);
+  transition: all 0.15s ease;
+}
+.gaming-container .btn-danger:hover {
+  background: linear-gradient(180deg, #a02828 0%, #6b1a1a 100%);
+  border-color: rgba(200, 60, 60, 0.5);
+  box-shadow: 0 0 20px rgba(200, 60, 60, 0.2);
+}
+
+.gaming-container .btn-muted {
+  background: linear-gradient(180deg, rgba(40,40,50,0.9) 0%, rgba(25,25,35,0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+.gaming-container .btn-muted:hover {
+  background: linear-gradient(180deg, rgba(55,55,65,0.9) 0%, rgba(35,35,45,0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.gaming-container .editor-btn {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+.gaming-container .editor-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.2);
+}
