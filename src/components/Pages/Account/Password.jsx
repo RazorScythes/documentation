@@ -26,12 +26,15 @@ const Password = ({ user, theme, setNotification }) => {
     const [submitted, setSubmitted] = useState(false)
 
     useEffect(() => {
-        if (Object.keys(alert).length > 0) {
+        const hasAlert = typeof alert === 'object' ? Object.keys(alert).length > 0 : !!alert
+        if (hasAlert) {
             dispatch(clearAlert())
+            const msg = typeof alert === 'string' ? alert : alert?.message || ''
+            const v = variant || alert?.variant || ''
             if (setNotification) {
-                setNotification({ variant, message: alert })
+                setNotification({ variant: v, message: msg })
             }
-            if (variant === 'success') {
+            if (v === 'success') {
                 setFormData({
                     current_password: '',
                     new_password: '',
@@ -137,6 +140,7 @@ const Password = ({ user, theme, setNotification }) => {
                             />
                             <button
                                 type="button"
+                                aria-label={showPasswords.current ? 'Hide current password' : 'Show current password'}
                                 onClick={() => togglePasswordVisibility('current')}
                                 className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all ${
                                     theme === 'light'
@@ -174,6 +178,7 @@ const Password = ({ user, theme, setNotification }) => {
                             />
                             <button
                                 type="button"
+                                aria-label={showPasswords.new ? 'Hide new password' : 'Show new password'}
                                 onClick={() => togglePasswordVisibility('new')}
                                 className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all ${
                                     theme === 'light'
@@ -211,6 +216,7 @@ const Password = ({ user, theme, setNotification }) => {
                             />
                             <button
                                 type="button"
+                                aria-label={showPasswords.confirm ? 'Hide confirm password' : 'Show confirm password'}
                                 onClick={() => togglePasswordVisibility('confirm')}
                                 className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all ${
                                     theme === 'light'

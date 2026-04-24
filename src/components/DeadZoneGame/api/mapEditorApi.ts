@@ -3,9 +3,9 @@ function getApiBase(): string {
     const proto = (import.meta as any).env.VITE_APP_PROTOCOL || 'http';
     const host = (import.meta as any).env.VITE_APP_LOCALHOST || 'localhost';
     const port = (import.meta as any).env.VITE_APP_SERVER_PORT || '3000';
-    return `${proto}://${host}:${port}/gaming/map-editor`;
+    return `${proto}://${host}:${port}/deadzone/map-editor`;
   }
-  return 'https://endpoint-rho-six.vercel.app/gaming/map-editor';
+  return 'https://endpoint-rho-six.vercel.app/deadzone/map-editor';
 }
 
 const API_BASE = getApiBase();

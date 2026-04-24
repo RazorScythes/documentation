@@ -20,12 +20,15 @@ import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
 import { 
     getBudgetDashboard, getBudgetCategories, createBudgetCategory, updateBudgetCategory, 
-    deleteBudgetCategory, getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
+    deleteBudgetCategory, shareBudgetCategory, unshareBudgetCategory,
+    getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
     deleteBudgetExpense, bulkDeleteBudgetExpenses, bulkUpdateBudgetCategory,
+    searchBudgetExpenses, importBudgetCSV, processRecurring,
     getBudgetSavings, saveBudgetSavings, getBudgetSavingsHistory, deleteBudgetSavingsHistory,
     getDebts, createDebt, updateDebt, deleteDebt, addDebtPayment, removeDebtPayment, toggleDebtStatus,
     getBudgetLists, createBudgetList, updateBudgetList, deleteBudgetList,
-    clearAlert 
+    getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal, addGoalContribution,
+    clearAlert, clearSearchResults
 } from '../../actions/budget'
 import Notification from '../Custom/Notification'
 
@@ -33,11 +36,36 @@ const PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit C
 const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'lists', 'summary']
+const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'lists', 'goals', 'summary']
+
+const CURRENCIES = [
+    { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+    { code: 'KRW', symbol: '₩', name: 'Korean Won' },
+    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+]
+
+const ICON_GRID = [
+    'wallet', 'cart-shopping', 'utensils', 'house', 'car', 'bolt', 'droplet', 'wifi',
+    'phone', 'tv', 'gamepad', 'shirt', 'graduation-cap', 'briefcase-medical', 'plane',
+    'bus', 'gas-pump', 'basket-shopping', 'gift', 'heart', 'dumbbell', 'book',
+    'music', 'film', 'coffee', 'pizza-slice', 'dog', 'cat', 'baby', 'pills',
+    'tooth', 'scissors', 'paint-roller', 'hammer', 'wrench', 'laptop', 'mobile',
+    'credit-card', 'piggy-bank', 'coins', 'money-bill-wave', 'chart-line', 'chart-pie',
+    'building', 'church', 'school', 'store', 'hotel', 'tree', 'seedling', 'sun',
+    'umbrella', 'snowflake', 'fire', 'cloud', 'star', 'gem', 'crown', 'trophy',
+    'flag', 'bell', 'envelope', 'calendar', 'clock', 'tag', 'tags', 'bookmark',
+]
 
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
-    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, alert: budgetAlert, isLoading } = useSelector(state => state.budget)
+    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, alert: budgetAlert, isLoading, isSavingsLoading } = useSelector(state => state.budget)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isLight = theme === 'light'
@@ -56,14 +84,14 @@ const Budget = ({ user, theme }) => {
 
     // expense form
     const emptyItem = { description: '', amount: '' }
-    const emptyExpense = { date: new Date().toISOString().split('T')[0], category: '', type: 'expense', paymentMethod: 'Cash', notes: '' }
+    const emptyExpense = { date: new Date().toISOString().split('T')[0], category: '', type: 'expense', paymentMethod: 'Cash', notes: '', currency: 'PHP', isRecurring: false, recurrenceRule: '', recurrenceEnd: '' }
     const [expenseForm, setExpenseForm] = useState(emptyExpense)
     const [expenseItems, setExpenseItems] = useState([{ ...emptyItem }])
     const [editingExpense, setEditingExpense] = useState(null)
     const [showExpenseForm, setShowExpenseForm] = useState(false)
 
     // category form
-    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '' }
+    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '', icon: '', rollover: false }
     const [categoryForm, setCategoryForm] = useState(emptyCategory)
     const [editingCategory, setEditingCategory] = useState(null)
     const [showCategoryForm, setShowCategoryForm] = useState(false)
@@ -80,6 +108,7 @@ const Budget = ({ user, theme }) => {
             dispatch(getBudgetCategories())
             dispatch(getBudgetDashboard({ month, year }))
             dispatch(getBudgetExpenses({ month, year }))
+            dispatch(processRecurring())
         }
     }, [user])
 
@@ -87,6 +116,8 @@ const Budget = ({ user, theme }) => {
         if (user) {
             dispatch(getBudgetDashboard({ month, year }))
             dispatch(getBudgetExpenses({ month, year }))
+            setSelectedExpenses([])
+            setBulkDeleteConfirm(false)
         }
     }, [month, year])
 
@@ -110,6 +141,8 @@ const Budget = ({ user, theme }) => {
 
     // ==================== HANDLERS ====================
 
+    const [attachmentPreview, setAttachmentPreview] = useState(null)
+
     const handleExpenseSubmit = async () => {
         if (editingExpense) {
             const item = expenseItems[0]
@@ -124,6 +157,7 @@ const Budget = ({ user, theme }) => {
         setExpenseItems([{ ...emptyItem }])
         setEditingExpense(null)
         setShowExpenseForm(false)
+        setAttachmentPreview(null)
         dispatch(getBudgetDashboard({ month, year }))
     }
 
@@ -133,17 +167,34 @@ const Budget = ({ user, theme }) => {
             category: e.category?._id || '',
             type: e.type,
             paymentMethod: e.paymentMethod,
-            notes: e.notes || ''
+            notes: e.notes || '',
+            currency: e.currency || 'PHP',
+            isRecurring: !!e.isRecurring,
+            recurrenceRule: e.recurrenceRule || '',
+            recurrenceEnd: e.recurrenceEnd ? new Date(e.recurrenceEnd).toISOString().split('T')[0] : '',
         })
         setExpenseItems([{ description: e.description, amount: e.amount.toString() }])
         setEditingExpense(e._id)
         setShowExpenseForm(true)
+        setAttachmentPreview(e.attachments?.[0] || null)
+    }
+
+    const handleReceiptUpload = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (file.size > 2 * 1024 * 1024) return
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+            const base64 = ev.target.result
+            setAttachmentPreview(base64)
+            setExpenseForm(prev => ({ ...prev, attachments: [base64] }))
+        }
+        reader.readAsDataURL(file)
     }
 
     const handleDeleteExpense = async (id) => {
         if (deleteConfirm === id) {
-            await dispatch(deleteBudgetExpense(id))
-            dispatch(getBudgetExpenses({ month, year }))
+            await dispatch(deleteBudgetExpense({ id, month, year }))
             dispatch(getBudgetDashboard({ month, year }))
             setDeleteConfirm(null)
         } else {
@@ -182,7 +233,7 @@ const Budget = ({ user, theme }) => {
 
     const handleCategorySubmit = async () => {
         if (!categoryForm.name) return
-        const data = { ...categoryForm, budget: parseFloat(categoryForm.budget) || 0 }
+        const data = { ...categoryForm, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover }
         if (editingCategory) {
             await dispatch(updateBudgetCategory({ ...data, id: editingCategory }))
         } else {
@@ -195,7 +246,7 @@ const Budget = ({ user, theme }) => {
     }
 
     const handleEditCategory = (c) => {
-        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '' })
+        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '', icon: c.icon || '', rollover: !!c.rollover })
         setEditingCategory(c._id)
         setShowCategoryForm(true)
     }
@@ -283,6 +334,7 @@ const Budget = ({ user, theme }) => {
         { id: 'savings', label: 'Savings', icon: faPiggyBank },
         { id: 'debts', label: 'Debts', icon: faHandHoldingUsd },
         { id: 'lists', label: 'Lists', icon: faListAlt },
+        { id: 'goals', label: 'Goals', icon: faCheckCircle },
         { id: 'summary', label: 'Summary', icon: faFilePdf },
     ]
 
@@ -296,7 +348,10 @@ const Budget = ({ user, theme }) => {
         }
     }
 
-    const formatCurrency = (v) => `₱${(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const formatCurrency = (v, currencyCode) => {
+        const cur = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0]
+        return `${cur.symbol}${(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
 
     const statusColor = (pct) => {
         if (pct >= 100) return { bg: isLight ? 'bg-red-50' : 'bg-red-900/20', text: 'text-red-500', bar: 'bg-red-500', border: isLight ? 'border-red-200' : 'border-red-800/50' }
@@ -403,6 +458,9 @@ const Budget = ({ user, theme }) => {
                                 bulkDeleteConfirm={bulkDeleteConfirm} setSelectedExpenses={setSelectedExpenses}
                                 setBulkDeleteConfirm={setBulkDeleteConfirm}
                                 handleBulkCategoryUpdate={handleBulkCategoryUpdate}
+                                dispatch={dispatch} month={month} year={year} searchResults={searchResults}
+                                attachmentPreview={attachmentPreview} setAttachmentPreview={setAttachmentPreview}
+                                handleReceiptUpload={handleReceiptUpload}
                             />
                         )}
                         {activeTab === 'monthly' && (
@@ -422,10 +480,11 @@ const Budget = ({ user, theme }) => {
                                 isLight={isLight} card={card} inputCls={inputCls} selectCls={selectCls}
                                 btnPrimary={btnPrimary} btnSecondary={btnSecondary} formatCurrency={formatCurrency}
                                 emptyCategory={emptyCategory} isLoading={isLoading}
+                                dispatch={dispatch}
                             />
                         )}
                         {activeTab === 'savings' && (
-                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isLoading} />
+                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isSavingsLoading} />
                         )}
                         {activeTab === 'debts' && (
                             <DebtTab
@@ -439,6 +498,13 @@ const Budget = ({ user, theme }) => {
                                 budgetLists={budgetLists} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
                                 isLoading={isLoading}
+                            />
+                        )}
+                        {activeTab === 'goals' && (
+                            <GoalsTab
+                                goals={goals} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
+                                inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
+                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isLoading}
                             />
                         )}
                         {activeTab === 'summary' && (
@@ -605,6 +671,16 @@ const DashboardTab = ({ dashboard, isLight, card, formatCurrency, statusColor, i
                 </div>
             </div>
 
+            {/* Daily Spending Chart */}
+            <div className={`${card} p-5`}>
+                <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
+                {d.dailyTotals && Object.keys(d.dailyTotals).length > 0 ? (
+                    <DailyChart dailyTotals={d.dailyTotals} month={d.month} year={d.year} isLight={isLight} formatCurrency={formatCurrency} />
+                ) : (
+                    <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No daily data available.</p>
+                )}
+            </div>
+
             {/* Quick Stats */}
             <div className={`${card} p-5`}>
                 <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Monthly Overview</h3>
@@ -630,6 +706,102 @@ const DashboardTab = ({ dashboard, isLight, card, formatCurrency, statusColor, i
                         <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Daily Average</p>
                     </div>
                 </div>
+                {d.rolloverAmount > 0 && (
+                    <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex items-center gap-2`}>
+                        <FontAwesomeIcon icon={faSyncAlt} className={`text-[10px] ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                        <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Budget rollover from last month: <span className="font-semibold">{formatCurrency(d.rolloverAmount)}</span></span>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
+    const canvasRef = useRef(null)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const [tooltip, setTooltip] = useState(null)
+
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const ctx = canvas.getContext('2d')
+        const dpr = window.devicePixelRatio || 1
+        const w = canvas.clientWidth
+        const h = canvas.clientHeight
+        canvas.width = w * dpr
+        canvas.height = h * dpr
+        ctx.scale(dpr, dpr)
+        ctx.clearRect(0, 0, w, h)
+
+        let maxVal = 0
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dt = dailyTotals[day]
+            if (dt) {
+                maxVal = Math.max(maxVal, dt.expense || 0, dt.income || 0)
+            }
+        }
+        if (maxVal === 0) maxVal = 100
+
+        const padding = { top: 10, right: 10, bottom: 24, left: 10 }
+        const chartW = w - padding.left - padding.right
+        const chartH = h - padding.top - padding.bottom
+        const barW = Math.max(2, (chartW / daysInMonth) - 2)
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dt = dailyTotals[day] || { income: 0, expense: 0 }
+            const x = padding.left + ((day - 1) / daysInMonth) * chartW + 1
+
+            const expH = (dt.expense / maxVal) * chartH
+            ctx.fillStyle = isLight ? '#ef4444' : '#f87171'
+            ctx.globalAlpha = 0.8
+            ctx.fillRect(x, padding.top + chartH - expH, barW * 0.5, expH)
+
+            const incH = (dt.income / maxVal) * chartH
+            ctx.fillStyle = isLight ? '#10b981' : '#34d399'
+            ctx.fillRect(x + barW * 0.5, padding.top + chartH - incH, barW * 0.5, incH)
+
+            ctx.globalAlpha = 1
+            if (day % 5 === 0 || day === 1) {
+                ctx.fillStyle = isLight ? '#94a3b8' : '#6b7280'
+                ctx.font = '9px sans-serif'
+                ctx.textAlign = 'center'
+                ctx.fillText(day.toString(), x + barW * 0.25, h - 6)
+            }
+        }
+    }, [dailyTotals, daysInMonth, isLight])
+
+    const handleMouse = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const chartW = rect.width - 20
+        const day = Math.floor(((x - 10) / chartW) * daysInMonth) + 1
+        if (day >= 1 && day <= daysInMonth && dailyTotals[day]) {
+            setTooltip({ day, ...dailyTotals[day], x: e.clientX - rect.left, y: e.clientY - rect.top })
+        } else {
+            setTooltip(null)
+        }
+    }
+
+    return (
+        <div className="relative">
+            <canvas
+                ref={canvasRef}
+                className="w-full cursor-crosshair"
+                style={{ height: 140 }}
+                onMouseMove={handleMouse}
+                onMouseLeave={() => setTooltip(null)}
+            />
+            {tooltip && (
+                <div className={`absolute z-10 px-2.5 py-1.5 rounded-lg text-xs shadow-lg pointer-events-none ${isLight ? 'bg-white border border-slate-200 text-slate-700' : 'bg-[#1a1a1a] border border-[#333] text-gray-200'}`} style={{ left: Math.min(tooltip.x, canvasRef.current.clientWidth - 120), top: tooltip.y - 50 }}>
+                    <p className="font-semibold">Day {tooltip.day}</p>
+                    {tooltip.expense > 0 && <p className="text-red-500">Expense: {formatCurrency(tooltip.expense)}</p>}
+                    {tooltip.income > 0 && <p className="text-emerald-500">Income: {formatCurrency(tooltip.income)}</p>}
+                </div>
+            )}
+            <div className="flex items-center justify-center gap-4 mt-1">
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor: isLight ? '#ef4444' : '#f87171'}} /><span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Expense</span></div>
+                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor: isLight ? '#10b981' : '#34d399'}} /><span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Income</span></div>
             </div>
         </div>
     )
@@ -645,12 +817,69 @@ const DailyExpensesTab = ({
     selectCls, btnPrimary, btnSecondary, formatCurrency, paymentIcon, emptyExpense, isLoading,
     selectedExpenses, toggleSelectExpense, toggleSelectAll, handleBulkDelete,
     bulkDeleteConfirm, setSelectedExpenses, setBulkDeleteConfirm,
-    handleBulkCategoryUpdate
+    handleBulkCategoryUpdate, dispatch, month, year, searchResults,
+    attachmentPreview, setAttachmentPreview, handleReceiptUpload
 }) => {
     const [filterDate, setFilterDate] = useState('')
     const [filterMethod, setFilterMethod] = useState('')
     const [filterCategory, setFilterCategory] = useState('')
     const [showFilters, setShowFilters] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [isSearching, setIsSearching] = useState(false)
+    const [showCSVImport, setShowCSVImport] = useState(false)
+    const [csvData, setCsvData] = useState([])
+    const searchTimeout = useRef(null)
+
+    const handleSearch = (q) => {
+        setSearchQuery(q)
+        if (searchTimeout.current) clearTimeout(searchTimeout.current)
+        if (q.length >= 2) {
+            setIsSearching(true)
+            searchTimeout.current = setTimeout(() => {
+                dispatch(searchBudgetExpenses({ q }))
+            }, 400)
+        } else {
+            setIsSearching(false)
+            dispatch(clearSearchResults())
+        }
+    }
+
+    const handleCSVFile = (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+            const text = ev.target.result
+            const lines = text.split('\n').filter(l => l.trim())
+            if (lines.length < 2) return
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+            const rows = lines.slice(1).map(line => {
+                const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+                const row = {}
+                headers.forEach((h, i) => { row[h] = cols[i] || '' })
+                return {
+                    date: row.date || '',
+                    description: row.description || row.name || row.item || '',
+                    amount: row.amount || row.price || '0',
+                    type: row.type || 'expense',
+                    paymentMethod: row.paymentmethod || row['payment method'] || row.method || 'Cash',
+                    notes: row.notes || '',
+                }
+            }).filter(r => r.description && parseFloat(r.amount))
+            setCsvData(rows)
+            setShowCSVImport(true)
+        }
+        reader.readAsText(file)
+        e.target.value = ''
+    }
+
+    const handleCSVImport = async () => {
+        if (csvData.length === 0) return
+        await dispatch(importBudgetCSV({ rows: csvData, month, year }))
+        setCsvData([])
+        setShowCSVImport(false)
+        dispatch(getBudgetDashboard({ month, year }))
+    }
 
     const hasFilters = filterDate || filterMethod || filterCategory
 
@@ -756,6 +985,72 @@ const DailyExpensesTab = ({
                     </div>
                 </div>
             </div>
+
+            {/* Search + CSV Import */}
+            <div className={`${card} p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2`}>
+                <div className="flex-1 relative">
+                    <FontAwesomeIcon icon={faSearch} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                    <input
+                        type="text" placeholder="Search all transactions..." value={searchQuery}
+                        onChange={e => handleSearch(e.target.value)}
+                        className={`${inputCls} pl-8`}
+                    />
+                </div>
+                <div className="flex items-center gap-2">
+                    <label className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg cursor-pointer transition-all ${isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                        <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
+                        Import CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
+                    </label>
+                </div>
+            </div>
+
+            {/* Search Results */}
+            {isSearching && searchResults.length > 0 && (
+                <div className={`${card} p-4`}>
+                    <h4 className={`text-xs font-semibold mb-3 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Search Results ({searchResults.length})</h4>
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                        {searchResults.slice(0, 20).map(e => (
+                            <div key={e._id} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    <span className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</span>
+                                </div>
+                                <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* CSV Import Preview */}
+            {showCSVImport && csvData.length > 0 && (
+                <div className={`${card} p-4`}>
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>CSV Preview ({csvData.length} rows)</h4>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setShowCSVImport(false); setCsvData([]) }} className={btnSecondary + ' !text-xs !px-3 !py-1.5'}>Cancel</button>
+                            <button onClick={handleCSVImport} className={btnPrimary + ' !text-xs !px-3 !py-1.5'}>Import {csvData.length} rows</button>
+                        </div>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                        <table className="w-full text-xs">
+                            <thead><tr className={isLight ? 'text-slate-400' : 'text-gray-500'}><th className="text-left py-1 px-2">Date</th><th className="text-left py-1 px-2">Description</th><th className="text-right py-1 px-2">Amount</th><th className="text-left py-1 px-2">Type</th></tr></thead>
+                            <tbody>
+                                {csvData.slice(0, 10).map((r, i) => (
+                                    <tr key={i} className={isLight ? 'text-slate-600' : 'text-gray-300'}>
+                                        <td className="py-1 px-2">{r.date || '—'}</td>
+                                        <td className="py-1 px-2 truncate max-w-[200px]">{r.description}</td>
+                                        <td className="py-1 px-2 text-right">{r.amount}</td>
+                                        <td className="py-1 px-2">{r.type}</td>
+                                    </tr>
+                                ))}
+                                {csvData.length > 10 && <tr><td colSpan={4} className={`py-1 px-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>...and {csvData.length - 10} more rows</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Filters */}
             <div className={`${card} overflow-hidden`}>
@@ -958,10 +1253,59 @@ const DailyExpensesTab = ({
                             )}
                         </div>
 
-                        <div className="mt-3">
-                            <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Notes (optional)</label>
-                            <input type="text" placeholder="Additional notes..." value={expenseForm.notes} onChange={e => setExpenseForm({...expenseForm, notes: e.target.value})} className={inputCls} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Currency</label>
+                                <select value={expenseForm.currency || 'PHP'} onChange={e => setExpenseForm({...expenseForm, currency: e.target.value})} className={`${selectCls} w-full`}>
+                                    {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} - {c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Notes (optional)</label>
+                                <input type="text" placeholder="Additional notes..." value={expenseForm.notes} onChange={e => setExpenseForm({...expenseForm, notes: e.target.value})} className={inputCls} />
+                            </div>
                         </div>
+
+                        <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className="flex items-center gap-4 mb-3">
+                                <label className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-all ${isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-300 hover:bg-[#2a2a2a]'}`}>
+                                    <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
+                                    {attachmentPreview ? 'Change Receipt' : 'Attach Receipt'}
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleReceiptUpload} />
+                                </label>
+                                {attachmentPreview && (
+                                    <div className="flex items-center gap-2">
+                                        <img src={attachmentPreview} alt="receipt" className="w-10 h-10 rounded-md object-cover border border-solid border-slate-200/50" />
+                                        <button onClick={() => { setAttachmentPreview(null); setExpenseForm(prev => ({ ...prev, attachments: [] })) }} className={`text-[10px] ${isLight ? 'text-red-500' : 'text-red-400'}`}>
+                                            <FontAwesomeIcon icon={faTimes} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+                                <input type="checkbox" checked={!!expenseForm.isRecurring} onChange={e => setExpenseForm({...expenseForm, isRecurring: e.target.checked})} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
+                                <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Recurring transaction</span>
+                            </label>
+                            {expenseForm.isRecurring && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                    <div>
+                                        <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Frequency</label>
+                                        <select value={expenseForm.recurrenceRule || ''} onChange={e => setExpenseForm({...expenseForm, recurrenceRule: e.target.value})} className={`${selectCls} w-full`}>
+                                            <option value="">Select frequency</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="biweekly">Bi-weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>End date (optional)</label>
+                                        <input type="date" value={expenseForm.recurrenceEnd || ''} onChange={e => setExpenseForm({...expenseForm, recurrenceEnd: e.target.value})} className={inputCls} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex justify-end gap-2 mt-4">
                             <button onClick={() => { setShowExpenseForm(false); setEditingExpense(null); setExpenseForm(emptyExpense); setExpenseItems([{ ...emptyItem }]) }} className={btnSecondary}>Cancel</button>
                             <button onClick={handleExpenseSubmit} className={btnPrimary} disabled={!expenseItems.some(i => i.description && i.amount)}>
@@ -1210,8 +1554,9 @@ const CategoriesTab = ({
     categories, categoryForm, setCategoryForm, editingCategory, showCategoryForm,
     setShowCategoryForm, handleCategorySubmit, handleEditCategory, handleDeleteCategory,
     setEditingCategory, deleteConfirm, isLight, card, inputCls, selectCls, btnPrimary,
-    btnSecondary, formatCurrency, emptyCategory, isLoading
+    btnSecondary, formatCurrency, emptyCategory, isLoading, dispatch
 }) => {
+    const [showIconPicker, setShowIconPicker] = useState(false)
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
 
     if (isLoading) {
@@ -1281,6 +1626,25 @@ const CategoriesTab = ({
                                 <input type="number" placeholder="0.00" value={categoryForm.budget} onChange={e => setCategoryForm({...categoryForm, budget: e.target.value})} className={inputCls} min="0" step="0.01" />
                             </div>
                             <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Icon</label>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setShowIconPicker(!showIconPicker)} className={`w-9 h-9 rounded-lg flex items-center justify-center border border-solid transition-all ${isLight ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-[#1a1a1a] border-[#333] hover:border-blue-500'}`}>
+                                        {categoryForm.icon ? <SafeIcon name={categoryForm.icon} cls={`text-sm ${isLight ? 'text-slate-600' : 'text-gray-300'}`} /> : <FontAwesomeIcon icon={faCircle} className={`text-xs ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />}
+                                    </button>
+                                    {categoryForm.icon && <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{categoryForm.icon}</span>}
+                                </div>
+                                {showIconPicker && (
+                                    <div className={`mt-2 p-2 rounded-lg border border-solid max-h-36 overflow-y-auto grid grid-cols-8 gap-1 ${isLight ? 'bg-white border-slate-200' : 'bg-[#111] border-[#333]'}`}>
+                                        <button onClick={() => { setCategoryForm({...categoryForm, icon: ''}); setShowIconPicker(false) }} className={`w-7 h-7 rounded flex items-center justify-center text-xs ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#222] text-gray-500'}`} title="None"><FontAwesomeIcon icon={faTimes} /></button>
+                                        {ICON_GRID.map(ic => (
+                                            <button key={ic} onClick={() => { setCategoryForm({...categoryForm, icon: ic}); setShowIconPicker(false) }} className={`w-7 h-7 rounded flex items-center justify-center transition-all ${categoryForm.icon === ic ? (isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400') : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#222] text-gray-400')}`} title={ic}>
+                                                <SafeIcon name={ic} cls="text-xs" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div>
                                 <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Color</label>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {CATEGORY_COLORS.map(c => (
@@ -1293,9 +1657,16 @@ const CategoriesTab = ({
                                     ))}
                                 </div>
                             </div>
+                            <div className="flex items-center gap-3 sm:col-span-2">
+                                <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+                                    <input type="checkbox" checked={!!categoryForm.rollover} onChange={e => setCategoryForm({...categoryForm, rollover: e.target.checked})} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
+                                    <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Enable budget rollover</span>
+                                </label>
+                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>(carry unspent budget to next month)</span>
+                            </div>
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={() => { setShowCategoryForm(false); setEditingCategory(null); setCategoryForm(emptyCategory) }} className={btnSecondary}>Cancel</button>
+                            <button onClick={() => { setShowCategoryForm(false); setEditingCategory(null); setCategoryForm(emptyCategory); setShowIconPicker(false) }} className={btnSecondary}>Cancel</button>
                             <button onClick={handleCategorySubmit} className={btnPrimary} disabled={!categoryForm.name}>
                                 <FontAwesomeIcon icon={editingCategory ? faCheck : faPlus} className="mr-1.5 text-xs" />
                                 {editingCategory ? 'Update' : 'Add'}
@@ -1315,12 +1686,23 @@ const CategoriesTab = ({
                         {expenseCats.map(cat => (
                             <div key={cat._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                    {cat.icon ? (
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                                            <SafeIcon name={cat.icon} cls="text-xs" style={{ color: cat.color }} />
+                                        </div>
+                                    ) : (
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                    )}
                                     <div className="min-w-0">
                                         <span className={`text-sm font-medium block truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
-                                        {cat.budget > 0 && (
-                                            <span className={`text-xs block sm:inline sm:ml-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget: {formatCurrency(cat.budget)}/mo</span>
-                                        )}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {cat.budget > 0 && (
+                                                <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget: {formatCurrency(cat.budget)}/mo</span>
+                                            )}
+                                            {cat.rollover && (
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400'}`}><FontAwesomeIcon icon={faSyncAlt} className="mr-0.5 text-[8px]" />Rollover</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -1349,7 +1731,13 @@ const CategoriesTab = ({
                         {incomeCats.map(cat => (
                             <div key={cat._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                    {cat.icon ? (
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                                            <SafeIcon name={cat.icon} cls="text-xs" style={{ color: cat.color }} />
+                                        </div>
+                                    ) : (
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                    )}
                                     <span className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -2658,6 +3046,7 @@ const QuickAddItem = ({ list, quickAddItem, isLight, inputCls }) => {
 const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, statusColor, paymentIcon, isLoading }) => {
     const summaryRef = useRef(null)
     const [downloading, setDownloading] = useState(false)
+    const [pdfError, setPdfError] = useState('')
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
 
     const PDF_WIDTH = 800
@@ -2713,6 +3102,8 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
             pdf.save(`Budget_Summary_${MONTHS[month - 1]}_${year}.pdf`)
         } catch (err) {
             console.error('PDF generation failed:', err)
+            setPdfError('PDF generation failed. Please try again.')
+            setTimeout(() => setPdfError(''), 5000)
             el.style.width = origWidth
             el.style.minWidth = origMinWidth
             el.style.maxWidth = origMaxWidth
@@ -2803,6 +3194,13 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                     )}
                 </button>
             </div>
+
+            {pdfError && (
+                <div className={`rounded-lg p-3 mb-2 text-sm font-medium flex items-center gap-2 ${isLight ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-red-900/20 text-red-400 border border-red-800/50'}`}>
+                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-xs" />
+                    {pdfError}
+                </div>
+            )}
 
             {/* Printable Summary */}
             <div ref={summaryRef} className={`${card} overflow-hidden`} style={{ minWidth: 600 }}>
@@ -3097,6 +3495,247 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+// ==================== GOALS TAB ====================
+
+const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading }) => {
+    const [showForm, setShowForm] = useState(false)
+    const [editing, setEditing] = useState(null)
+    const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
+    const [contribForm, setContribForm] = useState({ goalId: null, amount: '', notes: '' })
+    const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    useEffect(() => { dispatch(getFinancialGoals()) }, [])
+
+    const resetForm = () => { setForm({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' }); setEditing(null); setShowForm(false) }
+
+    const handleSubmit = async () => {
+        if (!form.name || !form.targetAmount) return
+        const data = { ...form, targetAmount: parseFloat(form.targetAmount) }
+        if (editing) await dispatch(updateFinancialGoal({ ...data, id: editing }))
+        else await dispatch(createFinancialGoal(data))
+        resetForm()
+    }
+
+    const handleEdit = (g) => {
+        setForm({ name: g.name, targetAmount: g.targetAmount.toString(), deadline: g.deadline ? new Date(g.deadline).toISOString().split('T')[0] : '', category: g.category?._id || '', color: g.color, icon: g.icon || 'bullseye', notes: g.notes || '' })
+        setEditing(g._id)
+        setShowForm(true)
+    }
+
+    const handleDelete = async (id) => {
+        if (deleteConfirm === id) { await dispatch(deleteFinancialGoal(id)); setDeleteConfirm(null) }
+        else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000) }
+    }
+
+    const handleContribute = async () => {
+        if (!contribForm.goalId || !contribForm.amount) return
+        await dispatch(addGoalContribution({ id: contribForm.goalId, amount: parseFloat(contribForm.amount), notes: contribForm.notes }))
+        setContribForm({ goalId: null, amount: '', notes: '' })
+    }
+
+    const activeGoals = goals.filter(g => g.status === 'active')
+    const completedGoals = goals.filter(g => g.status === 'completed')
+    const totalTarget = activeGoals.reduce((s, g) => s + g.targetAmount, 0)
+    const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0)
+
+    if (isLoading) {
+        return (
+            <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className={`${card} p-5`}>
+                        <div className={`h-4 w-32 mb-3 ${pulse}`} />
+                        <div className={`h-3 rounded-full w-full ${pulse}`} />
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-4">
+            {/* Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`${card} px-4 py-3 text-center`}>
+                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Active Goals</p>
+                    <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{activeGoals.length}</p>
+                </div>
+                <div className={`${card} px-4 py-3 text-center`}>
+                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Saved</p>
+                    <p className="text-lg font-bold text-emerald-500">{formatCurrency(totalSaved)}</p>
+                </div>
+                <div className={`${card} px-4 py-3 text-center`}>
+                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Target</p>
+                    <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{formatCurrency(totalTarget)}</p>
+                </div>
+            </div>
+
+            {/* Add Goal */}
+            <div className={`${card} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Goal' : 'Financial Goals'}</h3>
+                    <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400') : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')}`}>
+                        <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
+                        {showForm ? 'Cancel' : 'New Goal'}
+                    </button>
+                </div>
+
+                {showForm && (
+                    <div className={`p-4 rounded-lg mb-4 border border-solid ${isLight ? 'bg-slate-50/50 border-slate-200/60' : 'bg-[#141414] border-[#2B2B2B]'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Goal Name</label>
+                                <input type="text" placeholder="e.g., Emergency Fund" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Target Amount</label>
+                                <input type="number" placeholder="0.00" value={form.targetAmount} onChange={e => setForm({...form, targetAmount: e.target.value})} className={inputCls} min="0" step="0.01" />
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Deadline (optional)</label>
+                                <input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Category (optional)</label>
+                                <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={`${selectCls} w-full`}>
+                                    <option value="">None</option>
+                                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Color</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {CATEGORY_COLORS.map(c => (
+                                        <button key={c} onClick={() => setForm({...form, color: c})} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Notes</label>
+                                <input type="text" placeholder="Optional notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={inputCls} />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={resetForm} className={btnSecondary}>Cancel</button>
+                            <button onClick={handleSubmit} className={btnPrimary} disabled={!form.name || !form.targetAmount}>
+                                <FontAwesomeIcon icon={editing ? faCheck : faPlus} className="mr-1.5 text-xs" />
+                                {editing ? 'Update' : 'Create Goal'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Active Goals */}
+            {activeGoals.length > 0 && (
+                <div className="space-y-3">
+                    {activeGoals.map(g => {
+                        const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
+                        const barColor = pct >= 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-blue-500' : 'bg-amber-500'
+                        const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
+                        return (
+                            <div key={g._id} className={`${card} p-5 border-l-4`} style={{ borderLeftColor: g.color }}>
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: g.color + '20' }}>
+                                            <SafeIcon name={g.icon || 'bullseye'} cls="text-sm" style={{ color: g.color }} />
+                                        </div>
+                                        <div>
+                                            <h4 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.name}</h4>
+                                            <div className="flex items-center gap-2 text-[11px]">
+                                                {g.category && <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{g.category.name}</span>}
+                                                {daysLeft !== null && (
+                                                    <span className={daysLeft < 0 ? 'text-red-500' : daysLeft < 30 ? 'text-amber-500' : (isLight ? 'text-slate-400' : 'text-gray-500')}>
+                                                        {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button onClick={() => handleEdit(g)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
+                                            <FontAwesomeIcon icon={faPen} className="text-[10px]" />
+                                        </button>
+                                        <button onClick={() => handleDelete(g._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`}>
+                                            <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between mb-1.5 text-xs">
+                                    <span className={isLight ? 'text-slate-500' : 'text-gray-400'}>{formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}</span>
+                                    <span className={`font-bold ${pct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-600' : 'text-gray-300')}`}>{pct}%</span>
+                                </div>
+                                <div className={`h-2.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                    <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                                </div>
+
+                                {/* Contribute */}
+                                <div className="flex items-center gap-2 mt-3">
+                                    {contribForm.goalId === g._id ? (
+                                        <>
+                                            <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5`} min="0" step="0.01" />
+                                            <button onClick={handleContribute} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isLight ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white'}`} disabled={!contribForm.amount}>Add</button>
+                                            <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`px-2 py-1.5 rounded-lg text-xs ${isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-400 hover:bg-[#1f1f1f]'}`}>
+                                                <FontAwesomeIcon icon={faTimes} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'}`}>
+                                            <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
+                                            Add Funds
+                                        </button>
+                                    )}
+                                </div>
+
+                                {g.contributions?.length > 0 && (
+                                    <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <p className={`text-[11px] font-semibold mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Recent contributions</p>
+                                        <div className="space-y-1">
+                                            {g.contributions.slice(-3).reverse().map((c, i) => (
+                                                <div key={i} className="flex items-center justify-between text-xs">
+                                                    <span className={isLight ? 'text-slate-500' : 'text-gray-400'}>{new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                    <span className="font-semibold text-emerald-500">+{formatCurrency(c.amount)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* Completed Goals */}
+            {completedGoals.length > 0 && (
+                <div className={`${card} p-5`}>
+                    <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Completed ({completedGoals.length})</h4>
+                    <div className="space-y-2">
+                        {completedGoals.map(g => (
+                            <div key={g._id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-emerald-50/50' : 'bg-emerald-900/10'}`}>
+                                <div className="flex items-center gap-2">
+                                    <FontAwesomeIcon icon={faCheckCircle} className="text-emerald-500 text-xs" />
+                                    <span className={`text-sm ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</span>
+                                </div>
+                                <span className="text-sm font-semibold text-emerald-500">{formatCurrency(g.currentAmount)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {goals.length === 0 && !showForm && (
+                <div className={`${card} p-8 text-center`}>
+                    <FontAwesomeIcon icon={faCheckCircle} className={`text-3xl mb-3 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                    <p className={`text-sm font-medium mb-1 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>No financial goals yet</p>
+                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Create goals to track your savings progress.</p>
+                </div>
+            )}
         </div>
     )
 }

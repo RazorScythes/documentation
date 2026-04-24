@@ -96,8 +96,8 @@ const Footer = ({ theme }) => {
                                 {
                                     video_links.map((link, i) => {
                                         return (
-                                        <Link key={i} to={`/${link.path}`} className={`block mb-4 lg:mt-0 ${theme === 'light' ? light.link : dark.link} mr-4`} onClick={() => setIsActive(!isActive)}>
-                                            <FontAwesomeIcon icon={link.icon} className="mr-2" />
+                                        <Link key={i} to={`/${link.path}`} className={`block mb-4 lg:mt-0 ${theme === 'light' ? light.link : dark.link} mr-4`}>
+                                            {link.icon && <FontAwesomeIcon icon={link.icon} className="mr-2" />}
                                             {link.name}
                                         </Link>
                                         )

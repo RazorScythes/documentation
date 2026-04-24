@@ -15,10 +15,10 @@ export const getProfile = createAsyncThunk('user/getProfile', async (data, thunk
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
+        return thunkAPI.rejectWithValue({
             alert : {
                 variant: 'danger',
                 message: "There was a problem with the server."
@@ -33,10 +33,10 @@ export const updateProfile = createAsyncThunk('user/updateProfile', async (formD
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
+        return thunkAPI.rejectWithValue({
             alert : {
                 variant: 'danger',
                 message: "There was a problem with the server."

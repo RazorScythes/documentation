@@ -115,7 +115,7 @@ export default function MainMenu() {
         )}
 
         <button
-          onClick={() => navigate('/gaming/map-editor')}
+          onClick={() => navigate('/deadzone/map-editor')}
           className="group relative px-8 py-3 overflow-hidden text-xs font-bold uppercase tracking-[0.25em]
             text-amber-300/60 btn-muted rounded active:scale-[0.97] cursor-pointer mt-2"
         >

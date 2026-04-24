@@ -5,7 +5,7 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faShieldHalved } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck } from '@fortawesome/free-solid-svg-icons';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -54,9 +54,24 @@ const Account = ({ user, theme }) => {
     }, [show])
 
     useEffect(() => {
-        setImage(localStorage.getItem('avatar')?.replaceAll('"', ""))
-        setProfile(JSON.parse(localStorage.getItem('profile')))
-    }, [localStorage.getItem('avatar'), localStorage.getItem('profile')])
+        try {
+            setImage(localStorage.getItem('avatar')?.replaceAll('"', ""))
+            const stored = localStorage.getItem('profile')
+            if (stored) setProfile(JSON.parse(stored))
+        } catch (e) {
+            console.warn('Failed to parse profile from localStorage', e)
+        }
+
+        const onStorage = (e) => {
+            if (e.key === 'avatar') setImage(e.newValue?.replaceAll('"', '') || '')
+            if (e.key === 'profile') {
+                try { if (e.newValue) setProfile(JSON.parse(e.newValue)) }
+                catch (_) {}
+            }
+        }
+        window.addEventListener('storage', onStorage)
+        return () => window.removeEventListener('storage', onStorage)
+    }, [])
 
     const menuItems = [
         { name: 'Overview', icon: faHome, path: '', dropdown: [] },
@@ -203,6 +218,9 @@ const Account = ({ user, theme }) => {
                                                 return (
                                                     <li key={item.path}>
                                                         <div
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            aria-expanded={item.dropdown.length > 0 ? openDropdown === item.path : undefined}
                                                             className={`mx-1.5 my-0.5 px-4 py-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all duration-200 ${
                                                                 isActive
                                                                     ? (isLight
@@ -213,6 +231,7 @@ const Account = ({ user, theme }) => {
                                                                         : 'text-gray-300 hover:bg-[#1C1C1C]')
                                                             }`}
                                                             onClick={() => (item.dropdown.length > 0 ? toggleDropdown(item.path) : redirect(item.path))}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.dropdown.length > 0 ? toggleDropdown(item.path) : redirect(item.path) }}}
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <FontAwesomeIcon
@@ -241,7 +260,10 @@ const Account = ({ user, theme }) => {
                                                                     return (
                                                                         <li
                                                                             key={subItem.path}
+                                                                            role="button"
+                                                                            tabIndex={0}
                                                                             onClick={() => redirect(subItem.path)}
+                                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); redirect(subItem.path) }}}
                                                                             className={`px-4 py-2 my-0.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
                                                                                 isSubActive
                                                                                     ? (isLight
@@ -267,7 +289,7 @@ const Account = ({ user, theme }) => {
                             </div>
 
                             {/* Content Area */}
-                            <div className={`w-full mt-4 md:mt-0 px-6 py-4 pb-5 rounded-xl border border-solid ${
+                            <div className={`w-full mt-4 md:mt-0 rounded-xl border border-solid ${
                                 isLight
                                     ? 'bg-white/90 backdrop-blur-sm border-blue-200/60'
                                     : 'bg-[#0e0e0e] border-[#2B2B2B]'

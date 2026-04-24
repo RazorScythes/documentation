@@ -9,14 +9,15 @@ import {
     faArrowUp, faArrowDown, faCode, faCloudUploadAlt, faCalendar, faFile,
     faQuoteRight, faListOl, faListUl, faColumns, faDownload, faImages, faLink,
     faExternalLinkAlt, faHeading, faParagraph, faPhotoVideo,
-    faLock, faCopy, faKey, faBook
+    faLock, faCopy, faKey, faBook, faCheckCircle, faHourglass, faDraftingCompass, faArchive,
+    faUsers, faHistory, faChartBar, faUserPlus, faCheckSquare, faSquare
 } from '@fortawesome/free-solid-svg-icons'
 import { library, findIconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
 import { put, del } from '@vercel/blob'
-import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert } from '../../actions/project'
+import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert, bulkDeleteProjects, bulkUpdateProjects, addCollaborator, removeCollaborator, getProjectAnalytics } from '../../actions/project'
 import { getDocs } from '../../actions/documentation'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
@@ -29,13 +30,20 @@ import 'react-multi-carousel/lib/styles.css'
 library.add(fas, far, fab)
 
 const PURPOSES = ['Personal', 'School', 'Client', 'Others']
+const STATUSES = [
+    { value: 'draft', label: 'Draft', icon: faDraftingCompass, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+    { value: 'in-progress', label: 'In Progress', icon: faHourglass, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { value: 'completed', label: 'Completed', icon: faCheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { value: 'archived', label: 'Archived', icon: faArchive, color: 'text-gray-400', bg: 'bg-gray-500/10' },
+]
 
 const INITIAL_FORM = {
     featured_image: '', post_title: '', date_start: '', date_end: '',
-    created_for: 'Personal',
+    created_for: 'Personal', status: 'draft',
     privacy: false, access_key: [], documentation_link: '',
     content: [{ header: 'Container Box', container: [{ header: 'Heading', element: 'heading', heading: '' }] }],
-    tags: [], categories: ''
+    tags: [], categories: '',
+    attachments: [], changelog: [],
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
@@ -128,7 +136,7 @@ const ProjectManager = ({ user, theme }) => {
     const userId = user?._id || user?.result?._id || ''
 
     const [searchParams, setSearchParams] = useSearchParams()
-    const VALID_TABS = ['projects', 'categories']
+    const VALID_TABS = ['projects', 'categories', 'analytics']
     const tabParam = searchParams.get('tab')
     const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'projects'
     const setActiveTab = (tab) => setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
@@ -168,13 +176,29 @@ const ProjectManager = ({ user, theme }) => {
     const [iconSearch, setIconSearch] = useState('')
     const [showIconPicker, setShowIconPicker] = useState(false)
 
+    const [selectedProjects, setSelectedProjects] = useState([])
+    const [showBulkActions, setShowBulkActions] = useState(false)
+    const [bulkStatus, setBulkStatus] = useState('')
+    const [bulkCategory, setBulkCategory] = useState('')
+    const [filterStatus, setFilterStatus] = useState('')
+    const [analyticsProject, setAnalyticsProject] = useState(null)
+    const analytics = useSelector((state) => state.project.analytics)
+
+    const [collabInput, setCollabInput] = useState('')
+    const [collabRole, setCollabRole] = useState('viewer')
+
+    const [changelogVersion, setChangelogVersion] = useState('')
+    const [changelogDesc, setChangelogDesc] = useState('')
+
+    const [attachmentUploading, setAttachmentUploading] = useState(false)
+
     const filteredIcons = useMemo(() => {
         if (!iconSearch) return COMMON_ICONS
         const s = iconSearch.toLowerCase()
         return COMMON_ICONS.filter(ic => ic.includes(s))
     }, [iconSearch])
 
-    const activeFilterCount = [filterCategory, filterPurpose].filter(Boolean).length
+    const activeFilterCount = [filterCategory, filterPurpose, filterStatus].filter(Boolean).length
 
     useEffect(() => {
         if (user) {
@@ -223,7 +247,49 @@ const ProjectManager = ({ user, theme }) => {
         setPage(0)
     }
 
-    const clearFilters = () => { setFilterCategory(''); setFilterPurpose(''); setPage(0) }
+    const clearFilters = () => { setFilterCategory(''); setFilterPurpose(''); setFilterStatus(''); setPage(0) }
+
+    const handleBulkDelete = () => {
+        if (selectedProjects.length === 0) return
+        setConfirmModal({
+            open: true, title: 'Bulk Delete', variant: 'danger', icon: faTrash,
+            message: `Delete ${selectedProjects.length} selected project(s)? This cannot be undone.`,
+            onConfirm: () => {
+                dispatch(bulkDeleteProjects({ id: userId, project_ids: selectedProjects }))
+                setSelectedProjects([])
+                setShowBulkActions(false)
+                setConfirmModal(prev => ({ ...prev, open: false }))
+            }
+        })
+    }
+
+    const handleBulkStatusUpdate = () => {
+        if (selectedProjects.length === 0 || !bulkStatus) return
+        dispatch(bulkUpdateProjects({ id: userId, project_ids: selectedProjects, updates: { status: bulkStatus } }))
+        setSelectedProjects([])
+        setShowBulkActions(false)
+        setBulkStatus('')
+    }
+
+    const handleBulkCategoryUpdate = () => {
+        if (selectedProjects.length === 0) return
+        dispatch(bulkUpdateProjects({ id: userId, project_ids: selectedProjects, updates: { categories: bulkCategory } }))
+        setSelectedProjects([])
+        setShowBulkActions(false)
+        setBulkCategory('')
+    }
+
+    const toggleProjectSelect = (projectId) => {
+        setSelectedProjects(prev => prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId])
+    }
+
+    const toggleSelectAll = () => {
+        if (selectedProjects.length === pageData.length) {
+            setSelectedProjects([])
+        } else {
+            setSelectedProjects(pageData.map(p => p._id))
+        }
+    }
 
     const processed = useMemo(() => {
         let result = [...(projects || [])]
@@ -235,6 +301,7 @@ const ProjectManager = ({ user, theme }) => {
         }
         if (filterCategory) result = result.filter(p => p.categories === filterCategory)
         if (filterPurpose) result = result.filter(p => p.created_for === filterPurpose)
+        if (filterStatus) result = result.filter(p => p.status === filterStatus)
 
         result.sort((a, b) => {
             let va, vb
@@ -261,13 +328,15 @@ const ProjectManager = ({ user, theme }) => {
     /* ─── Form ─── */
 
     const resetForm = () => {
-        setForm({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)), tags: [], access_key: [], privacy: false, documentation_link: '' })
+        setForm({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)), tags: [], access_key: [], privacy: false, documentation_link: '', attachments: [], changelog: [] })
         setEditIndex(null)
         setTagInput('')
         setContentSelected('')
         setContentGrid1Selected('')
         setContentGrid2Selected('')
         setCodePreview({})
+        setChangelogVersion('')
+        setChangelogDesc('')
     }
 
     const openCreate = () => {
@@ -278,20 +347,30 @@ const ProjectManager = ({ user, theme }) => {
         setView('form')
     }
 
+    const formatDateForInput = (d) => {
+        if (!d) return ''
+        const date = new Date(d)
+        if (isNaN(date.getTime())) return d
+        return date.toISOString().split('T')[0]
+    }
+
     const openEdit = (p, idx) => {
         const copiedContent = JSON.parse(JSON.stringify(p.content || []))
         setForm({
             featured_image: p.featured_image || '',
             post_title: p.post_title || '',
-            date_start: p.date_start || '',
-            date_end: p.date_end || '',
+            date_start: formatDateForInput(p.date_start),
+            date_end: formatDateForInput(p.date_end),
             created_for: p.created_for || 'Personal',
+            status: p.status || 'draft',
             privacy: p.privacy || false,
             access_key: JSON.parse(JSON.stringify(p.access_key || [])),
             documentation_link: p.documentation_link || '',
             content: copiedContent,
             tags: [...(p.tags || [])],
-            categories: p.categories || ''
+            categories: p.categories || '',
+            attachments: JSON.parse(JSON.stringify(p.attachments || [])),
+            changelog: JSON.parse(JSON.stringify(p.changelog || [])),
         })
         setEditIndex(idx)
         setTagInput('')
@@ -375,6 +454,38 @@ const ProjectManager = ({ user, theme }) => {
         }
     }
     const removeTag = (i) => { const t = [...form.tags]; t.splice(i, 1); setForm({ ...form, tags: t }) }
+
+    const addChangelog = () => {
+        if (!changelogVersion || !changelogDesc) return
+        setForm(prev => ({ ...prev, changelog: [...(prev.changelog || []), { version: changelogVersion, date: new Date().toISOString(), description: changelogDesc }] }))
+        setChangelogVersion('')
+        setChangelogDesc('')
+    }
+    const removeChangelog = (i) => { setForm(prev => { const c = [...(prev.changelog || [])]; c.splice(i, 1); return { ...prev, changelog: c } }) }
+
+    const handleAttachmentUpload = async (e) => {
+        const files = e.target.files
+        if (!files?.length) return
+        setAttachmentUploading(true)
+        try {
+            const newAttachments = []
+            for (const file of files) {
+                const blob = await put(`projects/attachments/${Date.now()}_${file.name}`, file, {
+                    access: 'public', token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
+                })
+                newAttachments.push({ name: file.name, url: blob.url, type: file.type, size: file.size })
+            }
+            setForm(prev => ({ ...prev, attachments: [...(prev.attachments || []), ...newAttachments] }))
+        } catch (err) { console.error('Attachment upload failed:', err) }
+        finally { setAttachmentUploading(false); e.target.value = '' }
+    }
+    const removeAttachment = async (i) => {
+        const att = form.attachments?.[i]
+        if (att?.url?.includes('vercel-storage')) {
+            await del(att.url, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN }).catch(() => {})
+        }
+        setForm(prev => { const a = [...(prev.attachments || [])]; a.splice(i, 1); return { ...prev, attachments: a } })
+    }
 
     const generateKey = () => {
         const key = Math.random().toString(36).substring(2, 10).toUpperCase()
@@ -633,7 +744,7 @@ const ProjectManager = ({ user, theme }) => {
     /* ─── Reusable: Element Picker ─── */
 
     const ElementPicker = ({ value, onChange, onAdd, types = ELEMENT_TYPES, sticky = false }) => (
-        <div className={`flex items-center gap-2 ${sticky ? `sticky top-0 z-10 py-2 -mx-1 px-1 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-[#0a0a0a]/95 backdrop-blur-sm'}` : ''}`}>
+        <div className={`flex items-center gap-2 ${sticky ? `sticky bottom-0 z-10 py-2 -mx-1 px-1 ${isLight ? 'bg-white/95 backdrop-blur-sm' : 'bg-[#0a0a0a]/95 backdrop-blur-sm'}` : ''}`}>
             <select className={`${selectCls} flex-1 text-xs py-1.5`} value={value} onChange={e => onChange(e.target.value)}>
                 <option value="" disabled>Select Element</option>
                 {types.map(g => (
@@ -1046,15 +1157,15 @@ const ProjectManager = ({ user, theme }) => {
                         {['grid1', 'grid2'].map(gType => (
                             <div key={gType} className={`rounded-lg p-3 ${isLight ? 'bg-white border border-solid border-slate-200' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B]'}`}>
                                 <div className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${subText}`}>Column {gType === 'grid1' ? '1' : '2'}</div>
+                                <div className="space-y-1 mb-2">
+                                    {el[gType]?.map((subEl, si) => renderElementEditor(subEl, index, box_index, true, gType, index, si))}
+                                </div>
                                 <ElementPicker
                                     value={gType === 'grid1' ? contentGrid1Selected : contentGrid2Selected}
                                     onChange={v => gType === 'grid1' ? setContentGrid1Selected(v) : setContentGrid2Selected(v)}
                                     onAdd={() => addContentElementsGrid(index, box_index, gType)}
                                     types={GRID_ELEMENT_TYPES}
                                 />
-                                <div className="mt-2 space-y-1">
-                                    {el[gType]?.map((subEl, si) => renderElementEditor(subEl, index, box_index, true, gType, index, si))}
-                                </div>
                             </div>
                         ))}
                     </div>
@@ -1068,12 +1179,12 @@ const ProjectManager = ({ user, theme }) => {
 
     const columns = [
         { key: 'post_title', label: 'Title', align: 'left' },
+        { key: 'status', label: 'Status', align: 'center', hide: 'sm' },
         { key: 'categories', label: 'Category', align: 'left', hide: 'sm' },
         { key: 'created_for', label: 'Purpose', align: 'left', hide: 'md' },
         { key: 'date_start', label: 'Date', align: 'left', hide: 'lg' },
         { key: 'views', label: 'Views', align: 'center', hide: 'lg' },
         { key: 'likes', label: 'Likes', align: 'center', hide: 'lg' },
-        { key: 'comments', label: 'Comments', align: 'center', hide: 'lg' },
     ]
 
     const SortIcon = ({ col }) => {
@@ -1170,6 +1281,43 @@ const ProjectManager = ({ user, theme }) => {
                                                 </div>
                                             </div>
                                         ))}
+                                        {/* Collaborators */}
+                                        <div className={`border-t border-solid pt-4 ${sectionBorder}`}>
+                                            <h3 className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                                <FontAwesomeIcon icon={faUsers} className="text-[10px]" /> Collaborators
+                                            </h3>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <input type="text" className={`${inputCls} flex-1 text-xs`} placeholder="User ID to add..."
+                                                    value={collabInput} onChange={e => setCollabInput(e.target.value)} />
+                                                <select className={`${selectCls} text-xs py-2`} value={collabRole} onChange={e => setCollabRole(e.target.value)}>
+                                                    <option value="viewer">Viewer</option>
+                                                    <option value="editor">Editor</option>
+                                                </select>
+                                                <button onClick={() => { if (!collabInput) return; dispatch(addCollaborator({ id: userId, project_id: viewProject._id, targetUserId: collabInput, role: collabRole })); setCollabInput('') }}
+                                                    className={`${btnPrimary} py-2 px-3 text-xs`}>
+                                                    <FontAwesomeIcon icon={faUserPlus} />
+                                                </button>
+                                            </div>
+                                            {viewProject.collaborators?.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {viewProject.collaborators.map((c, ci) => (
+                                                        <div key={ci} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                                            <div className="flex items-center gap-2">
+                                                                <FontAwesomeIcon icon={faUsers} className={`text-xs ${subText}`} />
+                                                                <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{c.user?.username || c.user || 'User'}</span>
+                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400'}`}>{c.role}</span>
+                                                            </div>
+                                                            <button onClick={() => dispatch(removeCollaborator({ id: userId, project_id: viewProject._id, targetUserId: String(c.user?._id || c.user) }))}
+                                                                className={`w-6 h-6 rounded flex items-center justify-center text-red-500 ${isLight ? 'hover:bg-red-50' : 'hover:bg-red-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className={`text-[10px] ${mutedText}`}>No collaborators added yet.</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1229,9 +1377,74 @@ const ProjectManager = ({ user, theme }) => {
                                             }`}>{category.length}</span>
                                         )}
                                     </button>
+                                    <button onClick={() => setActiveTab('analytics')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'analytics'
+                                            ? (isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400')
+                                            : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
+                                        }`}>
+                                        <FontAwesomeIcon icon={faChartBar} className="text-[10px]" /> Analytics
+                                    </button>
                                 </div>
                             )}
                         </div>
+
+                        {/* ========== ANALYTICS TAB ========== */}
+                        {activeTab === 'analytics' && (
+                            <div className={`${card} p-5 sm:p-6`}>
+                                <div className="flex items-center gap-2.5 mb-5">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                        <FontAwesomeIcon icon={faChartBar} className={`text-sm ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                    </div>
+                                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Project Analytics</h3>
+                                </div>
+                                {!analyticsProject ? (
+                                    <div>
+                                        <p className={`text-xs mb-3 ${subText}`}>Select a project to view analytics:</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            {projects?.map(p => (
+                                                <button key={p._id} onClick={() => { setAnalyticsProject(p); dispatch(getProjectAnalytics({ project_id: p._id, id: userId })) }}
+                                                    className={`text-left p-3 rounded-xl border border-solid transition-all hover:scale-[1.01] ${isLight ? 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50' : 'border-[#2B2B2B] hover:border-emerald-700 hover:bg-emerald-900/10'}`}>
+                                                    <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{p.post_title}</p>
+                                                    <div className={`flex gap-3 mt-1 text-[10px] ${subText}`}>
+                                                        <span>{p.views?.length || 0} views</span>
+                                                        <span>{p.likes?.length || 0} likes</span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {(!projects || projects.length === 0) && (
+                                            <p className={`text-center py-10 text-sm ${mutedText}`}>No projects to analyze yet.</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-5">
+                                            <h4 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{analyticsProject.post_title}</h4>
+                                            <button onClick={() => { setAnalyticsProject(null) }} className={`${btnSecondary} text-xs`}>Back</button>
+                                        </div>
+                                        {analytics ? (
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                {[
+                                                    { label: 'Views', value: analytics.views, color: isLight ? 'text-blue-600' : 'text-blue-400', bg: isLight ? 'bg-blue-50' : 'bg-blue-900/20' },
+                                                    { label: 'Likes', value: analytics.likes, color: isLight ? 'text-red-500' : 'text-red-400', bg: isLight ? 'bg-red-50' : 'bg-red-900/20' },
+                                                    { label: 'Bookmarks', value: analytics.bookmarks, color: isLight ? 'text-amber-600' : 'text-amber-400', bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20' },
+                                                    { label: 'Comments', value: analytics.comments, color: isLight ? 'text-emerald-600' : 'text-emerald-400', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20' },
+                                                ].map((stat, si) => (
+                                                    <div key={si} className={`${stat.bg} rounded-xl p-4 text-center`}>
+                                                        <p className={`text-2xl font-bold ${stat.color}`}>{stat.value || 0}</p>
+                                                        <p className={`text-xs mt-1 ${subText}`}>{stat.label}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-center py-10">
+                                                <span className={`w-8 h-8 border-2 border-t-transparent rounded-full animate-spin ${isLight ? 'border-emerald-400' : 'border-emerald-600'}`} />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* ========== CATEGORIES TAB ========== */}
                         {activeTab === 'categories' && (
@@ -1404,6 +1617,26 @@ const ProjectManager = ({ user, theme }) => {
                                             value={search} onChange={e => { setSearch(e.target.value); setPage(0) }} />
                                     </div>
                                 </div>
+                                {/* Bulk Actions Bar */}
+                                {selectedProjects.length > 0 && (
+                                    <div className={`flex flex-wrap items-center gap-2 px-4 sm:px-5 py-2.5 border-b border-solid ${isLight ? 'bg-blue-50/50 border-blue-200/50' : 'bg-blue-900/10 border-blue-800/30'}`}>
+                                        <span className={`text-xs font-semibold ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>{selectedProjects.length} selected</span>
+                                        <select className={`${selectCls} text-xs py-1`} value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}>
+                                            <option value="">Set Status...</option>
+                                            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                        </select>
+                                        {bulkStatus && <button onClick={handleBulkStatusUpdate} className={`${btnPrimary} py-1 px-2.5 text-[10px]`}>Apply Status</button>}
+                                        <select className={`${selectCls} text-xs py-1`} value={bulkCategory} onChange={e => setBulkCategory(e.target.value)}>
+                                            <option value="">Set Category...</option>
+                                            {category?.map((c, i) => <option key={i} value={c._id}>{c.name}</option>)}
+                                        </select>
+                                        {bulkCategory && <button onClick={handleBulkCategoryUpdate} className={`${btnPrimary} py-1 px-2.5 text-[10px]`}>Apply Category</button>}
+                                        <button onClick={handleBulkDelete} className="px-2.5 py-1 rounded-lg text-[10px] font-medium bg-red-500 text-white hover:bg-red-600 transition-all">
+                                            <FontAwesomeIcon icon={faTrash} className="mr-1" />Delete
+                                        </button>
+                                        <button onClick={() => setSelectedProjects([])} className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Clear Selection</button>
+                                    </div>
+                                )}
                                 {/* Filters Row */}
                                 {showFilters && (
                                     <div className={`flex flex-wrap items-center gap-2 px-4 sm:px-5 py-2.5 border-b border-solid ${sectionBorder}`}>
@@ -1415,6 +1648,10 @@ const ProjectManager = ({ user, theme }) => {
                                             <option value="">All Purposes</option>
                                             {PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
+                                        <select className={`${selectCls} text-xs py-1.5`} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(0) }}>
+                                            <option value="">All Statuses</option>
+                                            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                        </select>
                                         {activeFilterCount > 0 && <button onClick={clearFilters} className={`text-xs font-medium ${isLight ? 'text-blue-500' : 'text-blue-400'}`}>Clear</button>}
                                     </div>
                                 )}
@@ -1423,7 +1660,13 @@ const ProjectManager = ({ user, theme }) => {
                                     <table className="w-full">
                                         <thead>
                                             <tr className={isLight ? 'bg-slate-50/80' : 'bg-[#0a0a0a]'}>
-                                                <th className={`px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider ${subText}`} style={{ width: 50 }}>#</th>
+                                                <th className={`px-2 py-2.5 text-center text-[11px] font-semibold ${subText}`} style={{ width: 36 }}>
+                                                    <button onClick={toggleSelectAll} className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100' : 'hover:bg-[#222]'}`}>
+                                                        <FontAwesomeIcon icon={selectedProjects.length === pageData.length && pageData.length > 0 ? faCheckSquare : faSquare}
+                                                            className={`text-sm ${selectedProjects.length === pageData.length && pageData.length > 0 ? (isLight ? 'text-blue-500' : 'text-blue-400') : mutedText}`} />
+                                                    </button>
+                                                </th>
+                                                <th className={`px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider ${subText}`} style={{ width: 50 }}>#</th>
                                                 {columns.map(col => (
                                                     <th key={col.key}
                                                         className={`px-3 py-2.5 text-${col.align} text-[11px] font-semibold uppercase tracking-wider cursor-pointer group/th ${subText} ${col.hide ? `hidden ${col.hide}:table-cell` : ''}`}
@@ -1455,9 +1698,18 @@ const ProjectManager = ({ user, theme }) => {
                                                         {(activeFilterCount > 0 || search) && <button onClick={() => { clearFilters(); setSearch('') }} className={`text-xs font-medium ${isLight ? 'text-blue-500' : 'text-blue-400'}`}>Clear all filters</button>}
                                                     </div>
                                                 </td></tr>
-                                            ) : pageData.map((p, i) => (
-                                                <tr key={p._id || i} className={`transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#111]'}`}>
-                                                    <td className="px-4 py-2.5">
+                                            ) : pageData.map((p, i) => {
+                                                const isSelected = selectedProjects.includes(p._id)
+                                                const sInfo = STATUSES.find(s => s.value === p.status) || STATUSES[0]
+                                                return (
+                                                <tr key={p._id || i} className={`transition-colors ${isSelected ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#111]')}`}>
+                                                    <td className="px-2 py-2.5 text-center">
+                                                        <button onClick={() => toggleProjectSelect(p._id)} className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100' : 'hover:bg-[#222]'}`}>
+                                                            <FontAwesomeIcon icon={isSelected ? faCheckSquare : faSquare}
+                                                                className={`text-sm ${isSelected ? (isLight ? 'text-blue-500' : 'text-blue-400') : mutedText}`} />
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-2 py-2.5">
                                                         <div className="flex items-center gap-2.5">
                                                             <div className={`w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
                                                                 {p.featured_image
@@ -1470,6 +1722,11 @@ const ProjectManager = ({ user, theme }) => {
                                                     <td className="px-3 py-2.5">
                                                         <p className={`text-xs font-medium truncate max-w-[200px] ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{p.post_title}</p>
                                                     </td>
+                                                    <td className={`px-3 py-2.5 text-center hidden sm:table-cell`}>
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${sInfo.bg} ${sInfo.color}`}>
+                                                            <FontAwesomeIcon icon={sInfo.icon} className="text-[8px]" />{sInfo.label}
+                                                        </span>
+                                                    </td>
                                                     <td className={`px-3 py-2.5 hidden sm:table-cell`}>
                                                         <span className={`text-xs ${subText}`}>{getCategoryName(p.categories)}</span>
                                                     </td>
@@ -1477,16 +1734,13 @@ const ProjectManager = ({ user, theme }) => {
                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1a1a1a] text-gray-400'}`}>{p.created_for}</span>
                                                     </td>
                                                     <td className={`px-3 py-2.5 hidden lg:table-cell`}>
-                                                        <span className={`text-xs ${subText}`}>{p.date_start || '—'}</span>
+                                                        <span className={`text-xs ${subText}`}>{formatDateForInput(p.date_start) || '—'}</span>
                                                     </td>
                                                     <td className={`px-3 py-2.5 text-center hidden lg:table-cell`}>
                                                         <span className={`text-xs ${subText}`}>{p.views?.length || 0}</span>
                                                     </td>
                                                     <td className={`px-3 py-2.5 text-center hidden lg:table-cell`}>
                                                         <span className={`text-xs ${subText}`}>{p.likes?.length || 0}</span>
-                                                    </td>
-                                                    <td className={`px-3 py-2.5 text-center hidden lg:table-cell`}>
-                                                        <span className={`text-xs ${subText}`}>{p.comment?.length || 0}</span>
                                                     </td>
                                                     <td className="px-3 py-2.5">
                                                         <div className="flex items-center justify-end gap-1">
@@ -1505,7 +1759,7 @@ const ProjectManager = ({ user, theme }) => {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            )})}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1621,6 +1875,81 @@ const ProjectManager = ({ user, theme }) => {
                                                 </select>
                                             </div>
                                         </div>
+                                        {/* Status */}
+                                        <div>
+                                            <label className={labelCls}>Status</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {STATUSES.map(s => (
+                                                    <button key={s.value} type="button" onClick={() => setForm(prev => ({ ...prev, status: s.value }))}
+                                                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-solid transition-all ${
+                                                            form.status === s.value
+                                                                ? `${s.bg} ${s.color} border-current`
+                                                                : isLight ? 'border-slate-200 text-slate-500 hover:border-slate-300' : 'border-[#333] text-gray-500 hover:border-[#444]'
+                                                        }`}>
+                                                        <FontAwesomeIcon icon={s.icon} className="text-[10px]" /> {s.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Attachments */}
+                                        <div>
+                                            <label className={labelCls}><FontAwesomeIcon icon={faDownload} className="mr-1" />Attachments</label>
+                                            {form.attachments?.length > 0 && (
+                                                <div className="space-y-1.5 mb-3">
+                                                    {form.attachments.map((att, ai) => (
+                                                        <div key={ai} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                            <FontAwesomeIcon icon={faFile} className={isLight ? 'text-blue-400' : 'text-blue-500'} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{att.name}</p>
+                                                                {att.size > 0 && <p className={`text-[10px] mt-0.5 ${mutedText}`}>{att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`}</p>}
+                                                            </div>
+                                                            {att.url && (
+                                                                <a href={att.url} target="_blank" rel="noopener noreferrer" className={`hover:text-blue-500 ${mutedText}`}>
+                                                                    <FontAwesomeIcon icon={faDownload} className="text-[10px]" />
+                                                                </a>
+                                                            )}
+                                                            <button onClick={() => removeAttachment(ai)} className={`hover:text-red-500 ${mutedText}`}><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <label className={`flex items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-all py-4 ${
+                                                isLight ? 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50' : 'border-[#2B2B2B] hover:border-blue-800 hover:bg-blue-900/10'
+                                            } ${attachmentUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                {attachmentUploading
+                                                    ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /><span className={`text-xs font-medium ${mutedText}`}>Uploading...</span></>
+                                                    : <><FontAwesomeIcon icon={faCloudUploadAlt} className={`text-base ${mutedText}`} /><span className={`text-xs font-medium ${mutedText}`}>Upload Files</span></>
+                                                }
+                                                <input type="file" multiple onChange={handleAttachmentUpload} className="hidden" disabled={attachmentUploading} />
+                                            </label>
+                                        </div>
+                                        {/* Changelog */}
+                                        <div>
+                                            <label className={labelCls}><FontAwesomeIcon icon={faHistory} className="mr-1" />Changelog</label>
+                                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                <input type="text" className={`${inputCls} w-20 text-xs`} value={changelogVersion}
+                                                    onChange={e => setChangelogVersion(e.target.value)} placeholder="v1.0" />
+                                                <input type="text" className={`${inputCls} text-xs`} value={changelogDesc}
+                                                    onChange={e => setChangelogDesc(e.target.value)} placeholder="What changed..."
+                                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addChangelog() } }} />
+                                                <button onClick={addChangelog} className={`${btnPrimary} py-1.5 px-2.5 text-[10px] flex items-center gap-1`}>
+                                                    <FontAwesomeIcon icon={faPlus} className="text-[10px] mr-1" />Add
+                                                </button>
+                                            </div>
+
+                                            {form.changelog?.length > 0 && (
+                                                <div className="space-y-1.5 mb-3 mt-1">
+                                                    {form.changelog.map((entry, ci) => (
+                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                            <span className={`font-bold whitespace-nowrap ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
+                                                            <span className={`flex-1 truncate ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</span>
+                                                            <span className={`text-[10px] whitespace-nowrap ${mutedText}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                                            <button onClick={() => removeChangelog(ci)} className={`hover:text-red-500 ${mutedText}`}><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                         {/* Tags */}
                                         <div>
                                             <label className={labelCls}>Tags</label>
@@ -1732,11 +2061,11 @@ const ProjectManager = ({ user, theme }) => {
                                                 </div>
                                                 {/* Container Body */}
                                                 <div className="px-3 sm:px-4 py-3 space-y-2 relative">
-                                                    <ElementPicker value={contentSelected} onChange={setContentSelected}
-                                                        onAdd={() => addContentElements(box_index)} sticky />
                                                     {form.content[box_index]?.container?.map((item, index) =>
                                                         renderElementEditor(item, index, box_index)
                                                     )}
+                                                    <ElementPicker value={contentSelected} onChange={setContentSelected}
+                                                        onAdd={() => addContentElements(box_index)} sticky />
                                                 </div>
                                             </div>
                                         ))}

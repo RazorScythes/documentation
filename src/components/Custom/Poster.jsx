@@ -53,7 +53,7 @@ const Poster = ({ data, theme }) => {
                     )
                 }
             </div>
-            <p className='truncate text-center'>Shangri-La Frontier: Kusoge Hunter, Kamige ni Idoman to su 2nd Season</p>
+            <p className='truncate text-center'>{data?.title || 'Untitled'}</p>
         </div>
     );
 }

@@ -9,6 +9,7 @@ const initialState = {
     data        : [],
     trash       : [],
     trashLoading: false,
+    analytics   : null,
 }
 
 const rejectErr = (thunkAPI, err) => {
@@ -41,6 +42,11 @@ export const bulkDeleteGames = createAsyncThunk('gameManager/bulkDeleteGames', a
     catch (err) { return rejectErr(thunkAPI, err) }
 })
 
+export const bulkUpdateGames = createAsyncThunk('gameManager/bulkUpdateGames', async (form, thunkAPI) => {
+    try { return await api.bulkUpdateGames(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+})
+
 export const togglePrivacy = createAsyncThunk('gameManager/togglePrivacy', async (id, thunkAPI) => {
     try { return await api.toggleGamePrivacy(id) }
     catch (err) { return rejectErr(thunkAPI, err) }
@@ -68,6 +74,11 @@ export const permanentDeleteGame = createAsyncThunk('gameManager/permanentDelete
 
 export const emptyTrash = createAsyncThunk('gameManager/emptyTrash', async (_, thunkAPI) => {
     try { return await api.emptyGameTrash() }
+    catch (err) { return rejectErr(thunkAPI, err) }
+})
+
+export const getGameAnalytics = createAsyncThunk('gameManager/getGameAnalytics', async (form, thunkAPI) => {
+    try { return await api.getGameAnalytics(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
 })
 
@@ -105,6 +116,7 @@ export const gameManagerSlice = createSlice({
         }),
         builder.addCase(fetchGames.rejected, rejected),
 
+        builder.addCase(createGame.pending, (state) => { state.isLoading = true }),
         builder.addCase(createGame.fulfilled, fulfilled),
         builder.addCase(createGame.rejected, rejected),
 
@@ -116,6 +128,9 @@ export const gameManagerSlice = createSlice({
 
         builder.addCase(bulkDeleteGames.fulfilled, fulfilled),
         builder.addCase(bulkDeleteGames.rejected, rejected),
+
+        builder.addCase(bulkUpdateGames.fulfilled, fulfilled),
+        builder.addCase(bulkUpdateGames.rejected, rejected),
 
         builder.addCase(togglePrivacy.fulfilled, fulfilled),
         builder.addCase(togglePrivacy.rejected, rejected),
@@ -137,7 +152,15 @@ export const gameManagerSlice = createSlice({
         builder.addCase(permanentDeleteGame.rejected, rejected),
 
         builder.addCase(emptyTrash.fulfilled, trashFulfilled),
-        builder.addCase(emptyTrash.rejected, rejected)
+        builder.addCase(emptyTrash.rejected, rejected),
+
+        builder.addCase(getGameAnalytics.fulfilled, (state, action) => {
+            state.analytics = action.payload.data.result
+        }),
+        builder.addCase(getGameAnalytics.rejected, (state, action) => {
+            state.alert     = action.payload?.message || ''
+            state.variant   = action.payload?.variant || ''
+        })
     },
     reducers: {
         clearGameAlert: (state) => {

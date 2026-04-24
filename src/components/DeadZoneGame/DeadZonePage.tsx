@@ -8,7 +8,7 @@ import GameOverScreen from './components/GameOverScreen';
 import HUD from './components/HUD';
 import InventoryUI from './components/InventoryUI';
 import CraftingUI from './components/CraftingUI';
-import './gaming.css';
+import './deadzone.css';
 
 const MapEditor = lazy(() => import('./components/editor/MapEditor'));
 const EditorLanding = lazy(() => import('./components/editor/EditorLanding'));
@@ -33,7 +33,7 @@ function EditorRouter() {
   );
 }
 
-export default function GamingPage() {
+export default function DeadZonePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { startEngine, stopEngine } = useGameEngine(canvasRef);
   const gameStatus = useGameStore(s => s.gameStatus);

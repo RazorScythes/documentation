@@ -37,8 +37,10 @@ import PagesList from './components/Pages/PageBuilder/PagesList';
 import PageBuilder from './components/Pages/PageBuilder/PageBuilder';
 import PageRenderer from './components/Pages/PageBuilder/PageRenderer';
 
-const GamingPage = React.lazy(() => import('./components/Gaming/GamingPage'));
-const GamingMapEditor = React.lazy(() => import('./components/Gaming/GamingMapEditor'));
+const DeadZonePage = React.lazy(() => import('./components/DeadZoneGame/DeadZonePage'));
+const DeadZoneMapEditor = React.lazy(() => import('./components/DeadZoneGame/DeadZoneMapEditor'));
+const GameMaker = React.lazy(() => import('./components/GameMaker/GameMaker'));
+const GameMakerDeploy = React.lazy(() => import('./components/GameMaker/GameMakerDeploy'));
 
 const URI_PATH_HOME = import.meta.env.VITE_URI_PATH_HOME
 
@@ -124,8 +126,11 @@ const App = () => {
                 </Route>
 
                 <Route path='/pages/builder' element={<PageBuilder user={user} theme={theme}/>} />
-                <Route path='/gaming' element={<React.Suspense fallback={<div style={{background:'#000',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading Game...</div>}><GamingPage /></React.Suspense>} />
-                <Route path='/gaming/map-editor' element={<React.Suspense fallback={<div style={{background:'#000',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}><GamingMapEditor /></React.Suspense>} />
+                <Route path='/game-maker' element={<React.Suspense fallback={<div style={{background:'#111827',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading Game Maker...</div>}><GameMaker /></React.Suspense>} />
+                <Route path='/game-maker-deploy' element={<React.Suspense fallback={<div style={{background:'#000',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}><GameMakerDeploy /></React.Suspense>} />
+
+                <Route path='/deadzone' element={<React.Suspense fallback={<div style={{background:'#000',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading DeadZone Game...</div>}><DeadZonePage /></React.Suspense>} />
+                <Route path='/deadzone/map-editor' element={<React.Suspense fallback={<div style={{background:'#000',color:'#fff',width:'100vw',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>Loading...</div>}><DeadZoneMapEditor /></React.Suspense>} />
                 <Route path="account_verify" element={<><Verify /></>} />
 
                 <Route path={`/login`} element={<NewLogin/>}/>

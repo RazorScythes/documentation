@@ -1,7 +1,6 @@
 import * as api from '../api'
 import * as endpoint from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { requestAPI } from '../api/function'
 
 const initialState = {
     error               : '',
@@ -16,13 +15,17 @@ const initialState = {
     relatedGames        : [],
     avatar              : '',
     message             : '',
-    forbiden            : '',
+    forbidden           : '',
     sideAlert           : {},
     tagsCount           : [],
     categoriesCount     : [],
     recentGameBlog      : [],
     favoriteGames       : [],
-    favoriteGamesData   : []
+    favoriteGamesData   : [],
+    bookmarkedGames     : [],
+    reviews             : [],
+    collections         : [],
+    collectionGames     : [],
 }
 
 const rejectErr = (thunkAPI, err) => {
@@ -115,6 +118,56 @@ export const getFavoriteGamesPopulated = createAsyncThunk('game/getFavoriteGames
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
+export const toggleBookmark = createAsyncThunk('game/toggleBookmark', async (form, thunkAPI) => {
+    try { return await api.toggleGameBookmark(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getBookmarkedGames = createAsyncThunk('game/getBookmarkedGames', async (form, thunkAPI) => {
+    try { return await api.getBookmarkedGames(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const addReview = createAsyncThunk('game/addReview', async (form, thunkAPI) => {
+    try { return await api.addGameReview(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const deleteReview = createAsyncThunk('game/deleteReview', async (form, thunkAPI) => {
+    try { return await api.deleteGameReview(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getGameReviews = createAsyncThunk('game/getGameReviews', async (form, thunkAPI) => {
+    try { return await api.getGameReviews(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getGameCollections = createAsyncThunk('game/getGameCollections', async (form, thunkAPI) => {
+    try { return await api.getGameCollections(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const createGameCollection = createAsyncThunk('game/createGameCollection', async (form, thunkAPI) => {
+    try { return await api.createGameCollection(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const deleteGameCollection = createAsyncThunk('game/deleteGameCollection', async (form, thunkAPI) => {
+    try { return await api.deleteGameCollection(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const toggleGameInCollection = createAsyncThunk('game/toggleGameInCollection', async (form, thunkAPI) => {
+    try { return await api.toggleGameInCollection(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getCollectionGames = createAsyncThunk('game/getCollectionGames', async (form, thunkAPI) => {
+    try { return await api.getCollectionGames(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
 export const getGameComments = createAsyncThunk('game/getGameComments', async (data, thunkAPI) => {
     try {
         const { gameId } = data;
@@ -149,15 +202,15 @@ export const gameSlice = createSlice({
             state.data              = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
-            state.forbiden          = action.payload.data.forbiden
+            state.forbidden         = action.payload.data.forbidden
         }),
-        builder.addCase(getGameByID.pending, (state, action) => {
+        builder.addCase(getGameByID.pending, (state) => {
             state.notFound          = false
-            state.forbiden          = ''
+            state.forbidden         = ''
             state.isLoading         = true
         }),
         builder.addCase(getGameByID.rejected, (state, action) => {
-            state.forbiden          = action.payload?.forbiden || ''
+            state.forbidden         = action.payload?.forbidden || ''
             state.alert             = action.payload?.message || ''
             state.variant           = action.payload?.variant || ''
             state.notFound          = action.payload?.notFound || false
@@ -252,6 +305,18 @@ export const gameSlice = createSlice({
             state.alert             = action.payload?.message || ''
             state.variant           = action.payload?.variant || ''
         }),
+
+        builder.addCase(addOneDownload.fulfilled, () => {}),
+        builder.addCase(addOneDownload.rejected, () => {}),
+
+        builder.addCase(updateGameAccessKey.fulfilled, (state, action) => {
+            state.alert             = action.payload?.data?.message || ''
+            state.variant           = action.payload?.data?.variant || ''
+        }),
+        builder.addCase(updateGameAccessKey.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
         
         builder.addCase(countTags.fulfilled, (state, action) => {
             state.tagsCount         = action.payload.data.result
@@ -288,9 +353,7 @@ export const gameSlice = createSlice({
             state.recentGameBlog    = action.payload.data.result
             state.error             = ''
         }),
-        builder.addCase(addRecentGamingBlogLikes.rejected, (state, action) => {
-            console.log("failed to like blog post")
-        }),
+        builder.addCase(addRecentGamingBlogLikes.rejected, () => {}),
 
         builder.addCase(getGameComments.fulfilled, (state, action) => {
             state.comments          = action.payload.data.result
@@ -347,16 +410,89 @@ export const gameSlice = createSlice({
         builder.addCase(getFavoriteGamesPopulated.rejected, (state, action) => {
             state.alert             = action.payload?.message || ''
             state.variant           = action.payload?.variant || ''
-        })
+        }),
+
+        builder.addCase(toggleBookmark.fulfilled, (state, action) => {
+            state.alert             = action.payload.data.bookmarked ? 'Bookmarked!' : 'Bookmark removed'
+            state.variant           = 'success'
+        }),
+        builder.addCase(toggleBookmark.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(getBookmarkedGames.fulfilled, (state, action) => {
+            state.bookmarkedGames   = action.payload.data.result
+        }),
+        builder.addCase(getBookmarkedGames.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(addReview.fulfilled, (state, action) => {
+            state.reviews           = action.payload.data.result
+            state.sideAlert         = { message: action.payload.data.alert, variant: action.payload.data.variant }
+        }),
+        builder.addCase(addReview.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(deleteReview.fulfilled, (state, action) => {
+            state.reviews           = action.payload.data.result
+        }),
+        builder.addCase(deleteReview.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(getGameReviews.fulfilled, (state, action) => {
+            state.reviews           = action.payload.data.result
+        }),
+        builder.addCase(getGameReviews.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(getGameCollections.fulfilled, (state, action) => {
+            state.collections       = action.payload.data.result
+        }),
+        builder.addCase(getGameCollections.rejected, () => {}),
+
+        builder.addCase(createGameCollection.fulfilled, (state, action) => {
+            state.collections       = action.payload.data.result
+        }),
+        builder.addCase(createGameCollection.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(deleteGameCollection.fulfilled, (state, action) => {
+            state.collections       = action.payload.data.result
+        }),
+        builder.addCase(deleteGameCollection.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(toggleGameInCollection.fulfilled, (state, action) => {
+            state.collections       = action.payload.data.result
+        }),
+        builder.addCase(toggleGameInCollection.rejected, (state, action) => {
+            state.alert             = action.payload?.message || ''
+            state.variant           = action.payload?.variant || ''
+        }),
+
+        builder.addCase(getCollectionGames.fulfilled, (state, action) => {
+            state.collectionGames   = action.payload.data.result
+        }),
+        builder.addCase(getCollectionGames.rejected, () => {})
     },
     reducers: {
       clearAlert: (state) => {
-        state.alert             = '',
+        state.alert             = ''
         state.variant           = ''
         state.sideAlert         = {}
-      },
-      clearMailStatus: (state) => {
-        state.mailStatus        = ''
       },
       updateGameComments: (state, action) => {
         state.comments = action.payload.comments
@@ -364,6 +500,6 @@ export const gameSlice = createSlice({
     },
 })
 
-export const { clearAlert, clearMailStatus, updateGameComments } = gameSlice.actions
+export const { clearAlert, updateGameComments } = gameSlice.actions
 
 export default gameSlice.reducer

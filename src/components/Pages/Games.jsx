@@ -81,7 +81,7 @@ const Games = ({ user }) => {
         dispatch(categoriesCount({
             id: user ? user.result?._id : ''
         }))
-    }, [])
+    }, [key, developer])
 
     useEffect(() => {
         setCurrentPage(pageIndex)
@@ -192,7 +192,7 @@ const Games = ({ user }) => {
                     arr = [...game]
                 }
         
-                const sortedData = arr.sort((a, b) => b.views.length - a.views.length);
+                const sortedData = arr.sort((a, b) => (b.views?.length || 0) - (a.views?.length || 0));
         
                 if(sortedData.length > 0)
                     var filteredData
@@ -212,7 +212,7 @@ const Games = ({ user }) => {
                 if(tags.length > 0) {
                     var dataTags = filterDataByTags()
                     dataTags.forEach(item => {
-                    var popularity = ((item.views.length/2) + item.likes?.length) - item.dislikes?.length
+                    var popularity = ((item.views?.length || 0) / 2) + (item.likes?.length || 0)
                         if(popularity > 0) { 
                             arr.push({...item, popularity: popularity})
                         }
@@ -220,7 +220,7 @@ const Games = ({ user }) => {
                 }
                 else {
                     game.forEach(item => {
-                    var popularity = ((item.views.length/2) + item.likes?.length) - item.dislikes?.length
+                    var popularity = ((item.views?.length || 0) / 2) + (item.likes?.length || 0)
                         if(popularity > 0) { 
                             arr.push({...item, popularity: popularity})
                         }

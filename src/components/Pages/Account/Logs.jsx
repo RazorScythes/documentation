@@ -27,7 +27,7 @@ const categoryConfig = {
 const methodColors = {
     POST:   'bg-green-600',
     GET:    'bg-blue-600',
-    PATCH:  'bg-yellow-600',
+    PATCH:  'bg-amber-700',
     DELETE: 'bg-red-600',
 }
 

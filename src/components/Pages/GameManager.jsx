@@ -6,12 +6,14 @@ import {
     faLock, faLockOpen, faShieldAlt, faChevronLeft, faChevronRight, faImage,
     faDownload, faKey, faCopy, faClone, faTag, faImages, faLink, faDesktop, faList,
     faLayerGroup, faSortUp, faSortDown, faSort, faFilter, faAngleDoubleLeft,
-    faAngleDoubleRight, faHeart, faStar, faUndo, faClock, faCloudUploadAlt
+    faAngleDoubleRight, faHeart, faStar, faUndo, faClock, faCloudUploadAlt,
+    faHistory, faChartBar, faCheckSquare, faSquare, faDraftingCompass, faRocket,
+    faArchive, faGlobe
 } from '@fortawesome/free-solid-svg-icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { put, del } from '@vercel/blob'
-import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, togglePrivacy, toggleStrict, clearGameAlert, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash } from '../../actions/gameManager'
-import { getFavoriteGamesPopulated, toggleFavoriteGame } from '../../actions/game'
+import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, bulkUpdateGames, togglePrivacy, toggleStrict, clearGameAlert, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash, getGameAnalytics } from '../../actions/gameManager'
+import { getFavoriteGamesPopulated, toggleFavoriteGame, getGameCollections, createGameCollection, deleteGameCollection, toggleGameInCollection, getCollectionGames } from '../../actions/game'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
 import Notification from '../Custom/Notification'
@@ -22,12 +24,21 @@ const LANGUAGES = ['English', 'Japanese', 'Chinese', 'Spanish']
 const PLATFORMS = ['Desktop', 'Android', 'iOS']
 const STORAGES = ['Google Drive', 'Dropbox', 'Mediafire']
 
+const STATUSES = [
+    { value: 'draft', label: 'Draft', icon: faDraftingCompass, bg: 'bg-slate-100', color: 'text-slate-600', cls: 'bg-slate-100 text-slate-600' },
+    { value: 'published', label: 'Published', icon: faGlobe, bg: 'bg-green-100', color: 'text-green-600', cls: 'bg-green-100 text-green-600' },
+    { value: 'early-access', label: 'Early Access', icon: faRocket, bg: 'bg-amber-100', color: 'text-amber-600', cls: 'bg-amber-100 text-amber-600' },
+    { value: 'archived', label: 'Archived', icon: faArchive, bg: 'bg-purple-100', color: 'text-purple-600', cls: 'bg-purple-100 text-purple-600' },
+]
+
 const INITIAL_FORM = {
     featured_image: '', title: '', category: 'Simulation', description: '',
+    status: 'draft',
     strict: false, privacy: false, landscape: false, carousel: false,
     details: { latest_version: '', censorship: 'Uncensored', language: 'English', developer: '', platform: 'Desktop' },
     leave_uploader_message: '', gallery: [], access_key: [], download_link: [],
-    guide_link: '', password: '', tags: []
+    guide_link: '', password: '', tags: [],
+    changelog: [],
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
@@ -47,7 +58,7 @@ const GameManager = ({ user, theme }) => {
     const userId = user?._id || user?.result?._id || ''
 
     const [searchParams, setSearchParams] = useSearchParams()
-    const VALID_TABS = ['games', 'favorites', 'trash']
+    const VALID_TABS = ['games', 'favorites', 'collections', 'trash', 'analytics']
     const tabParam = searchParams.get('tab')
     const activeTab = VALID_TABS.includes(tabParam) ? tabParam : 'games'
     const setActiveTab = (tab) => setSearchParams(prev => { prev.set('tab', tab); return prev }, { replace: true })
@@ -78,13 +89,27 @@ const GameManager = ({ user, theme }) => {
     const [filterPrivacy, setFilterPrivacy] = useState('')
     const [filterStrict, setFilterStrict] = useState('')
     const [showFilters, setShowFilters] = useState(false)
+    const [filterStatus, setFilterStatus] = useState('')
+    const [bulkStatus, setBulkStatus] = useState('')
+    const [bulkCategory, setBulkCategory] = useState('')
+    const [changelogVersion, setChangelogVersion] = useState('')
+    const [changelogDesc, setChangelogDesc] = useState('')
+    const [analyticsGame, setAnalyticsGame] = useState(null)
+    const analytics = useSelector((state) => state.gameManager.analytics)
+    const collections = useSelector((state) => state.game.collections)
+    const collectionGames = useSelector((state) => state.game.collectionGames)
+    const [selectedCollection, setSelectedCollection] = useState(null)
+    const [newCollectionName, setNewCollectionName] = useState('')
 
-    const activeFilterCount = [filterCategory, filterPlatform, filterPrivacy, filterStrict].filter(Boolean).length
+    const activeFilterCount = [filterCategory, filterPlatform, filterPrivacy, filterStrict, filterStatus].filter(Boolean).length
 
     useEffect(() => {
         if (user) {
             dispatch(fetchGames())
-            if (userId) dispatch(getFavoriteGamesPopulated({ userId }))
+            if (userId) {
+                dispatch(getFavoriteGamesPopulated({ userId }))
+                dispatch(getGameCollections({ userId }))
+            }
         }
     }, [dispatch, user])
 
@@ -113,7 +138,7 @@ const GameManager = ({ user, theme }) => {
         setPage(0)
     }
 
-    const clearFilters = () => { setFilterCategory(''); setFilterPlatform(''); setFilterPrivacy(''); setFilterStrict(''); setPage(0) }
+    const clearFilters = () => { setFilterCategory(''); setFilterPlatform(''); setFilterPrivacy(''); setFilterStrict(''); setFilterStatus(''); setPage(0) }
 
     const processed = React.useMemo(() => {
         let result = [...(games || [])]
@@ -131,6 +156,7 @@ const GameManager = ({ user, theme }) => {
         else if (filterPrivacy === 'no') result = result.filter(g => !g.privacy)
         if (filterStrict === 'yes') result = result.filter(g => g.strict)
         else if (filterStrict === 'no') result = result.filter(g => !g.strict)
+        if (filterStatus) result = result.filter(g => g.status === filterStatus)
 
         result.sort((a, b) => {
             let va, vb
@@ -151,13 +177,13 @@ const GameManager = ({ user, theme }) => {
         })
 
         return result
-    }, [games, search, filterCategory, filterPlatform, filterPrivacy, filterStrict, sortKey, sortDir])
+    }, [games, search, filterCategory, filterPlatform, filterPrivacy, filterStrict, filterStatus, sortKey, sortDir])
 
     const totalPages = Math.ceil(processed.length / pageSize)
     const pageData = processed.slice(page * pageSize, (page + 1) * pageSize)
 
     const resetForm = () => {
-        setForm({ ...INITIAL_FORM, details: { ...INITIAL_FORM.details }, gallery: [], access_key: [], download_link: [], tags: [] })
+        setForm({ ...INITIAL_FORM, details: { ...INITIAL_FORM.details }, gallery: [], access_key: [], download_link: [], tags: [], changelog: [] })
         setEditId(null)
         setTagInput('')
         setGalleryInput('')
@@ -172,12 +198,13 @@ const GameManager = ({ user, theme }) => {
             onConfirm: () => {
                 const data = {
                     featured_image: g.featured_image || '', title: `${g.title || ''} (Copy)`, category: g.category || 'Simulation',
-                    description: g.description || '', strict: g.strict || false, privacy: g.privacy || false,
+                    description: g.description || '', status: 'draft', strict: g.strict || false, privacy: g.privacy || false,
                     landscape: g.landscape || false, carousel: g.carousel || false,
                     details: { latest_version: g.details?.latest_version || '', censorship: g.details?.censorship || 'Uncensored', language: g.details?.language || 'English', developer: g.details?.developer || '', platform: g.details?.platform || 'Desktop' },
                     leave_uploader_message: g.leave_uploader_message || '', gallery: [...(g.gallery || [])],
                     access_key: [], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: [...d.links] })),
-                    guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])]
+                    guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])],
+                    changelog: [],
                 }
                 dispatch(createGame(data))
                 setConfirmModal(prev => ({ ...prev, open: false }))
@@ -187,12 +214,13 @@ const GameManager = ({ user, theme }) => {
     const openEdit = (g) => {
         setForm({
             featured_image: g.featured_image || '', title: g.title || '', category: g.category || 'Simulation',
-            description: g.description || '', strict: g.strict || false, privacy: g.privacy || false,
+            description: g.description || '', status: g.status || 'draft', strict: g.strict || false, privacy: g.privacy || false,
             landscape: g.landscape || false, carousel: g.carousel || false,
             details: { latest_version: g.details?.latest_version || '', censorship: g.details?.censorship || 'Uncensored', language: g.details?.language || 'English', developer: g.details?.developer || '', platform: g.details?.platform || 'Desktop' },
-            leave_uploader_message: g.leave_uploader_message || '', gallery: [...(g.gallery || [])],
+            leave_uploader_message: g.leave_uploader_message || '', gallery: [...(g.gallery || []).map(gi => typeof gi === 'string' ? { url: gi, caption: '', type: 'image' } : { ...gi })],
             access_key: [...(g.access_key || [])], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: [...d.links] })),
-            guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])]
+            guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])],
+            changelog: [...(g.changelog || [])],
         })
         setEditId(g._id)
         setLinkInputs((g.download_link || []).map(() => ''))
@@ -226,8 +254,18 @@ const GameManager = ({ user, theme }) => {
             onConfirm: () => { dispatch(bulkDeleteGames({ ids: selectedIds })); setSelectedIds([]); setConfirmModal(prev => ({ ...prev, open: false })) }
         })
     }
+    const handleBulkUpdate = (update) => {
+        if (!selectedIds.length) return
+        dispatch(bulkUpdateGames({ ids: selectedIds, update }))
+        setSelectedIds([])
+    }
     const handleTogglePrivacy = (id) => dispatch(togglePrivacy(id))
     const handleToggleStrict = (id) => dispatch(toggleStrict(id))
+    const handleViewAnalytics = (g) => {
+        setAnalyticsGame(g)
+        dispatch(getGameAnalytics({ gameId: g._id }))
+        setActiveTab('analytics')
+    }
 
     const handleUnfavorite = async (gameId) => {
         if (!userId) return
@@ -269,8 +307,15 @@ const GameManager = ({ user, theme }) => {
     const addTag = () => { if (tagInput && !form.tags.includes(tagInput)) { setForm({ ...form, tags: [...form.tags, tagInput] }); setTagInput('') } }
     const removeTag = (i) => { const t = [...form.tags]; t.splice(i, 1); setForm({ ...form, tags: t }) }
 
-    const addGalleryUrl = () => { if (galleryInput) { setForm({ ...form, gallery: [...form.gallery, galleryInput] }); setGalleryInput('') } }
+    const addGalleryUrl = () => {
+        if (galleryInput) {
+            const isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(galleryInput) || galleryInput.includes('youtube.com') || galleryInput.includes('youtu.be')
+            setForm({ ...form, gallery: [...form.gallery, { url: galleryInput, caption: '', type: isVideo ? 'video' : 'image' }] })
+            setGalleryInput('')
+        }
+    }
     const removeGalleryUrl = (i) => { const g = [...form.gallery]; g.splice(i, 1); setForm({ ...form, gallery: g }) }
+    const updateGalleryCaption = (i, caption) => { const g = [...form.gallery]; g[i] = { ...g[i], caption }; setForm({ ...form, gallery: g }) }
 
     const addDownloadBucket = () => { setForm({ ...form, download_link: [...form.download_link, { storage_name: storageInput, links: [] }] }); setLinkInputs([...linkInputs, '']) }
     const removeDownloadBucket = (i) => { const d = [...form.download_link]; d.splice(i, 1); setForm({ ...form, download_link: d }); const l = [...linkInputs]; l.splice(i, 1); setLinkInputs(l) }
@@ -458,6 +503,19 @@ const GameManager = ({ user, theme }) => {
                                             }`}>{favoriteGamesData.length}</span>
                                         )}
                                     </button>
+                                    <button onClick={() => setActiveTab('collections')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'collections'
+                                            ? (isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-900/20 text-indigo-400')
+                                            : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
+                                        }`}>
+                                        <FontAwesomeIcon icon={faLayerGroup} className="text-[10px]" /> Collections
+                                        {collections?.length > 0 && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'collections'
+                                                ? (isLight ? 'bg-indigo-100 text-indigo-500' : 'bg-indigo-900/30 text-indigo-400')
+                                                : (isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500')
+                                            }`}>{collections.length}</span>
+                                        )}
+                                    </button>
                                     <button onClick={() => setActiveTab('trash')}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'trash'
                                             ? (isLight ? 'bg-orange-50 text-orange-500' : 'bg-orange-900/20 text-orange-400')
@@ -470,6 +528,13 @@ const GameManager = ({ user, theme }) => {
                                                 : (isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500')
                                             }`}>{trash.length}</span>
                                         )}
+                                    </button>
+                                    <button onClick={() => setActiveTab('analytics')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'analytics'
+                                            ? (isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400')
+                                            : (isLight ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-50' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]')
+                                        }`}>
+                                        <FontAwesomeIcon icon={faChartBar} className="text-[10px]" /> Analytics
                                     </button>
                                 </div>
                             )}
@@ -574,12 +639,15 @@ const GameManager = ({ user, theme }) => {
                                                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500'}`}>{viewGame.gallery.length}</span>
                                                 </div>
                                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 rounded-xl overflow-hidden">
-                                                    {viewGame.gallery.map((url, i) => (
-                                                        <div key={i} className="aspect-video overflow-hidden rounded-lg cursor-pointer"
-                                                            onClick={() => setLightbox({ open: true, images: viewGame.gallery, index: i })}>
-                                                            <img src={url} alt={`gallery #${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
-                                                        </div>
-                                                    ))}
+                                                    {viewGame.gallery.map((item, i) => {
+                                                        const src = typeof item === 'string' ? item : item?.url || ''
+                                                        return (
+                                                            <div key={i} className="aspect-video overflow-hidden rounded-lg cursor-pointer"
+                                                                onClick={() => setLightbox({ open: true, images: viewGame.gallery.map(g => typeof g === 'string' ? g : g?.url || ''), index: i })}>
+                                                                <img src={src} alt={`gallery #${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 hover:scale-110" />
+                                                            </div>
+                                                        )
+                                                    })}
                                                 </div>
                                             </div>
                                         )}
@@ -792,6 +860,88 @@ const GameManager = ({ user, theme }) => {
                             </div>
                         )}
 
+                        {/* ========== COLLECTIONS TAB ========== */}
+                        {activeTab === 'collections' && view !== 'form' && (
+                            <div className={`${card} overflow-hidden`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <h3 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                        <FontAwesomeIcon icon={faLayerGroup} className="mr-2 text-xs" />
+                                        {selectedCollection ? selectedCollection.name : 'My Collections'}
+                                    </h3>
+                                    {selectedCollection ? (
+                                        <button onClick={() => { setSelectedCollection(null) }} className={`${btnSecondary} text-xs`}>
+                                            <FontAwesomeIcon icon={faChevronLeft} className="mr-1" /> Back
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <input type="text" className={`${inputCls} text-xs`} value={newCollectionName} onChange={(e) => setNewCollectionName(e.target.value)} placeholder="New collection..."
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && newCollectionName.trim()) {
+                                                        dispatch(createGameCollection({ userId, name: newCollectionName.trim() }))
+                                                        setNewCollectionName('')
+                                                    }
+                                                }} />
+                                            <button onClick={() => { if (newCollectionName.trim()) { dispatch(createGameCollection({ userId, name: newCollectionName.trim() })); setNewCollectionName('') } }}
+                                                className={btnPrimary} disabled={!newCollectionName.trim()}>
+                                                <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-4 sm:p-5">
+                                    {selectedCollection ? (
+                                        collectionGames?.length > 0 ? (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                                {collectionGames.map((g) => (
+                                                    <Link to={`/games/${g._id}`} key={g._id} className="group">
+                                                        <div className={`rounded-xl overflow-hidden transition-all ${isLight ? 'bg-white border border-solid border-slate-200 hover:shadow-md' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B] hover:border-[#3a3a3a]'}`}>
+                                                            <div className="aspect-[16/10] overflow-hidden">
+                                                                <img src={g.featured_image} alt={g.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                            </div>
+                                                            <div className="p-2.5">
+                                                                <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.title}</p>
+                                                                <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{g.user?.username}</p>
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className={`text-sm text-center py-10 ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>No games in this collection</p>
+                                        )
+                                    ) : (
+                                        collections?.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {collections.map((col) => (
+                                                    <div key={col._id} className={`flex items-center justify-between p-3.5 rounded-xl transition-all cursor-pointer ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-[#111] hover:bg-[#1a1a1a]'}`}>
+                                                        <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => { setSelectedCollection(col); dispatch(getCollectionGames({ userId, collectionId: col._id })) }}>
+                                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-100' : 'bg-indigo-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faLayerGroup} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{col.name}</p>
+                                                                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{col.games?.length || 0} game{(col.games?.length || 0) !== 1 ? 's' : ''}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => dispatch(deleteGameCollection({ userId, collectionId: col._id }))}
+                                                            className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors flex-shrink-0 ${isLight ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20'}`}>
+                                                            <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className={`flex flex-col items-center justify-center py-12 ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>
+                                                <FontAwesomeIcon icon={faLayerGroup} className="text-2xl mb-3" />
+                                                <p className="text-sm font-medium">No collections yet</p>
+                                                <p className="text-xs mt-1">Create one to organize your games</p>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* ========== TRASH TAB ========== */}
                         {activeTab === 'trash' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
@@ -908,9 +1058,27 @@ const GameManager = ({ user, theme }) => {
                                                 )}
                                             </button>
                                             {selectedIds.length > 0 && (
-                                                <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all">
-                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete {selectedIds.length}
-                                                </button>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <button onClick={handleBulkDelete} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all">
+                                                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete {selectedIds.length}
+                                                    </button>
+                                                    <button onClick={() => handleBulkUpdate({ privacy: true })} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-amber-900/20 text-amber-400 hover:bg-amber-900/30'}`}>
+                                                        <FontAwesomeIcon icon={faLock} className="text-[10px] mr-1" />Private
+                                                    </button>
+                                                    <button onClick={() => handleBulkUpdate({ privacy: false })} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'}`}>
+                                                        <FontAwesomeIcon icon={faLockOpen} className="text-[10px] mr-1" />Public
+                                                    </button>
+                                                    <select className={`text-xs font-medium px-2 py-1.5 rounded-lg border border-solid ${isLight ? 'border-slate-200 bg-white text-slate-600' : 'border-[#333] bg-[#1a1a1a] text-gray-300'}`}
+                                                        value={bulkStatus} onChange={(e) => { if (e.target.value) { handleBulkUpdate({ status: e.target.value }); setBulkStatus('') } }}>
+                                                        <option value="">Set Status...</option>
+                                                        {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                                    </select>
+                                                    <select className={`text-xs font-medium px-2 py-1.5 rounded-lg border border-solid ${isLight ? 'border-slate-200 bg-white text-slate-600' : 'border-[#333] bg-[#1a1a1a] text-gray-300'}`}
+                                                        value={bulkCategory} onChange={(e) => { if (e.target.value) { handleBulkUpdate({ category: e.target.value }); setBulkCategory('') } }}>
+                                                        <option value="">Set Category...</option>
+                                                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="relative w-full sm:w-auto sm:max-w-xs">
@@ -944,6 +1112,11 @@ const GameManager = ({ user, theme }) => {
                                                 <option value="">Strict: All</option>
                                                 <option value="yes">Strict On</option>
                                                 <option value="no">Strict Off</option>
+                                            </select>
+                                            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(0) }}
+                                                className={`${selectCls} text-xs py-1.5`}>
+                                                <option value="">All Statuses</option>
+                                                {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                             </select>
                                             {activeFilterCount > 0 && (
                                                 <button onClick={clearFilters}
@@ -979,6 +1152,7 @@ const GameManager = ({ user, theme }) => {
                                                         { key: 'strict', label: 'Strict', align: 'text-center', hide: 'hidden sm:table-cell' },
                                                         { key: 'version', label: 'Version', align: 'text-center', hide: 'hidden lg:table-cell' },
                                                         { key: 'platform', label: 'Platform', align: 'text-center', hide: 'hidden lg:table-cell' },
+                                                        { key: 'status', label: 'Status', align: 'text-center', hide: 'hidden lg:table-cell' },
                                                     ].map(col => (
                                                         <th key={col.key}
                                                             onClick={() => handleSort(col.key)}
@@ -1045,8 +1219,18 @@ const GameManager = ({ user, theme }) => {
                                                         <td className={`px-4 py-3 text-center hidden lg:table-cell`}>
                                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-gray-400'}`}>{g.details?.platform}</span>
                                                         </td>
+                                                        <td className={`px-4 py-3 text-center hidden lg:table-cell`}>
+                                                            {(() => {
+                                                                const s = STATUSES.find(st => st.value === g.status) || STATUSES[0]
+                                                                return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}</span>
+                                                            })()}
+                                                        </td>
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={() => handleViewAnalytics(g)} title="Analytics"
+                                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20'}`}>
+                                                                    <FontAwesomeIcon icon={faChartBar} className="text-[10px]" />
+                                                                </button>
                                                                 <button onClick={() => setViewGame(g)} title="View"
                                                                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-blue-400 hover:text-blue-600 hover:bg-blue-50' : 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'}`}>
                                                                     <FontAwesomeIcon icon={faEye} className="text-[10px]" />
@@ -1141,6 +1325,55 @@ const GameManager = ({ user, theme }) => {
                             </div>
                         )}
 
+                        {/* ========== ANALYTICS TAB ========== */}
+                        {activeTab === 'analytics' && (
+                            <div className={`${card} overflow-hidden`}>
+                                <div className={`flex items-center gap-3 px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                        <FontAwesomeIcon icon={faChartBar} className={`text-base ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                            {analyticsGame ? `Analytics — ${analyticsGame.title}` : 'Game Analytics'}
+                                        </h3>
+                                        <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                            {analyticsGame ? 'Performance metrics for this game' : 'Select a game to view analytics'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {analyticsGame && analytics ? (
+                                    <div className="p-4 sm:p-6">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            {[
+                                                { label: 'Views', value: analytics.views, cls: isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400', icon: faEye },
+                                                { label: 'Likes', value: analytics.likes, cls: isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400', icon: faHeart },
+                                                { label: 'Downloads', value: analytics.downloads, cls: isLight ? 'bg-green-50 text-green-600' : 'bg-green-900/20 text-green-400', icon: faDownload },
+                                                { label: 'Bookmarks', value: analytics.bookmarks, cls: isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400', icon: faStar },
+                                                { label: 'Comments', value: analytics.comments, cls: isLight ? 'bg-purple-50 text-purple-600' : 'bg-purple-900/20 text-purple-400', icon: faGamepad },
+                                                { label: 'Ratings', value: analytics.ratings, cls: isLight ? 'bg-pink-50 text-pink-600' : 'bg-pink-900/20 text-pink-400', icon: faStar },
+                                                { label: 'Avg Rating', value: analytics.avgRating, cls: isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-900/20 text-indigo-400', icon: faStar },
+                                                { label: 'Reviews', value: analytics.reviews, cls: isLight ? 'bg-teal-50 text-teal-600' : 'bg-teal-900/20 text-teal-400', icon: faGamepad },
+                                            ].map((m, mi) => (
+                                                <div key={mi} className={`rounded-xl p-4 ${m.cls}`}>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <FontAwesomeIcon icon={m.icon} className="text-xs" />
+                                                        <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{m.label}</span>
+                                                    </div>
+                                                    <p className="text-2xl font-bold">{m.value}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className={`flex flex-col items-center justify-center py-16 ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>
+                                        <FontAwesomeIcon icon={faChartBar} className="text-3xl mb-3" />
+                                        <p className="text-sm font-medium">Select a game from the list to view its analytics</p>
+                                        <button onClick={() => setActiveTab('games')} className={`text-xs mt-3 underline ${isLight ? 'text-blue-500' : 'text-blue-400'}`}>Go to Games</button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* ========== FORM VIEW ========== */}
                         {view === 'form' && activeTab === 'games' && (
                             <div className="space-y-4">
@@ -1204,6 +1437,12 @@ const GameManager = ({ user, theme }) => {
                                                 <label className={labelCls}>Category</label>
                                                 <select className={`${selectCls} w-full`} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Status</label>
+                                                <select className={`${selectCls} w-full`} value={form.status || 'draft'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                                                    {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                                 </select>
                                             </div>
                                         </div>
@@ -1407,7 +1646,7 @@ const GameManager = ({ user, theme }) => {
                                     </div>
                                     <div className="px-4 sm:px-5 py-4">
                                         <div className="flex gap-2 mb-3">
-                                            <input type="text" className={inputCls} value={galleryInput} onChange={(e) => setGalleryInput(e.target.value)} placeholder="Image URL"
+                                            <input type="text" className={inputCls} value={galleryInput} onChange={(e) => setGalleryInput(e.target.value)} placeholder="Image or video URL"
                                                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryUrl() } }} />
                                             <button onClick={addGalleryUrl} className={btnPrimary} disabled={!galleryInput}><FontAwesomeIcon icon={faPlus} className="text-xs" /></button>
                                         </div>
@@ -1418,12 +1657,79 @@ const GameManager = ({ user, theme }) => {
                                         </label>
                                         {form.gallery.length > 0 && (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                                {form.gallery.map((url, i) => (
-                                                    <div key={i} className="relative group aspect-video rounded-lg overflow-hidden">
-                                                        <img src={url} alt="" className="w-full h-full object-cover" />
-                                                        <button onClick={() => removeGalleryUrl(i)}
-                                                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                                {form.gallery.map((item, i) => {
+                                                    const url = typeof item === 'string' ? item : item.url
+                                                    const caption = typeof item === 'string' ? '' : (item.caption || '')
+                                                    const isVid = typeof item === 'object' && item.type === 'video'
+                                                    return (
+                                                        <div key={i} className="relative group rounded-lg overflow-hidden">
+                                                            <div className="aspect-video">
+                                                                {isVid ? (
+                                                                    <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                                        <FontAwesomeIcon icon={faImage} className={`text-xl ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                                                )}
+                                                            </div>
+                                                            <input type="text" value={caption} onChange={(e) => updateGalleryCaption(i, e.target.value)}
+                                                                placeholder="Caption..."
+                                                                className={`w-full text-[10px] px-2 py-1 border-t border-solid ${isLight ? 'bg-white border-slate-100 text-slate-600' : 'bg-[#111] border-[#1f1f1f] text-gray-400'}`} />
+                                                            <button onClick={() => removeGalleryUrl(i)}
+                                                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                                            </button>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Changelog */}
+                                <div className={`${card} overflow-hidden`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                            <FontAwesomeIcon icon={faHistory} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                                        </div>
+                                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Changelog ({form.changelog?.length || 0})</h3>
+                                    </div>
+                                    <div className="px-4 sm:px-5 py-4 space-y-3">
+                                        <div className={`flex flex-col sm:flex-row gap-2 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                            <input type="text" value={changelogVersion} onChange={(e) => setChangelogVersion(e.target.value)} placeholder="Version" className={`${inputCls} w-24`} />
+                                            <input type="text" value={changelogDesc} onChange={(e) => setChangelogDesc(e.target.value)} placeholder="What changed..." className={`${inputCls}`}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && changelogVersion && changelogDesc) {
+                                                        e.preventDefault()
+                                                        setForm({ ...form, changelog: [...(form.changelog || []), { version: changelogVersion, description: changelogDesc, date: new Date().toISOString() }] })
+                                                        setChangelogVersion(''); setChangelogDesc('')
+                                                    }
+                                                }} />
+                                            <button onClick={() => {
+                                                if (changelogVersion && changelogDesc) {
+                                                    setForm({ ...form, changelog: [...(form.changelog || []), { version: changelogVersion, description: changelogDesc, date: new Date().toISOString() }] })
+                                                    setChangelogVersion(''); setChangelogDesc('')
+                                                }
+                                            }} className={btnPrimary} disabled={!changelogVersion || !changelogDesc}><FontAwesomeIcon icon={faPlus} className="text-xs" /></button>
+                                        </div>
+                                        {form.changelog?.length > 0 && (
+                                            <div className="space-y-2">
+                                                {form.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ci) => (
+                                                    <div key={ci} className={`flex items-start gap-3 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
+                                                            <FontAwesomeIcon icon={faHistory} className={`text-[10px] ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <span className={`text-xs font-bold ${isLight ? 'text-violet-600' : 'text-violet-400'}`}>v{entry.version}</span>
+                                                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                                            </div>
+                                                            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</p>
+                                                        </div>
+                                                        <button onClick={() => { const c = [...form.changelog]; c.splice(ci, 1); setForm({ ...form, changelog: c }) }}
+                                                            className={`flex-shrink-0 hover:text-red-500 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>
+                                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
                                                         </button>
                                                     </div>
                                                 ))}

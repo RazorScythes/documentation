@@ -8,18 +8,22 @@ const initialState = {
     alert               : '',
     variant             : '',
     paragraph           : '',
-    project             : {},
+    project             : [],
     comments            : [],
     user_project        : [],
     category            : [],
     user_category       : [],
     tagsCount           : [],
     data                : {},
-    forbiden            : '',
+    forbidden           : '',
     notFound            : false,
     categories          : [],
     latestProjects      : [],
     sideAlert           : {},
+    heading             : '',
+    relatedProjects     : [],
+    bookmarkedProjects  : [],
+    analytics           : null,
 }
 
 const rejectErr = (thunkAPI, err) => {
@@ -92,6 +96,16 @@ export const removeUserProject = createAsyncThunk('project/removeUserProject', a
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
+export const bulkDeleteProjects = createAsyncThunk('project/bulkDeleteProjects', async (form, thunkAPI) => {
+    try { return await api.bulkDeleteProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const bulkUpdateProjects = createAsyncThunk('project/bulkUpdateProjects', async (form, thunkAPI) => {
+    try { return await api.bulkUpdateProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
 export const projectCountTags = createAsyncThunk('project/projectCountTags', async (form, thunkAPI) => {
     try { return await api.projectCountTags(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
@@ -124,6 +138,36 @@ export const toggleProjectLike = createAsyncThunk('project/toggleProjectLike', a
     catch (err) { return rejectErr(thunkAPI, err) }
 });
 
+export const toggleBookmark = createAsyncThunk('project/toggleBookmark', async (form, thunkAPI) => {
+    try { return await api.toggleBookmark(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getBookmarkedProjects = createAsyncThunk('project/getBookmarkedProjects', async (form, thunkAPI) => {
+    try { return await api.getBookmarkedProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const addCollaborator = createAsyncThunk('project/addCollaborator', async (form, thunkAPI) => {
+    try { return await api.addCollaborator(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const removeCollaborator = createAsyncThunk('project/removeCollaborator', async (form, thunkAPI) => {
+    try { return await api.removeCollaborator(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getProjectAnalytics = createAsyncThunk('project/getProjectAnalytics', async (form, thunkAPI) => {
+    try { return await api.getProjectAnalytics(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
+export const getRelatedProjects = createAsyncThunk('project/getRelatedProjects', async (form, thunkAPI) => {
+    try { return await api.getRelatedProjects(form) }
+    catch (err) { return rejectErr(thunkAPI, err) }
+});
+
 export const getLatestProjects = createAsyncThunk('project/getLatestProjects', async (form, thunkAPI) => {
     try { return await api.getLatestProjects(form) }
     catch (err) { return rejectErr(thunkAPI, err) }
@@ -139,53 +183,67 @@ export const projectSlice = createSlice({
     name: 'project',
     initialState,
     extraReducers: (builder) => {
+        // getProjectByID
         builder.addCase(getProjectByID.fulfilled, (state, action) => {
             state.notFound          = false
-            if (action.payload.data.forbiden) {
-                state.forbiden      = action.payload.data.forbiden
+            if (action.payload.data.forbidden) {
+                state.forbidden     = action.payload.data.forbidden
                 state.data          = {}
             } else {
-                state.forbiden      = false
+                state.forbidden     = false
                 state.data          = action.payload.data.result
             }
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getProjectByID.pending, (state, action) => {
+        builder.addCase(getProjectByID.pending, (state) => {
             state.notFound          = false
-            state.forbiden          = false
+            state.forbidden         = false
             state.isLoading         = true
         }),
         builder.addCase(getProjectByID.rejected, (state, action) => {
-            state.forbiden          = action.payload?.forbiden
+            state.forbidden         = action.payload?.forbidden
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
             state.notFound          = action.payload?.notFound
             state.isLoading         = false
         }),
-        
+
+        // getCategory
         builder.addCase(getCategory.fulfilled, (state, action) => {
             state.notFound          = false
             state.user_category     = action.payload.data.result
             state.error             = ''
             state.category_loading  = false
         }),
-        builder.addCase(getCategory.pending, (state, action) => {
+        builder.addCase(getCategory.pending, (state) => {
             state.notFound          = false
             state.category_loading  = true
         }),
+        builder.addCase(getCategory.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.category_loading  = false
+        }),
 
+        // getAdminCategory
         builder.addCase(getAdminCategory.fulfilled, (state, action) => {
             state.notFound          = false
             state.category          = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getAdminCategory.pending, (state, action) => {
+        builder.addCase(getAdminCategory.pending, (state) => {
             state.notFound          = false
             state.isLoading         = true
         }),
+        builder.addCase(getAdminCategory.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
 
+        // addProjectCategory
         builder.addCase(addProjectCategory.fulfilled, (state, action) => {
             state.category          = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -197,6 +255,7 @@ export const projectSlice = createSlice({
             state.variant           = action.payload?.variant
         }),
 
+        // editProjectCategory
         builder.addCase(editProjectCategory.fulfilled, (state, action) => {
             state.category          = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -208,6 +267,7 @@ export const projectSlice = createSlice({
             state.variant           = action.payload?.variant
         }),
 
+        // removeProjectCategory
         builder.addCase(removeProjectCategory.fulfilled, (state, action) => {
             state.category          = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -219,17 +279,24 @@ export const projectSlice = createSlice({
             state.variant           = action.payload?.variant
         }),
 
+        // getProjects
         builder.addCase(getProjects.fulfilled, (state, action) => {
             state.notFound          = false
             state.user_project      = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getProjects.pending, (state, action) => {
+        builder.addCase(getProjects.pending, (state) => {
             state.notFound          = false
             state.isLoading         = true
         }),
+        builder.addCase(getProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
 
+        // getProjectsByCategories
         builder.addCase(getProjectsByCategories.fulfilled, (state, action) => {
             state.notFound          = false
             state.user_project      = action.payload.data.result
@@ -237,7 +304,7 @@ export const projectSlice = createSlice({
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getProjectsByCategories.pending, (state, action) => {
+        builder.addCase(getProjectsByCategories.pending, (state) => {
             state.notFound          = false
             state.isLoading         = true
         }),
@@ -246,6 +313,7 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
 
+        // getProjectsBySearchKey
         builder.addCase(getProjectsBySearchKey.fulfilled, (state, action) => {
             state.notFound          = false
             state.user_project      = action.payload.data.result
@@ -253,7 +321,7 @@ export const projectSlice = createSlice({
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getProjectsBySearchKey.pending, (state, action) => {
+        builder.addCase(getProjectsBySearchKey.pending, (state) => {
             state.notFound          = false
             state.isLoading         = true
         }),
@@ -262,6 +330,7 @@ export const projectSlice = createSlice({
             state.isLoading         = false
         }),
 
+        // uploadProject
         builder.addCase(uploadProject.fulfilled, (state, action) => {
             state.project           = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -269,21 +338,31 @@ export const projectSlice = createSlice({
             state.error             = ''
             state.isLoading         = false
         }),
+        builder.addCase(uploadProject.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(uploadProject.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // getUserProject
         builder.addCase(getUserProject.fulfilled, (state, action) => {
             state.project           = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
         }),
+        builder.addCase(getUserProject.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(getUserProject.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // editUserProject
         builder.addCase(editUserProject.fulfilled, (state, action) => {
             state.project           = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -291,11 +370,16 @@ export const projectSlice = createSlice({
             state.error             = ''
             state.isLoading         = false
         }),
+        builder.addCase(editUserProject.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(editUserProject.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // removeUserProject
         builder.addCase(removeUserProject.fulfilled, (state, action) => {
             state.project           = action.payload.data.result
             state.alert             = action.payload.data.message
@@ -303,30 +387,77 @@ export const projectSlice = createSlice({
             state.error             = ''
             state.isLoading         = false
         }),
+        builder.addCase(removeUserProject.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(removeUserProject.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // bulkDeleteProjects
+        builder.addCase(bulkDeleteProjects.fulfilled, (state, action) => {
+            state.project           = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+            state.isLoading         = false
+        }),
+        builder.addCase(bulkDeleteProjects.pending, (state) => {
+            state.isLoading         = true
+        }),
+        builder.addCase(bulkDeleteProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
+
+        // bulkUpdateProjects
+        builder.addCase(bulkUpdateProjects.fulfilled, (state, action) => {
+            state.project           = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+            state.isLoading         = false
+        }),
+        builder.addCase(bulkUpdateProjects.pending, (state) => {
+            state.isLoading         = true
+        }),
+        builder.addCase(bulkUpdateProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
+
+        // projectCountTags
         builder.addCase(projectCountTags.fulfilled, (state, action) => {
             state.tagsCount         = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
         }),
+        builder.addCase(projectCountTags.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(projectCountTags.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // getProjectComments
         builder.addCase(getProjectComments.fulfilled, (state, action) => {
             state.comments          = action.payload.data.result
             state.error             = ''
         }),
+        builder.addCase(getProjectComments.pending, (state) => {
+            state.isLoading         = true
+        }),
         builder.addCase(getProjectComments.rejected, (state, action) => {
             state.alert             = action.payload?.message
             state.variant           = action.payload?.variant
+            state.isLoading         = false
         }),
 
+        // addProjectComment
         builder.addCase(addProjectComment.fulfilled, (state, action) => {
             state.comments          = action.payload.data.result
             state.sideAlert         = action.payload.data.alert || {}
@@ -335,6 +466,7 @@ export const projectSlice = createSlice({
             state.alert             = action.payload?.alert?.message || ''
         }),
 
+        // updateProjectComment
         builder.addCase(updateProjectComment.fulfilled, (state, action) => {
             state.comments          = action.payload.data.result
         }),
@@ -342,6 +474,7 @@ export const projectSlice = createSlice({
             state.alert             = action.payload?.alert?.message || ''
         }),
 
+        // deleteProjectComment
         builder.addCase(deleteProjectComment.fulfilled, (state, action) => {
             state.comments          = action.payload.data.result
             state.sideAlert         = action.payload.data.alert || {}
@@ -350,6 +483,7 @@ export const projectSlice = createSlice({
             state.alert             = action.payload?.alert?.message || ''
         }),
 
+        // toggleProjectLike
         builder.addCase(toggleProjectLike.fulfilled, (state, action) => {
             if (state.data) state.data.likes = action.payload.data.result
         }),
@@ -358,20 +492,100 @@ export const projectSlice = createSlice({
             state.variant           = action.payload?.variant
         }),
 
+        // toggleBookmark
+        builder.addCase(toggleBookmark.fulfilled, (state, action) => {
+            if (state.data) state.data.bookmarks = action.payload.data.result
+        }),
+        builder.addCase(toggleBookmark.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        // getBookmarkedProjects
+        builder.addCase(getBookmarkedProjects.fulfilled, (state, action) => {
+            state.bookmarkedProjects = action.payload.data.result
+            state.isLoading         = false
+        }),
+        builder.addCase(getBookmarkedProjects.pending, (state) => {
+            state.isLoading         = true
+        }),
+        builder.addCase(getBookmarkedProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
+
+        // addCollaborator
+        builder.addCase(addCollaborator.fulfilled, (state, action) => {
+            if (state.data) state.data.collaborators = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+        }),
+        builder.addCase(addCollaborator.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        // removeCollaborator
+        builder.addCase(removeCollaborator.fulfilled, (state, action) => {
+            if (state.data) state.data.collaborators = action.payload.data.result
+            state.alert             = action.payload.data.message
+            state.variant           = action.payload.data.variant
+        }),
+        builder.addCase(removeCollaborator.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        // getProjectAnalytics
+        builder.addCase(getProjectAnalytics.fulfilled, (state, action) => {
+            state.analytics         = action.payload.data.result
+            state.isLoading         = false
+        }),
+        builder.addCase(getProjectAnalytics.pending, (state) => {
+            state.isLoading         = true
+        }),
+        builder.addCase(getProjectAnalytics.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
+
+        // getRelatedProjects
+        builder.addCase(getRelatedProjects.fulfilled, (state, action) => {
+            state.relatedProjects   = action.payload.data.result
+        }),
+        builder.addCase(getRelatedProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+        }),
+
+        // getLatestProjects
         builder.addCase(getLatestProjects.fulfilled, (state, action) => {
             state.notFound          = false
             state.latestProjects    = action.payload.data.result
             state.error             = ''
             state.isLoading         = false
         }),
-        builder.addCase(getLatestProjects.pending, (state, action) => {
+        builder.addCase(getLatestProjects.pending, (state) => {
             state.notFound          = false
             state.isLoading         = true
         }),
+        builder.addCase(getLatestProjects.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
+            state.isLoading         = false
+        }),
+
+        // viewProject
         builder.addCase(viewProject.fulfilled, (state, action) => {
             if (state.data && action.payload?.data?.result?.views) {
                 state.data.views = action.payload.data.result.views
             }
+        }),
+        builder.addCase(viewProject.rejected, (state, action) => {
+            state.alert             = action.payload?.message
+            state.variant           = action.payload?.variant
         })
     },
     reducers: {
@@ -379,15 +593,12 @@ export const projectSlice = createSlice({
         state.alert             = '',
         state.variant           = ''
       },
-      clearMailStatus: (state) => {
-        state.mailStatus        = ''
-      },
       updateProjectComments: (state, action) => {
         state.comments = action.payload.comments
       },
     },
 })
 
-export const { clearAlert, clearMailStatus, updateProjectComments } = projectSlice.actions
+export const { clearAlert, updateProjectComments } = projectSlice.actions
 
 export default projectSlice.reducer

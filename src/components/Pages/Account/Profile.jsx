@@ -13,14 +13,15 @@ const Profile = ({ user, theme, setNotification }) => {
     const dispatch = useDispatch()
 
     const profile = useSelector((state) => state.user.data)
-    const alert = useSelector((state) => state.user.alert) 
+    const alert = useSelector((state) => state.user.alert)
+    const isLoading = useSelector((state) => state.user.isLoading)
 
     const [updateFormValue, setUpdateFormValue] = useState(false)
     const [submitted, setSubmitted] = useState(false)
     const [initialValues, setInitialValues] = useState({})
 
     useEffect(() => {
-        dispatch(getProfile({ id: user._id }))
+        dispatch(getProfile())
     }, [])
 
     useEffect(() => {
@@ -103,21 +104,40 @@ const Profile = ({ user, theme, setNotification }) => {
         }
     }
 
+    const isLight = theme === 'light'
+
+    if (isLoading && Object.keys(profile).length === 0) {
+        return (
+            <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+                <div className="mb-8">
+                    <div className={`w-32 h-7 rounded-lg animate-pulse mb-2 ${isLight ? light.focusbackground : dark.focusbackground}`} />
+                    <div className={`w-56 h-4 rounded animate-pulse ${isLight ? light.focusbackground : dark.focusbackground}`} />
+                </div>
+                <div className="max-w-2xl space-y-4">
+                    <div className={`h-24 rounded-xl animate-pulse ${isLight ? light.focusbackground : dark.focusbackground}`} />
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className={`h-14 rounded-xl animate-pulse ${isLight ? light.focusbackground : dark.focusbackground}`} />
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
             {/* Header Section */}
             <div className='mb-8'>
-                <h1 className={`text-3xl font-semibold mb-2 ${theme === 'light' ? light.heading : dark.heading}`}>
+                <h1 className={`text-3xl font-semibold mb-2 ${isLight ? light.heading : dark.heading}`}>
                     My Profile
                 </h1>
-                <p className={`text-sm ${theme === 'light' ? light.text : dark.text}`}>
+                <p className={`text-sm ${isLight ? light.text : dark.text}`}>
                     Update your personal information and profile details
                 </p>
             </div>
 
             {/* Profile Form Card */}
             <div className={`max-w-2xl rounded-xl p-6 md:p-8 border ${
-                theme === 'light'
+                isLight
                     ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-md'
                     : 'bg-[#1C1C1C] border-[#2B2B2B] shadow-lg'
             }`}>

@@ -25,6 +25,7 @@ import manageUsersSlice from '../actions/manageUsers'
 import budgetSlice from '../actions/budget'
 import gameManagerSlice from '../actions/gameManager'
 import pageBuilderSlice from '../actions/pageBuilder'
+import notificationSlice from '../actions/notification'
 export const store = configureStore({
     reducer: {
         auth        : authReducer,
@@ -52,7 +53,8 @@ export const store = configureStore({
         manageUsers : manageUsersSlice,
         budget      : budgetSlice,
         gameManager : gameManagerSlice,
-        pageBuilder : pageBuilderSlice
+        pageBuilder : pageBuilderSlice,
+        notification: notificationSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

@@ -2,17 +2,23 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faSearch, faMoon, faSun, faUser, faGear, faRightFromBracket, faCircleHalfStroke, faGlobe, faWallet, faBriefcase, faGamepad, faProjectDiagram } from "@fortawesome/free-solid-svg-icons";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { video_links } from "../../constants";
 import { logout } from "../../actions/auth";
 import { convertDriveImageLink } from '../Tools'
 import { useDispatch, useSelector } from 'react-redux'
 import { Menu } from "lucide-react";
 import { main, dark, light } from "../../style";
+import { io as socketIO } from 'socket.io-client';
+import { getNotifications, getUnreadCount, markAsRead, markAllAsRead, removeNotification, clearAll, addRealtimeNotification } from '../../actions/notification';
 import NotificationDropdown from './NotificationDropdown';
 
 import Logo from '../../assets/logo.png'
 import Avatar from '../../assets/avatar.webp'
+
+const socketUrl = import.meta.env.VITE_DEVELOPMENT == "true"
+    ? `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`
+    : import.meta.env.VITE_APP_BASE_URL
 
 const capitalizeFirstLetter = (str) => `${str.charAt(0).toUpperCase()}${str.slice(1)}`;
 
@@ -33,7 +39,11 @@ const Navbar = ({ theme, setTheme }) => {
     const [avatar, setAvatar] = useState()
     const [firstPath, setFirstPath] = useState('')
     const [searchKey, setSearchKey] = useState('')
-    const [notifications, setNotifications] = useState([])
+
+    const notificationState = useSelector((state) => state.notification)
+    const { notifications, unreadCount, isLoading: notifLoading, page: notifPage, totalPages: notifTotalPages } = notificationState
+
+    const socketRef = useRef(null)
 
     const sign_out = () => {
         dispatch(logout())
@@ -45,6 +55,53 @@ const Navbar = ({ theme, setTheme }) => {
         setAvatar(localStorage.getItem('avatar')?.replaceAll('"', ""))
         setUser(JSON.parse(localStorage.getItem('profile')))
     }, [localStorage.getItem('avatar'), localStorage.getItem('profile')])
+
+    useEffect(() => {
+        if (!user) return
+
+        dispatch(getNotifications({ page: 1, limit: 20 }))
+        dispatch(getUnreadCount())
+
+        const userId = user.result?._id || user._id
+        if (!userId) return
+
+        const socket = socketIO(socketUrl, { transports: ['websocket', 'polling'] })
+        socketRef.current = socket
+
+        socket.emit('join_chat', userId)
+
+        socket.on('new_notification', (data) => {
+            dispatch(addRealtimeNotification(data))
+        })
+
+        return () => {
+            socket.off('new_notification')
+            socket.disconnect()
+            socketRef.current = null
+        }
+    }, [user?.result?._id || user?._id])
+
+    const handleMarkAsRead = useCallback((id) => {
+        dispatch(markAsRead(id))
+    }, [dispatch])
+
+    const handleMarkAllAsRead = useCallback(() => {
+        dispatch(markAllAsRead())
+    }, [dispatch])
+
+    const handleDeleteNotification = useCallback((id) => {
+        dispatch(removeNotification(id))
+    }, [dispatch])
+
+    const handleClearAll = useCallback(() => {
+        dispatch(clearAll())
+    }, [dispatch])
+
+    const handleLoadMore = useCallback(() => {
+        if (notifPage < notifTotalPages && !notifLoading) {
+            dispatch(getNotifications({ page: notifPage + 1, limit: 20 }))
+        }
+    }, [dispatch, notifPage, notifTotalPages, notifLoading])
 
     useEffect(() => {
         const url = window.location.href;
@@ -166,8 +223,10 @@ const Navbar = ({ theme, setTheme }) => {
                                     }}
                                 >
                                     <FontAwesomeIcon icon={faBell} />
-                                    {notifications.filter(n => !n.read).length > 0 && (
-                                        <span className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-0.5 right-0 min-w-[16px] h-4 bg-red-500 rounded-full border-2 border-white text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
                                     )}
                                 </button>
                                 {open.notification && (
@@ -178,11 +237,15 @@ const Navbar = ({ theme, setTheme }) => {
                                         <NotificationDropdown
                                             theme={theme}
                                             notifications={notifications}
+                                            unreadCount={unreadCount}
+                                            isLoading={notifLoading}
+                                            hasMore={notifPage < notifTotalPages}
                                             onClose={() => setOpen({...open, notification: false})}
-                                            onNotificationClick={(notification) => {
-                                                // Handle notification click
-                                                console.log('Notification clicked:', notification)
-                                            }}
+                                            onMarkAsRead={handleMarkAsRead}
+                                            onMarkAllAsRead={handleMarkAllAsRead}
+                                            onDelete={handleDeleteNotification}
+                                            onClearAll={handleClearAll}
+                                            onLoadMore={handleLoadMore}
                                         />
                                     </div>
                                 )}
@@ -340,8 +403,10 @@ const Navbar = ({ theme, setTheme }) => {
                                         }}
                                     >
                                         <FontAwesomeIcon icon={faBell} />
-                                        {notifications.filter(n => !n.read).length > 0 && (
-                                            <span className="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                                        {unreadCount > 0 && (
+                                            <span className="absolute -top-0.5 right-0 min-w-[16px] h-4 bg-red-500 rounded-full border-2 border-white text-white text-[9px] font-bold flex items-center justify-center px-0.5">
+                                                {unreadCount > 99 ? '99+' : unreadCount}
+                                            </span>
                                         )}
                                     </button>
                                     {open.notification && (
@@ -352,11 +417,15 @@ const Navbar = ({ theme, setTheme }) => {
                                             <NotificationDropdown
                                                 theme={theme}
                                                 notifications={notifications}
+                                                unreadCount={unreadCount}
+                                                isLoading={notifLoading}
+                                                hasMore={notifPage < notifTotalPages}
                                                 onClose={() => setOpen({...open, notification: false})}
-                                                onNotificationClick={(notification) => {
-                                                    // Handle notification click
-                                                    console.log('Notification clicked:', notification)
-                                                }}
+                                                onMarkAsRead={handleMarkAsRead}
+                                                onMarkAllAsRead={handleMarkAllAsRead}
+                                                onDelete={handleDeleteNotification}
+                                                onClearAll={handleClearAll}
+                                                onLoadMore={handleLoadMore}
                                             />
                                         </div>
                                     )}

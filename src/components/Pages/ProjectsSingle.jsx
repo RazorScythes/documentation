@@ -31,6 +31,18 @@ import {
     faInfoCircle,
     faBook,
     faKey,
+    faBookmark,
+    faDownload,
+    faFilePdf,
+    faUsers,
+    faHistory,
+    faCheckCircle,
+    faDraftingCompass,
+    faArchive,
+    faPaperPlane,
+    faReply,
+    faChevronDown,
+    faChevronUp,
 } from '@fortawesome/free-solid-svg-icons'
 import { library, findIconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
@@ -58,6 +70,8 @@ import {
     deleteProjectComment,
     updateProjectComments,
     toggleProjectLike,
+    toggleBookmark,
+    getRelatedProjects,
     viewProject,
     clearAlert,
 } from '../../actions/project'
@@ -374,8 +388,9 @@ const ProjectsSingle = ({ user, theme }) => {
     const category = useSelector((state) => state.project.user_category)
     const latestProjects = useSelector((state) => state.project.latestProjects)
     const notFound = useSelector((state) => state.project.notFound)
-    const forbiden = useSelector((state) => state.project.forbiden)
+    const forbidden = useSelector((state) => state.project.forbidden)
     const isLoading = useSelector((state) => state.project.isLoading)
+    const relatedProjects = useSelector((state) => state.project.relatedProjects)
 
     const isLight = theme === 'light'
     const userId = user?._id || user?.result?._id || ''
@@ -404,6 +419,11 @@ const ProjectsSingle = ({ user, theme }) => {
     const [lightbox, setLightbox] = useState({ open: false, src: '' })
     const [accessKeyInput, setAccessKeyInput] = useState('')
     const [accessKeyError, setAccessKeyError] = useState('')
+    const [bookmarkAnimating, setBookmarkAnimating] = useState(false)
+    const [pdfExporting, setPdfExporting] = useState(false)
+    const [replyTo, setReplyTo] = useState(null)
+    const [replyText, setReplyText] = useState('')
+    const [expandedComments, setExpandedComments] = useState({})
 
     useEffect(() => { setMounted(true) }, [])
 
@@ -480,13 +500,56 @@ const ProjectsSingle = ({ user, theme }) => {
         setReportModal(true)
     }
 
+    useEffect(() => {
+        if (project_data?._id) {
+            dispatch(getRelatedProjects({
+                projectId: project_data._id,
+                tags: project_data.tags || [],
+                category: project_data.categories || '',
+            }))
+        }
+    }, [project_data?._id])
+
     const isLiked = project_data?.likes?.includes(userId) || project_data?.likes?.includes(cookies.get('uid'))
+    const isBookmarked = project_data?.bookmarks?.includes(userId) || project_data?.bookmarks?.includes(cookies.get('uid'))
 
     const handleToggleLike = () => {
         if (!userId) return
         setLikeAnimating(true)
         dispatch(toggleProjectLike({ projectId: id, userId }))
         setTimeout(() => setLikeAnimating(false), 600)
+    }
+
+    const handleToggleBookmark = () => {
+        if (!userId) return
+        setBookmarkAnimating(true)
+        dispatch(toggleBookmark({ projectId: id, userId }))
+        setTimeout(() => setBookmarkAnimating(false), 600)
+    }
+
+    const handleExportPDF = async () => {
+        try {
+            setPdfExporting(true)
+            const html2canvas = (await import('html2canvas-pro')).default
+            const { jsPDF } = await import('jspdf')
+            const el = document.getElementById('project-content-area')
+            if (!el) return
+            const canvas = await html2canvas(el, { scale: 2, useCORS: true })
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF('p', 'mm', 'a4')
+            const pW = pdf.internal.pageSize.getWidth()
+            const pH = (canvas.height * pW) / canvas.width
+            pdf.addImage(imgData, 'PNG', 0, 0, pW, pH)
+            pdf.save(`${project_data?.post_title || 'project'}.pdf`)
+        } catch (err) {
+            console.error('PDF export failed:', err)
+        } finally {
+            setPdfExporting(false)
+        }
+    }
+
+    const toggleCommentExpand = (commentId) => {
+        setExpandedComments(prev => ({ ...prev, [commentId]: !prev[commentId] }))
     }
 
     const hljsStyle = useCallback(
@@ -671,7 +734,7 @@ const ProjectsSingle = ({ user, theme }) => {
         </div>
     )
 
-    const hasFetched = !isLoading && (project_data?._id || notFound || forbiden)
+    const hasFetched = !isLoading && (project_data?._id || notFound || forbidden)
 
     if (isLoading || !hasFetched) {
         return (
@@ -702,14 +765,14 @@ const ProjectsSingle = ({ user, theme }) => {
         )
     }
 
-    if (forbiden) {
+    if (forbidden) {
         const handleAccessKeySubmit = (e) => {
             e.preventDefault()
             if (!accessKeyInput.trim()) return
             setAccessKeyError('')
             dispatch(getProjectByID({ id, access_key: accessKeyInput.trim(), userId }))
                 .then((res) => {
-                    if (res.payload?.data?.forbiden) {
+                    if (res.payload?.data?.forbidden) {
                         setAccessKeyError('Invalid access key. Please try again.')
                     }
                 })
@@ -767,6 +830,15 @@ const ProjectsSingle = ({ user, theme }) => {
     const likesCount = Array.isArray(p.likes) ? p.likes.length : 0
     const commentsCount = data?.length || 0
     const otherLatest = (latestProjects || []).filter((proj) => String(proj._id) !== String(id))
+    const relatedList = (relatedProjects || []).filter((proj) => String(proj._id) !== String(id))
+
+    const statusConfig = {
+        'draft': { label: 'Draft', icon: faDraftingCompass, color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30' },
+        'in-progress': { label: 'In Progress', icon: faHourglass, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/30' },
+        'completed': { label: 'Completed', icon: faCheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/30' },
+        'archived': { label: 'Archived', icon: faArchive, color: 'text-gray-400', bg: 'bg-gray-500/10 border-gray-500/30' },
+    }
+    const statusInfo = statusConfig[p.status] || statusConfig['draft']
 
     const catId = p.categories
     const matchedCategory = Array.isArray(category) && catId
@@ -778,6 +850,11 @@ const ProjectsSingle = ({ user, theme }) => {
     const progress = timelineProgress(p.date_start, p.date_end)
 
     const infoRows = [
+        {
+            icon: statusInfo.icon,
+            label: 'Status',
+            value: <span className={`font-semibold ${statusInfo.color}`}>{statusInfo.label}</span>,
+        },
         matchedCategory && {
             icon: faLayerGroup,
             label: 'Category',
@@ -861,16 +938,30 @@ const ProjectsSingle = ({ user, theme }) => {
                                 />
                                 <div className={`absolute inset-0 bg-gradient-to-t ${isLight ? 'from-slate-900/85 via-slate-900/40' : 'from-black/90 via-black/50'} to-transparent`} />
 
+                                <div className="absolute top-4 left-4 z-10">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-md ${statusInfo.bg} ${statusInfo.color}`}>
+                                        <FontAwesomeIcon icon={statusInfo.icon} className="text-[10px]" />
+                                        {statusInfo.label}
+                                    </span>
+                                </div>
                                 {userId && (
-                                    <button onClick={handleToggleLike}
-                                        className={`absolute top-4 right-4 z-10 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-md transition-all duration-300 ${likeAnimating ? 'scale-125' : 'scale-100'} ${
-                                            isLiked
-                                                ? 'bg-red-500/90 text-white hover:bg-red-600 shadow-lg shadow-red-500/20'
-                                                : 'bg-black/40 text-white/90 hover:bg-black/60'
-                                        }`}>
-                                        <FontAwesomeIcon icon={faHeart} className={`transition-transform duration-300 ${likeAnimating ? 'scale-125' : ''} ${isLiked ? 'text-white' : 'text-white/80'}`} />
-                                        {likesCount}
-                                    </button>
+                                    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                                        <button onClick={handleToggleBookmark}
+                                            className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium backdrop-blur-md transition-all duration-300 ${bookmarkAnimating ? 'scale-110' : 'scale-100'} ${
+                                                isBookmarked ? 'bg-amber-500/90 text-white hover:bg-amber-600' : 'bg-black/40 text-white/90 hover:bg-black/60'
+                                            }`}>
+                                            <FontAwesomeIcon icon={faBookmark} />
+                                        </button>
+                                        <button onClick={handleToggleLike}
+                                            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium backdrop-blur-md transition-all duration-300 ${likeAnimating ? 'scale-125' : 'scale-100'} ${
+                                                isLiked
+                                                    ? 'bg-red-500/90 text-white hover:bg-red-600 shadow-lg shadow-red-500/20'
+                                                    : 'bg-black/40 text-white/90 hover:bg-black/60'
+                                            }`}>
+                                            <FontAwesomeIcon icon={faHeart} className={`transition-transform duration-300 ${likeAnimating ? 'scale-125' : ''} ${isLiked ? 'text-white' : 'text-white/80'}`} />
+                                            {likesCount}
+                                        </button>
+                                    </div>
                                 )}
 
                                 <div
@@ -917,7 +1008,7 @@ const ProjectsSingle = ({ user, theme }) => {
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-10">
                         <div className="min-w-0 lg:col-span-2">
                             <AnimatedSection>
-                                <article className={`rounded-xl border p-6 sm:p-8 ${card}`}>
+                                <article id="project-content-area" className={`rounded-xl border p-6 sm:p-8 ${card}`}>
                                     <div className="prose prose-sm max-w-none">{renderContentBlocks()}</div>
                                 </article>
                             </AnimatedSection>
@@ -936,7 +1027,7 @@ const ProjectsSingle = ({ user, theme }) => {
                             )}
 
                             <AnimatedSection className="mt-6">
-                                <div className={`flex flex-wrap items-center gap-6 rounded-xl border px-6 py-4 text-sm ${card}`}>
+                                <div className={`flex flex-wrap items-center gap-4 rounded-xl border px-6 py-4 text-sm ${card}`}>
                                     <span className={`inline-flex items-center gap-2 ${subText}`}>
                                         <FontAwesomeIcon icon={faEye} /> <CountUp target={viewsCount} /> view{viewsCount !== 1 && 's'}
                                     </span>
@@ -947,8 +1038,108 @@ const ProjectsSingle = ({ user, theme }) => {
                                     <span className={`inline-flex items-center gap-2 ${subText}`}>
                                         <FontAwesomeIcon icon={faComment} /> <CountUp target={commentsCount} /> comment{commentsCount !== 1 && 's'}
                                     </span>
+                                    <div className="ml-auto flex items-center gap-2">
+                                        {userId && (
+                                            <button onClick={handleToggleBookmark}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border border-solid ${
+                                                    isBookmarked
+                                                        ? (isLight ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-amber-900/20 text-amber-400 border-amber-800/40')
+                                                        : (isLight ? 'bg-white text-slate-500 border-slate-200 hover:border-amber-300' : 'bg-[#1a1a1a] text-gray-400 border-[#333] hover:border-amber-700')
+                                                }`}>
+                                                <FontAwesomeIcon icon={faBookmark} /> {isBookmarked ? 'Saved' : 'Save'}
+                                            </button>
+                                        )}
+                                        <button onClick={handleExportPDF} disabled={pdfExporting}
+                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border border-solid ${
+                                                isLight ? 'bg-white text-slate-500 border-slate-200 hover:border-red-300 hover:text-red-500' : 'bg-[#1a1a1a] text-gray-400 border-[#333] hover:border-red-700 hover:text-red-400'
+                                            } ${pdfExporting ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                            <FontAwesomeIcon icon={faFilePdf} /> {pdfExporting ? 'Exporting...' : 'PDF'}
+                                        </button>
+                                    </div>
                                 </div>
                             </AnimatedSection>
+
+                            {/* Collaborators */}
+                            {Array.isArray(p.collaborators) && p.collaborators.length > 0 && (
+                                <AnimatedSection className="mt-6">
+                                    <div className={`${card} p-5 sm:p-6`}>
+                                        <h2 className={sectionTitle}>
+                                            <FontAwesomeIcon icon={faUsers} className="text-xs" /> Team
+                                        </h2>
+                                        <div className="flex flex-wrap gap-3">
+                                            {p.collaborators.map((c, ci) => {
+                                                const collab = c.user || {}
+                                                return (
+                                                    <div key={ci} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-[#2B2B2B] bg-[#141414]'}`}>
+                                                        {collab.avatar ? (
+                                                            <img src={collab.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                                        ) : (
+                                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faUser} className={`text-xs ${accentClass}`} />
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <p className={`text-xs font-semibold ${headingClass}`}>{collab.username || 'User'}</p>
+                                                            <p className={`text-[10px] capitalize ${subText}`}>{c.role}</p>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </AnimatedSection>
+                            )}
+
+                            {/* Attachments */}
+                            {Array.isArray(p.attachments) && p.attachments.length > 0 && (
+                                <AnimatedSection className="mt-6">
+                                    <div className={`${card} p-5 sm:p-6`}>
+                                        <h2 className={sectionTitle}>
+                                            <FontAwesomeIcon icon={faDownload} className="text-xs" /> Attachments
+                                        </h2>
+                                        <div className="space-y-2">
+                                            {p.attachments.map((att, ai) => (
+                                                <a key={ai} href={att.url} target="_blank" rel="noopener noreferrer"
+                                                    className={`flex items-center gap-3 rounded-lg border px-4 py-3 transition-all duration-200 hover:scale-[1.01] ${isLight ? 'border-slate-200/80 hover:bg-slate-50' : 'border-[#2B2B2B] hover:bg-[#141414]'}`}>
+                                                    <FontAwesomeIcon icon={faFile} className={accentClass} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-sm font-medium truncate ${headingClass}`}>{att.name}</p>
+                                                        {att.size > 0 && <p className={`text-[10px] ${subText}`}>{(att.size / 1024).toFixed(1)} KB</p>}
+                                                    </div>
+                                                    <FontAwesomeIcon icon={faDownload} className={`text-xs ${subText}`} />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </AnimatedSection>
+                            )}
+
+                            {/* Changelog */}
+                            {Array.isArray(p.changelog) && p.changelog.length > 0 && (
+                                <AnimatedSection className="mt-6">
+                                    <div className={`${card} p-5 sm:p-6`}>
+                                        <h2 className={sectionTitle}>
+                                            <FontAwesomeIcon icon={faHistory} className="text-xs" /> Changelog
+                                        </h2>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {p.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ei) => (
+                                                <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                                                        <FontAwesomeIcon icon={faFlag} className={`text-xs ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className={`text-xs font-bold ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
+                                                            <span className={`text-[10px] ${subText}`}>{formatDateShort(entry.date)}</span>
+                                                        </div>
+                                                        <p className={`text-sm leading-relaxed ${proseClass}`}>{entry.description}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </AnimatedSection>
+                            )}
 
                             <AnimatedSection className="mt-8">
                                 <div className={`${card} p-5 sm:p-6`}>
@@ -1001,7 +1192,7 @@ const ProjectsSingle = ({ user, theme }) => {
 
                                         {p.documentation_link && (
                                             <div className={`mt-4 pt-4 border-t border-solid ${sectionBorder}`}>
-                                                <Link to={p.documentation_link}
+                                                <a href={p.documentation_link} target="_blank" rel="noopener noreferrer"
                                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-solid transition-all duration-200 hover:translate-x-0.5 ${isLight
                                                         ? 'border-blue-200 bg-blue-50/50 text-blue-700 hover:bg-blue-50'
                                                         : 'border-blue-800/40 bg-blue-900/10 text-blue-400 hover:bg-blue-900/20'
@@ -1011,8 +1202,8 @@ const ProjectsSingle = ({ user, theme }) => {
                                                         <p className="text-sm font-semibold">View Documentation</p>
                                                         <p className={`text-[10px] truncate ${isLight ? 'text-blue-500' : 'text-blue-500/70'}`}>{p.documentation_link}</p>
                                                     </div>
-                                                    <FontAwesomeIcon icon={faChevronRight} className="text-[10px] opacity-60" />
-                                                </Link>
+                                                    <FontAwesomeIcon icon={faExternalLink} className="text-[10px] opacity-60" />
+                                                </a>
                                             </div>
                                         )}
 
@@ -1091,36 +1282,51 @@ const ProjectsSingle = ({ user, theme }) => {
                                 </AnimatedSidebar>
                             )}
 
+                            {/* Status badge in sidebar */}
+                            <AnimatedSidebar delay={350}>
+                                <div className={`p-5 sm:p-6 ${card}`}>
+                                    <h2 className={`mb-1 text-base font-bold ${headingClass}`}>Status</h2>
+                                    <div className={`mb-3 h-px w-12 ${isLight ? 'bg-blue-500' : 'bg-blue-400'}`} />
+                                    <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border ${statusInfo.bg} ${statusInfo.color}`}>
+                                        <FontAwesomeIcon icon={statusInfo.icon} />
+                                        {statusInfo.label}
+                                    </span>
+                                </div>
+                            </AnimatedSidebar>
+
                             <AnimatedSidebar delay={400}>
                                 <div className={`p-5 sm:p-6 ${card}`}>
-                                    <h2 className={`mb-1 text-base font-bold ${headingClass}`}>Latest projects</h2>
+                                    <h2 className={`mb-1 text-base font-bold ${headingClass}`}>{relatedList.length > 0 ? 'Related Projects' : 'Latest Projects'}</h2>
                                     <div className={`mb-4 h-px w-12 ${isLight ? 'bg-blue-500' : 'bg-blue-400'}`} />
-                                    {otherLatest.length > 0 ? (
-                                        <ul className="space-y-3">
-                                            {otherLatest.slice(0, 6).map((item) => (
-                                                <li key={item._id}>
-                                                    <Link to={`/projects/${item._id}`}
-                                                        className={`group flex gap-3 rounded-lg border p-2 transition-all duration-200 hover:translate-x-1 ${isLight ? 'border-transparent hover:border-slate-200 hover:bg-slate-50' : 'border-transparent hover:border-[#2B2B2B] hover:bg-[#141414]'}`}>
-                                                        {item.featured_image ? (
-                                                            <img src={item.featured_image} alt="" className={`h-14 w-14 shrink-0 rounded-lg object-cover border ${avatarBorder}`} />
-                                                        ) : (
-                                                            <div className={`h-14 w-14 shrink-0 rounded-lg flex items-center justify-center border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#1a1a1a] border-[#2B2B2B]'}`}>
-                                                                <FontAwesomeIcon icon={faFolder} className={mutedText} />
+                                    {(() => {
+                                        const list = relatedList.length > 0 ? relatedList : otherLatest
+                                        return list.length > 0 ? (
+                                            <ul className="space-y-3">
+                                                {list.slice(0, 6).map((item) => (
+                                                    <li key={item._id}>
+                                                        <Link to={`/projects/${item._id}`}
+                                                            className={`group flex gap-3 rounded-lg border p-2 transition-all duration-200 hover:translate-x-1 ${isLight ? 'border-transparent hover:border-slate-200 hover:bg-slate-50' : 'border-transparent hover:border-[#2B2B2B] hover:bg-[#141414]'}`}>
+                                                            {item.featured_image ? (
+                                                                <img src={item.featured_image} alt="" className={`h-14 w-14 shrink-0 rounded-lg object-cover border ${avatarBorder}`} />
+                                                            ) : (
+                                                                <div className={`h-14 w-14 shrink-0 rounded-lg flex items-center justify-center border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#1a1a1a] border-[#2B2B2B]'}`}>
+                                                                    <FontAwesomeIcon icon={faFolder} className={mutedText} />
+                                                                </div>
+                                                            )}
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className={`truncate font-medium transition-colors ${headingClass} ${isLight ? 'group-hover:text-blue-600' : 'group-hover:text-blue-400'}`}>
+                                                                    {item.post_title}
+                                                                </p>
+                                                                <p className={`mt-0.5 text-xs ${subText}`}>{moment(item.createdAt).fromNow()}</p>
                                                             </div>
-                                                        )}
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className={`truncate font-medium transition-colors ${headingClass} ${isLight ? 'group-hover:text-blue-600' : 'group-hover:text-blue-400'}`}>
-                                                                {item.post_title}
-                                                            </p>
-                                                            <p className={`mt-0.5 text-xs ${subText}`}>{moment(item.createdAt).fromNow()}</p>
-                                                        </div>
-                                                    </Link>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className={subText}>No other projects yet.</p>
-                                    )}
+                                                        </Link>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className={subText}>No other projects yet.</p>
+                                        )
+                                    })()}
                                 </div>
                             </AnimatedSidebar>
                         </aside>

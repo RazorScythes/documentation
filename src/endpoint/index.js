@@ -52,6 +52,7 @@ export const unbanUser                          = (id) => endpoint.delete(`/user
 export const getSettings                        = () => endpoint.get('/user/getSettings', getOptions())
 export const updateSettings                     = (formData) => endpoint.post('/user/updateSettings', formData, getOptions())
 export const deleteAccount                      = (formData) => endpoint.delete('/user/deleteAccount', { ...getOptions(), data: formData })
+export const changePassword                     = (formData) => endpoint.post('/user/changePassword', formData, getOptions())
 export const sendVerificationEmail              = () => endpoint.post('/user/sendVerificationEmail', {}, getOptions())
 export const verifyEmailToken                   = (formData) => endpoint.post('/user/verifyEmail', formData)
 export const getPublicProfile                   = (username) => endpoint.get(`/user/profile/${username}`)
@@ -105,11 +106,17 @@ export const deleteVideo                        = (id) => endpoint.delete(`/vide
 export const deleteMultipleVideos               = (formData) => endpoint.patch(`/videos/deleteMultipleVideos`, formData, getOptions()) 
 
 /*
+    HOME
+*/
+export const getHomeData                       = () => endpoint.get('/home/getHomeData')
+
+/*
     PUBLIC
 */
 export const getVideosByType                   = (type, params) => endpoint.get(`/watch/getVideosByType/${type}`, { ...getOptions(), params })
 export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, getOptions())
 export const getVideoList                      = (id) => endpoint.get(`/watch/getVideoList/${id}`, getOptions())
+export const getRelatedVideos                  = (id, params) => endpoint.get(`/watch/getRelatedVideos/${id}`, { ...getOptions(), params })
 export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, getOptions())
 export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, getOptions())
 export const viewVideo                         = (formData) => endpoint.patch('/watch/viewVideo', formData, getOptions())
@@ -152,6 +159,52 @@ export const createReport                     = (formData) => endpoint.post('/ac
 export const getReports                       = (params) => endpoint.get('/account/getReports', { ...getOptions(), params })
 export const updateReportStatus               = (formData) => endpoint.patch('/account/updateReportStatus', formData, getOptions())
 export const deleteReport                     = (id) => endpoint.delete(`/account/deleteReport/${id}`, getOptions())
+
+/*
+    ACCOUNT / 2FA
+*/
+export const get2FAStatus                     = () => endpoint.get('/account/get2FAStatus', getOptions())
+export const toggle2FA                        = () => endpoint.post('/account/toggle2FA', {}, getOptions())
+
+/*
+    ACCOUNT / SESSIONS
+*/
+export const getSessions                      = () => endpoint.get('/account/getSessions', getOptions())
+export const revokeSession                    = (sessionId) => endpoint.delete(`/account/revokeSession/${sessionId}`, getOptions())
+export const revokeAllSessions                = () => endpoint.delete('/account/revokeAllSessions', getOptions())
+
+/*
+    ACCOUNT / EXPORT
+*/
+export const exportAccountData                = () => endpoint.get('/account/exportData', getOptions())
+
+/*
+    ACCOUNT / NOTIFICATIONS
+*/
+export const getNotificationPrefs             = () => endpoint.get('/account/getNotificationPrefs', getOptions())
+export const updateNotificationPrefs          = (formData) => endpoint.post('/account/updateNotificationPrefs', formData, getOptions())
+
+/*
+    NOTIFICATIONS (INBOX)
+*/
+export const getNotifications                 = (params) => endpoint.get('/notification/getNotifications', { ...getOptions(), params })
+export const getUnreadNotificationCount       = () => endpoint.get('/notification/getUnreadCount', getOptions())
+export const markNotificationAsRead           = (id) => endpoint.patch(`/notification/markAsRead/${id}`, {}, getOptions())
+export const markAllNotificationsAsRead       = () => endpoint.patch('/notification/markAllAsRead', {}, getOptions())
+export const deleteNotification               = (id) => endpoint.delete(`/notification/delete/${id}`, getOptions())
+export const clearAllNotifications            = () => endpoint.delete('/notification/clearAll', getOptions())
+
+/*
+    ACCOUNT / SOCIAL
+*/
+export const getSocialLinks                   = () => endpoint.get('/account/getSocialLinks', getOptions())
+export const updateSocialLinks                = (formData) => endpoint.post('/account/updateSocialLinks', formData, getOptions())
+
+/*
+    ACCOUNT / SECURITY
+*/
+export const getSecurityLog                   = (params) => endpoint.get('/account/getSecurityLog', { ...getOptions(), params })
+export const getProfileCompleteness           = () => endpoint.get('/account/getProfileCompleteness', getOptions())
 
 /*
     DOCUMENTATION
@@ -197,11 +250,15 @@ export const getBudgetCategories               = () => endpoint.get('/budget/cat
 export const createBudgetCategory              = (formData) => endpoint.post('/budget/category', formData)
 export const updateBudgetCategory              = (formData) => endpoint.patch('/budget/category', formData)
 export const deleteBudgetCategory              = (id) => endpoint.delete(`/budget/category/${id}`)
-export const seedBudgetFromSheet                = (formData) => endpoint.post('/budget/seed', formData)
+export const shareBudgetCategory               = (formData) => endpoint.post('/budget/category/share', formData)
+export const unshareBudgetCategory             = (formData) => endpoint.post('/budget/category/unshare', formData)
+export const importBudgetCSV                   = (formData) => endpoint.post('/budget/import-csv', formData)
+export const searchBudgetExpenses              = (params) => endpoint.get('/budget/search', { params })
+export const processRecurring                  = () => endpoint.post('/budget/recurring/process')
 export const getBudgetExpenses                 = (params) => endpoint.get('/budget/expenses', { params })
 export const createBudgetExpense               = (formData) => endpoint.post('/budget/expense', formData)
 export const updateBudgetExpense               = (formData) => endpoint.patch('/budget/expense', formData)
-export const deleteBudgetExpense               = (id) => endpoint.delete(`/budget/expense/${id}`)
+export const deleteBudgetExpense               = (id, params) => endpoint.delete(`/budget/expense/${id}`, { params })
 export const bulkDeleteBudgetExpenses          = (formData) => endpoint.post('/budget/expenses/bulkDelete', formData)
 export const bulkUpdateBudgetCategory          = (formData) => endpoint.patch('/budget/expenses/bulkCategory', formData)
 export const getSavings                        = () => endpoint.get('/budget/savings')
@@ -219,6 +276,11 @@ export const getBudgetLists                    = () => endpoint.get('/budget/lis
 export const createBudgetList                  = (formData) => endpoint.post('/budget/list', formData)
 export const updateBudgetList                  = (formData) => endpoint.patch('/budget/list', formData)
 export const deleteBudgetList                  = (id) => endpoint.delete(`/budget/list/${id}`)
+export const getFinancialGoals                 = () => endpoint.get('/budget/goals')
+export const createFinancialGoal               = (formData) => endpoint.post('/budget/goal', formData)
+export const updateFinancialGoal               = (formData) => endpoint.patch('/budget/goal', formData)
+export const deleteFinancialGoal               = (id) => endpoint.delete(`/budget/goal/${id}`)
+export const addGoalContribution               = (id, formData) => endpoint.post(`/budget/goal/${id}/contribution`, formData)
 
 /*
     PORTFOLIO
@@ -254,12 +316,14 @@ export const createGame                       = (formData) => endpoint.post('/ga
 export const updateGame                       = (id, formData) => endpoint.patch(`/game/${id}`, formData)
 export const deleteGame                       = (id) => endpoint.delete(`/game/${id}`)
 export const bulkDeleteGames                  = (formData) => endpoint.post('/game/bulkDelete', formData)
+export const bulkUpdateGames                 = (formData) => endpoint.post('/game/bulkUpdate', formData)
 export const toggleGamePrivacy                = (id) => endpoint.patch(`/game/${id}/privacy`)
 export const toggleGameStrict                 = (id) => endpoint.patch(`/game/${id}/strict`)
 export const getGameTrash                    = () => endpoint.get('/game/trash/list')
 export const restoreGame                     = (id) => endpoint.patch(`/game/trash/restore/${id}`)
 export const permanentDeleteGame             = (id) => endpoint.delete(`/game/trash/permanent/${id}`)
 export const emptyGameTrash                  = () => endpoint.delete('/game/trash/empty')
+export const getGameAnalytics                = (formData) => endpoint.post('/game/analytics', formData)
 
 /*
     PAGE BUILDER

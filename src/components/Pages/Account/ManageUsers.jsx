@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { dark, light } from '../../../style';
 import { useDispatch, useSelector } from 'react-redux'
 import { getAllUsers, updateUserRole, deleteUser, banUser, unbanUser, clearAlert } from '../../../actions/manageUsers';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faXmark, faBan, faUnlock, faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faXmark, faBan, faUnlock, faEdit, faTrashAlt, faSearch, faFilter, faSortAmountDown } from '@fortawesome/free-solid-svg-icons';
 import Table from '../../Custom/Table';
 import ConfirmModal from '../../Custom/ConfirmModal';
 import Avatar from '../../Custom/Avatar';
@@ -23,14 +23,14 @@ const BAN_DURATIONS = [
     { label: 'Permanent', value: 'permanent' },
 ]
 
-const RoleBadge = ({ role }) => {
-    const colors = {
-        Admin: 'text-red-500',
-        Moderator: 'text-amber-500',
-        User: 'text-blue-500',
+const RoleBadge = ({ role, isLight }) => {
+    const styles = {
+        Admin: isLight ? 'bg-red-100 text-red-600 border-red-200' : 'bg-red-900/30 text-red-400 border-red-800/50',
+        Moderator: isLight ? 'bg-amber-100 text-amber-600 border-amber-200' : 'bg-amber-900/30 text-amber-400 border-amber-800/50',
+        User: isLight ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-blue-900/30 text-blue-400 border-blue-800/50',
     }
     return (
-        <span className={`text-xs font-medium ${colors[role] || colors.User}`}>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${styles[role] || styles.User}`}>
             {role || 'User'}
         </span>
     )
@@ -63,6 +63,12 @@ const ManageUsers = ({ user, theme, setNotification }) => {
     const [unbanModalOpen, setUnbanModalOpen] = useState(false)
     const [unbanTarget, setUnbanTarget] = useState(null)
     const [unbanConfirm, setUnbanConfirm] = useState(false)
+
+    const [searchQuery, setSearchQuery] = useState('')
+    const [filterRole, setFilterRole] = useState('all')
+    const [filterStatus, setFilterStatus] = useState('all')
+    const [filterVerified, setFilterVerified] = useState('all')
+    const [sortBy, setSortBy] = useState('newest')
 
     const openRoleModal = (item) => {
         setRoleTarget(item)
@@ -114,9 +120,38 @@ const ManageUsers = ({ user, theme, setNotification }) => {
         }
     }, [confirm])
 
+    const filteredUsers = useMemo(() => {
+        let result = [...(users || [])]
+
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase()
+            result = result.filter(u =>
+                u.username?.toLowerCase().includes(q) ||
+                u.email?.toLowerCase().includes(q) ||
+                u.profile_id?.first_name?.toLowerCase().includes(q) ||
+                u.profile_id?.last_name?.toLowerCase().includes(q)
+            )
+        }
+
+        if (filterRole !== 'all') result = result.filter(u => u.role === filterRole)
+
+        if (filterStatus === 'active') result = result.filter(u => !u.ban || !formatBanExpiry(u.ban))
+        else if (filterStatus === 'banned') result = result.filter(u => u.ban && formatBanExpiry(u.ban))
+
+        if (filterVerified === 'verified') result = result.filter(u => u.verification?.verified)
+        else if (filterVerified === 'unverified') result = result.filter(u => !u.verification?.verified)
+
+        if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        else if (sortBy === 'oldest') result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+        else if (sortBy === 'username') result.sort((a, b) => (a.username || '').localeCompare(b.username || ''))
+        else if (sortBy === 'subscribers') result.sort((a, b) => (b.subscribers?.length || 0) - (a.subscribers?.length || 0))
+
+        return result
+    }, [users, searchQuery, filterRole, filterStatus, filterVerified, sortBy])
+
     useEffect(() => {
-        setTableData(users)
-    }, [users])
+        setTableData(filteredUsers)
+    }, [filteredUsers])
 
     useEffect(() => {
         if(alert && Object.keys(alert).length > 0) {
@@ -244,7 +279,7 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                                             onChange={() => setSelectedRole(role)}
                                             className="w-4 h-4 accent-blue-500"
                                         />
-                                        <RoleBadge role={role} />
+                                        <RoleBadge role={role} isLight={isLight} />
                                     </label>
                                 ))}
                             </div>
@@ -353,8 +388,50 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                         Manage Users
                     </h1>
                     <p className={`text-sm ${isLight ? light.text : dark.text}`}>
-                        View and manage all registered users
+                        {filteredUsers.length} of {users?.length || 0} users
                     </p>
+                </div>
+            </div>
+
+            {/* Search & Filter Bar */}
+            <div className={`mb-6 rounded-xl p-4 border ${isLight ? 'bg-white/80 backdrop-blur-sm border-blue-200/60 shadow-sm' : 'bg-[#1C1C1C] border-[#2B2B2B]'}`}>
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 relative">
+                        <FontAwesomeIcon icon={faSearch} className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm ${isLight ? 'text-blue-400' : 'text-gray-500'}`} />
+                        <input
+                            type="text"
+                            placeholder="Search by username, email, or name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-lg ${isLight ? light.input : dark.input}`}
+                        />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                        <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}
+                            className={`py-2 px-3 text-xs rounded-lg cursor-pointer ${isLight ? light.input : dark.input}`}>
+                            <option value="all">All Roles</option>
+                            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                            className={`py-2 px-3 text-xs rounded-lg cursor-pointer ${isLight ? light.input : dark.input}`}>
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="banned">Banned</option>
+                        </select>
+                        <select value={filterVerified} onChange={(e) => setFilterVerified(e.target.value)}
+                            className={`py-2 px-3 text-xs rounded-lg cursor-pointer ${isLight ? light.input : dark.input}`}>
+                            <option value="all">All</option>
+                            <option value="verified">Verified</option>
+                            <option value="unverified">Unverified</option>
+                        </select>
+                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+                            className={`py-2 px-3 text-xs rounded-lg cursor-pointer ${isLight ? light.input : dark.input}`}>
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="username">Username A-Z</option>
+                            <option value="subscribers">Most Subscribers</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -379,7 +456,7 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                                     </div>
                                     <div>
                                         <p className="font-medium">{item.username}</p>
-                                        <RoleBadge role={item.role} />
+                                        <RoleBadge role={item.role} isLight={isLight} />
                                     </div>
                                 </div>
                             )

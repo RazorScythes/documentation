@@ -21,6 +21,10 @@ import {
     faComment,
     faCalendarAlt,
     faSort,
+    faCheckCircle,
+    faHourglass,
+    faDraftingCompass,
+    faArchive,
 } from '@fortawesome/free-solid-svg-icons'
 import { library, findIconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
@@ -127,6 +131,13 @@ const AnimatedCard = ({ children, index, isLight }) => {
     )
 }
 
+const STATUS_CONFIG = {
+    'draft': { label: 'Draft', icon: faDraftingCompass, cls: 'text-yellow-600 bg-yellow-500/10' },
+    'in-progress': { label: 'In Progress', icon: faHourglass, cls: 'text-blue-500 bg-blue-500/10' },
+    'completed': { label: 'Completed', icon: faCheckCircle, cls: 'text-emerald-500 bg-emerald-500/10' },
+    'archived': { label: 'Archived', icon: faArchive, cls: 'text-gray-400 bg-gray-500/10' },
+}
+
 const ProjectCard = ({ item, categoryList, isLight }) => {
     const catId = item.categories
     const catMeta = categoryList?.find((c) => String(c._id) === String(catId))
@@ -135,8 +146,9 @@ const ProjectCard = ({ item, categoryList, isLight }) => {
 
     const views = item.views?.length ?? 0
     const likes = item.likes?.length ?? 0
-    const comments = item.comment?.length ?? 0
+    const comments = item.commentCount ?? item.comment?.length ?? 0
     const tags = Array.isArray(item.tags) ? item.tags : []
+    const statusInfo = STATUS_CONFIG[item.status] || null
 
     return (
         <Link to={`/projects/${item._id}`} className="block group h-full">
@@ -163,10 +175,16 @@ const ProjectCard = ({ item, categoryList, isLight }) => {
                             />
                         </div>
                     )}
-                    <div className="absolute top-2.5 left-2.5">
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                         <span className={`text-[9px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-md uppercase tracking-wider max-w-[10rem] truncate inline-block ${isLight ? 'bg-white/90 text-slate-600 shadow-sm' : 'bg-black/60 text-gray-200'}`}>
                             {badge}
                         </span>
+                        {statusInfo && (
+                            <span className={`text-[9px] font-bold px-2 py-1 rounded-lg backdrop-blur-md inline-flex items-center gap-1 ${statusInfo.cls}`}>
+                                <FontAwesomeIcon icon={statusInfo.icon} className="text-[8px]" />
+                                {statusInfo.label}
+                            </span>
+                        )}
                     </div>
                     <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center pointer-events-none ${isLight ? 'bg-gradient-to-t from-blue-600/20 via-transparent' : 'bg-gradient-to-t from-blue-900/30 via-transparent'}`}>
                         <div className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm transition-transform duration-500 group-hover:scale-100 scale-75 ${isLight ? 'bg-white/90 shadow-lg' : 'bg-black/60'}`}>
@@ -234,6 +252,7 @@ const Projects = ({ user, theme }) => {
     const [mounted, setMounted] = useState(false)
     const [showTags, setShowTags] = useState(false)
     const [initialLoadDone, setInitialLoadDone] = useState(false)
+    const [statusFilter, setStatusFilter] = useState('')
 
     const heroRef = useRef(null)
     const heroVisible = useInView(heroRef)
@@ -273,6 +292,10 @@ const Projects = ({ user, theme }) => {
     const processed = useMemo(() => {
         let list = [...(project || [])]
 
+        if (statusFilter) {
+            list = list.filter((p) => p.status === statusFilter)
+        }
+
         if (selectedTags.length > 0) {
             list = list.filter((p) =>
                 selectedTags.some((tag) => p.tags?.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())),
@@ -285,8 +308,8 @@ const Projects = ({ user, theme }) => {
             list.sort((a, b) => (b.views?.length || 0) - (a.views?.length || 0))
         } else if (sortType === 'popular') {
             list.sort((a, b) => {
-                const pa = (a.views?.length || 0) / 2 + (a.likes?.length || 0) - (a.dislikes?.length || 0)
-                const pb = (b.views?.length || 0) / 2 + (b.likes?.length || 0) - (b.dislikes?.length || 0)
+                const pa = (a.views?.length || 0) / 2 + (a.likes?.length || 0)
+                const pb = (b.views?.length || 0) / 2 + (b.likes?.length || 0)
                 return pb - pa
             })
         }
@@ -525,6 +548,17 @@ const Projects = ({ user, theme }) => {
                                     <button type="button" className={sortBtn(sortType === 'latest')} onClick={() => { setSortType('latest'); setCurrentPage(1) }}>Latest</button>
                                     <button type="button" className={sortBtn(sortType === 'most_viewed')} onClick={() => { setSortType('most_viewed'); setCurrentPage(1) }}>Most Viewed</button>
                                     <button type="button" className={sortBtn(sortType === 'popular')} onClick={() => { setSortType('popular'); setCurrentPage(1) }}>Popular</button>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
+                                        <FontAwesomeIcon icon={faFilter} className="text-[10px]" /> Status
+                                    </span>
+                                    <button type="button" className={sortBtn(statusFilter === '')} onClick={() => { setStatusFilter(''); setCurrentPage(1) }}>All</button>
+                                    {Object.entries(STATUS_CONFIG).map(([sKey, val]) => (
+                                        <button key={sKey} type="button" className={sortBtn(statusFilter === sKey)} onClick={() => { setStatusFilter(sKey); setCurrentPage(1) }}>
+                                            <FontAwesomeIcon icon={val.icon} className="text-[9px] mr-1" />{val.label}
+                                        </button>
+                                    ))}
                                 </div>
                                 <div className={`text-[11px] font-medium ${subText}`}>
                                     {!isLoading && (

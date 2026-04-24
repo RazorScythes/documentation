@@ -6,12 +6,14 @@ const initialState = {
     alert       : {},
     comments    : [],
     videoList   : {},
+    related     : [],
+    recentSidebar: [],
     browse      : { result: [], total: 0, page: 1, totalPages: 0 },
     browseLoading: false,
     isLoading   : false,
     notFound    : false,
     error       : '',
-    forbiden    : ''
+    forbidden   : ''
 }
 
 export const getVideosByType = createAsyncThunk('watch/getVideosByType', async (data, thunkAPI) => {
@@ -38,14 +40,11 @@ export const getVideoById = createAsyncThunk('watch/getVideoById', async (data, 
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -58,14 +57,43 @@ export const getVideoList = createAsyncThunk('watch/getVideoList', async (data, 
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
+        })
+    }
+})
+
+export const getRelatedVideos = createAsyncThunk('watch/getRelatedVideos', async (data, thunkAPI) => {
+    try {
+        const { id, limit } = data;
+        const response = await api.getRelatedVideos(id, { limit })
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
+        })
+    }
+})
+
+export const getRecentSidebar = createAsyncThunk('watch/getRecentSidebar', async (data, thunkAPI) => {
+    try {
+        const { type = 'video', limit = 6 } = data || {};
+        const response = await api.getVideosByType(type, { limit, filter: 'latest' })
+        return response
+    }
+    catch (err) {
+        if(err.response?.data)
+          return thunkAPI.rejectWithValue(err.response.data);
+
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -78,14 +106,11 @@ export const getVideoComment = createAsyncThunk('watch/getVideoComment', async (
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -96,14 +121,11 @@ export const addVideoComment = createAsyncThunk('watch/addVideoComment', async (
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -114,14 +136,11 @@ export const updateVideoComment = createAsyncThunk('watch/updateVideoComment', a
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -186,14 +205,11 @@ export const deleteVideoComment = createAsyncThunk('watch/deleteVideoComment', a
         return response
     }
     catch (err) {
-        if(err.response.data)
+        if(err.response?.data)
           return thunkAPI.rejectWithValue(err.response.data);
 
-        return({
-            alert : {
-                variant: 'danger',
-                message: "There was a problem with the server."
-            }
+        return thunkAPI.rejectWithValue({
+            alert: { variant: 'danger', message: 'There was a problem with the server.' }
         })
     }
 })
@@ -219,33 +235,46 @@ export const watchSlice = createSlice({
         }),
         builder.addCase(getVideoById.pending, (state, action) => {
             state.notFound      = false
+            state.forbidden     = ''
             state.isLoading     = true
         }),
         builder.addCase(getVideoById.rejected, (state, action) => {
             state.alert         = action.payload?.alert ?? {}
-            state.notFound      = action.payload.notFound
-            state.forbiden      = action.payload.forbiden
+            state.notFound      = action.payload?.notFound ?? false
+            state.forbidden     = action.payload?.forbidden ?? ''
             state.isLoading     = false
         }),
         builder.addCase(getVideoList.fulfilled, (state, action) => {
             state.videoList     = action.payload.data.result
         }),
         builder.addCase(getVideoList.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
+        }),
+        builder.addCase(getRelatedVideos.fulfilled, (state, action) => {
+            state.related       = action.payload.data.result
+        }),
+        builder.addCase(getRelatedVideos.rejected, (state, action) => {
+            state.related       = []
+        }),
+        builder.addCase(getRecentSidebar.fulfilled, (state, action) => {
+            state.recentSidebar = action.payload.data?.result ?? []
+        }),
+        builder.addCase(getRecentSidebar.rejected, (state, action) => {
+            state.recentSidebar = []
         }),
         builder.addCase(getVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
             state.isLoading     = false
         }),
         builder.addCase(getVideoComment.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
         }),
         builder.addCase(addVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
             state.alert         = action.payload.data.alert
         }),
         builder.addCase(addVideoComment.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
         }),
         builder.addCase(updateVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
@@ -254,7 +283,7 @@ export const watchSlice = createSlice({
             state.notFound      = false
         }),
         builder.addCase(updateVideoComment.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
         }),
         builder.addCase(deleteVideoComment.fulfilled, (state, action) => {
             state.comments      = action.payload.data.result
@@ -264,7 +293,7 @@ export const watchSlice = createSlice({
             state.notFound      = false
         }),
         builder.addCase(deleteVideoComment.rejected, (state, action) => {
-            state.alert         = action.payload.alert
+            state.alert         = action.payload?.alert ?? {}
         }),
         builder.addCase(viewVideo.fulfilled, (state, action) => {
             if (state.data?.video) {

@@ -12,7 +12,8 @@ const initialState = {
 
 const setToken = (token) => {
     const decoded = jwtDecode(token);
-    cookies.set('token', token, { path: '/', maxAge: new Date(Date.now()+decoded.exp) });
+    const maxAgeMs = decoded.exp * 1000 - Date.now()
+    cookies.set('token', token, { path: '/', maxAge: Math.max(maxAgeMs / 1000, 0) });
 }
 
 export const login = createAsyncThunk('user/login', async (form, thunkAPI) => {

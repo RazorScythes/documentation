@@ -1,12 +1,11 @@
 import * as api from '../api'
 import * as newApi from '../endpoint'
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import { requestAPI } from '../api/function'
 
 const initialState = {
     error               : '',
     isLoading           : false,
-    alert               : '',
+    alert               : {},
     variant             : '',
     heading             : '',
     paragraph           : '',
@@ -51,11 +50,11 @@ export const updateProfile = createAsyncThunk('settings/updateProfile', async (f
 
 export const updatePassword = createAsyncThunk('settings/updatePassword', async (form, thunkAPI) => {
     try {
-        const response = await api.updatePassword(form);
+        const response = await newApi.changePassword(form);
         return response;
     } catch (err) {
         if (err.response && err.response.data) return thunkAPI.rejectWithValue(err.response.data);
-        return { variant: 'danger', message: "409: there was a problem with the server." };
+        return thunkAPI.rejectWithValue({ variant: 'danger', message: "There was a problem with the server." });
     }
 });
 
@@ -198,9 +197,9 @@ export const settingsSlice = createSlice({
     },
     reducers: {
       clearAlert: (state) => {
-        state.alert             = '',
-        state.variant           = '',
-        state.heading           = '',
+        state.alert             = {}
+        state.variant           = ''
+        state.heading           = ''
         state.paragraph         = ''
       },
       clearMailStatus: (state) => {

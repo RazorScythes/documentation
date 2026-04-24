@@ -5,11 +5,12 @@ import {
     faCalendar, faInfoCircle, faImage, faDownload, faChevronRight, faChevronLeft,
     faArrowRight, faHeart, faComment, faArrowLeft, faExternalLink, faTrash, faClock,
     faGamepad, faHome, faStar, faGlobe, faDesktop, faLock, faEye, faBook, faKey,
-    faChevronDown, faChevronUp, faTimes, faLink, faFlag, faExclamationTriangle
+    faChevronDown, faChevronUp, faTimes, faLink, faFlag, faExclamationTriangle,
+    faBookmark, faHistory, faPaperPlane, faUser
 } from "@fortawesome/free-solid-svg-icons";
 import { Link } from 'react-router-dom';
 import { useParams, useSearchParams } from 'react-router-dom'
-import { getGameComments, addGameComment, updateGameComment, deleteGameComment, updateGameComments, addRatings, categoriesCount, addOneDownload, getRelatedGames, updateGameAccessKey, getGameByID, countTags, getRecentGameBlog, addRecentGamingBlogLikes, clearAlert, toggleFavoriteGame, getFavoriteGames } from "../../actions/game";
+import { getGameComments, addGameComment, updateGameComment, deleteGameComment, updateGameComments, addRatings, categoriesCount, addOneDownload, getRelatedGames, updateGameAccessKey, getGameByID, countTags, getRecentGameBlog, addRecentGamingBlogLikes, clearAlert, toggleFavoriteGame, getFavoriteGames, toggleBookmark, getGameReviews, addReview, deleteReview } from "../../actions/game";
 import { convertDriveImageLink } from '../Tools'
 import { Comments, CommentField } from '../Custom/Comments'
 import ReportModal from '../Custom/ReportModal'
@@ -53,6 +54,9 @@ const StarRating = ({ rating, fixedRating, hoverRating, isLight, interactive, on
     </div>
 )
 
+const galleryUrl = (item) => typeof item === 'string' ? item : item?.url || ''
+const galleryCaption = (item) => typeof item === 'string' ? '' : item?.caption || ''
+
 const GamesSingle = ({ user, theme }) => {
     const { id } = useParams();
     const dispatch = useDispatch()
@@ -60,7 +64,7 @@ const GamesSingle = ({ user, theme }) => {
     const game_data = useSelector((state) => state.game.data)
     const related_games = useSelector((state) => state.game.relatedGames)
     const notFound = useSelector((state) => state.game.notFound)
-    const forbiden = useSelector((state) => state.game.forbiden)
+    const forbidden = useSelector((state) => state.game.forbidden)
     const isLoading = useSelector((state) => state.game.isLoading)
     const tagsList = useSelector((state) => state.game.tagsCount)
     const categoriesList = useSelector((state) => state.game.categoriesCount)
@@ -89,6 +93,10 @@ const GamesSingle = ({ user, theme }) => {
     const [reportId, setReportId] = useState('')
     const [reportType, setReportType] = useState('comment')
     const [accessKeyInput, setAccessKeyInput] = useState('')
+    const [isBookmarked, setIsBookmarked] = useState(false)
+    const [reviewText, setReviewText] = useState('')
+    const [reviewRating, setReviewRating] = useState(0)
+    const reviews = useSelector((state) => state.game.reviews)
 
     const access_key = searchParams.get('access_key')
 
@@ -97,7 +105,7 @@ const GamesSingle = ({ user, theme }) => {
         : import.meta.env.VITE_APP_BASE_URL
 
     useEffect(() => {
-        if (forbiden === 'access_granted') {
+        if (forbidden === 'access_granted') {
             dispatch(updateGameAccessKey({
                 id: user ? user.result?._id : '',
                 gameId: id,
@@ -105,7 +113,7 @@ const GamesSingle = ({ user, theme }) => {
                 cookie_id: cookies.get('uid')
             }))
         }
-    }, [forbiden])
+    }, [forbidden])
 
     useEffect(() => {
         setGameData({})
@@ -165,6 +173,12 @@ const GamesSingle = ({ user, theme }) => {
                 setRatingNumber(divideAndScale(game_data.game.ratings))
             }
             setGameData(game_data)
+            if (userId && game_data?.game?.bookmarks) {
+                setIsBookmarked(game_data.game.bookmarks.includes(userId))
+            }
+            if (game_data?.game?._id) {
+                dispatch(getGameReviews({ gameId: game_data.game._id }))
+            }
         }
     }, [game_data])
 
@@ -178,18 +192,30 @@ const GamesSingle = ({ user, theme }) => {
         return likes.some((item) => item === cookies.get('uid'))
     }
 
-    const addLikes = (index) => {
-        var array = [...recentBlogs]
-        var duplicate = false
-        ;(array[index].likes || []).forEach((item) => { if (item === cookies.get('uid')) duplicate = true })
-        var updatedBlog = { ...array[index] };
-        updatedBlog.likes = Array.isArray(updatedBlog.likes) ? [...updatedBlog.likes] : [];
-        if (!duplicate) { updatedBlog.likes.push(cookies.get('uid')); }
-        else { updatedBlog.likes = updatedBlog.likes.filter((item) => item !== cookies.get('uid')) }
-        array[index] = updatedBlog;
-        setRecentBlogs(array);
-        dispatch(addRecentGamingBlogLikes({ id: array[index]._id, likes: array[index].likes, userId: user ? user.result?._id : '' }))
+    const addLikes = (gameId) => {
+        const uid = cookies.get('uid')
+        if (!uid) return
+        dispatch(addRecentGamingBlogLikes({ gameId, uid, userId: user ? user.result?._id : '' }))
     }
+
+    const handleToggleBookmark = () => {
+        if (!userId) return
+        setIsBookmarked(prev => !prev)
+        dispatch(toggleBookmark({ userId, gameId: id }))
+    }
+
+    const handleSubmitReview = () => {
+        if (!userId || !reviewText.trim()) return
+        dispatch(addReview({ userId, gameId: id, rating: reviewRating, text: reviewText.trim() }))
+        setReviewText('')
+        setReviewRating(0)
+    }
+
+    const handleDeleteReview = () => {
+        if (!userId) return
+        dispatch(deleteReview({ userId, gameId: id }))
+    }
+
 
     const addDownloadCount = () => {
         var duplicate = false
@@ -250,7 +276,7 @@ const GamesSingle = ({ user, theme }) => {
     const labelCls = `text-xs font-semibold ${isLight ? 'text-slate-500' : 'text-gray-400'}`
     const valueCls = `text-sm ${isLight ? 'text-slate-800' : 'text-gray-100'}`
 
-    const hasFetched = !isLoading && (Object.keys(gameData).length > 0 || notFound || forbiden)
+    const hasFetched = !isLoading && (Object.keys(gameData).length > 0 || notFound || forbidden)
 
     if (isLoading || !hasFetched) {
         const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
@@ -366,7 +392,7 @@ const GamesSingle = ({ user, theme }) => {
         )
     }
 
-    if (forbiden === 'strict') {
+    if (forbidden === 'strict') {
         return (
             <div className={`relative overflow-hidden min-h-[60vh] ${main.font} ${isLight ? light.body : dark.body}`}>
                 <div className={`${styles.paddingX} ${styles.flexCenter}`}>
@@ -397,7 +423,7 @@ const GamesSingle = ({ user, theme }) => {
         )
     }
 
-    if (forbiden === 'private' || forbiden === 'access_invalid' || forbiden === 'access_limit') {
+    if (forbidden === 'private' || forbidden === 'access_invalid' || forbidden === 'access_limit') {
         const msgs = {
             private: 'This game is private. Enter an access key to view.',
             access_invalid: 'The access key you entered is not valid.',
@@ -414,7 +440,7 @@ const GamesSingle = ({ user, theme }) => {
                                         <FontAwesomeIcon icon={faLock} className={`text-lg ${isLight ? 'text-amber-400' : 'text-amber-500'}`} />
                                     </div>
                                     <h2 className={`text-base font-semibold mb-1 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Private Game</h2>
-                                    <p className={`text-xs mb-5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{msgs[forbiden]}</p>
+                                    <p className={`text-xs mb-5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{msgs[forbidden]}</p>
 
                                     <div className="flex items-center gap-2 w-full mb-5">
                                         <input
@@ -442,10 +468,10 @@ const GamesSingle = ({ user, theme }) => {
                                         </button>
                                     </div>
 
-                                    {(forbiden === 'access_invalid' || forbiden === 'access_limit') && (
+                                    {(forbidden === 'access_invalid' || forbidden === 'access_limit') && (
                                         <p className={`text-[11px] mb-4 ${isLight ? 'text-red-400' : 'text-red-400/80'}`}>
                                             <FontAwesomeIcon icon={faExclamationTriangle} className="mr-1" />
-                                            {forbiden === 'access_invalid' ? 'Key not recognized. Check for typos.' : 'Contact the owner for a new key.'}
+                                            {forbidden === 'access_invalid' ? 'Key not recognized. Check for typos.' : 'Contact the owner for a new key.'}
                                         </p>
                                     )}
 
@@ -561,17 +587,35 @@ const GamesSingle = ({ user, theme }) => {
                                                     </span>
                                                 </div>
                                                 {userId && (
-                                                    <button onClick={handleToggleFavorite}
-                                                        className={`absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid backdrop-blur-md ${isFavorited
-                                                            ? 'bg-red-500/90 text-white border-red-500/50 hover:bg-red-600/90'
-                                                            : (isLight ? 'bg-white/80 text-slate-500 border-white/50 hover:text-red-500 hover:bg-white' : 'bg-black/50 text-gray-300 border-white/10 hover:text-red-400 hover:bg-black/70')
-                                                        }`}>
-                                                        <FontAwesomeIcon icon={faHeart} className="text-[10px]" />
-                                                        {isFavorited ? 'Favorited' : 'Favorite'}
-                                                    </button>
+                                                    <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+                                                        <button onClick={handleToggleBookmark}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid backdrop-blur-md ${isBookmarked
+                                                                ? 'bg-amber-500/90 text-white border-amber-500/50 hover:bg-amber-600/90'
+                                                                : (isLight ? 'bg-white/80 text-slate-500 border-white/50 hover:text-amber-500' : 'bg-black/50 text-gray-300 border-white/10 hover:text-amber-400')
+                                                            }`}>
+                                                            <FontAwesomeIcon icon={faBookmark} className="text-[10px]" />
+                                                        </button>
+                                                        <button onClick={handleToggleFavorite}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid backdrop-blur-md ${isFavorited
+                                                                ? 'bg-red-500/90 text-white border-red-500/50 hover:bg-red-600/90'
+                                                                : (isLight ? 'bg-white/80 text-slate-500 border-white/50 hover:text-red-500 hover:bg-white' : 'bg-black/50 text-gray-300 border-white/10 hover:text-red-400 hover:bg-black/70')
+                                                            }`}>
+                                                            <FontAwesomeIcon icon={faHeart} className="text-[10px]" />
+                                                            {isFavorited ? 'Favorited' : 'Favorite'}
+                                                        </button>
+                                                    </div>
                                                 )}
 
-                                                <h1 className={`text-2xl sm:text-3xl font-bold leading-tight mb-1.5 ${isLight ? 'text-slate-800' : 'text-white'}`}>{game.title}</h1>
+                                                <div className="flex items-center gap-2 mb-1.5">
+                                                    <h1 className={`text-2xl sm:text-3xl font-bold leading-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>{game.title}</h1>
+                                                    {game.status && game.status !== 'published' && (
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                            game.status === 'draft' ? 'bg-slate-100 text-slate-600' :
+                                                            game.status === 'early-access' ? 'bg-amber-100 text-amber-600' :
+                                                            game.status === 'archived' ? 'bg-purple-100 text-purple-600' : ''
+                                                        }`}>{game.status === 'early-access' ? 'Early Access' : game.status?.charAt(0).toUpperCase() + game.status?.slice(1)}</span>
+                                                    )}
+                                                </div>
                                                 <p className={`text-xs mb-4 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
                                                     by{' '}
                                                     <Link to={`/games/developer/${game.details?.developer || 'Anonymous'}`}
@@ -638,14 +682,23 @@ const GamesSingle = ({ user, theme }) => {
                                                 </div>
                                             )}
                                             {userId && (
-                                                <button onClick={handleToggleFavorite}
-                                                    className={`absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid ${isFavorited
-                                                        ? (isLight ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100' : 'bg-red-950/30 text-red-400 border-red-800/40 hover:bg-red-950/50')
-                                                        : (isLight ? 'bg-white/80 text-slate-400 border-slate-200 hover:text-red-500 hover:border-red-200 hover:bg-red-50' : 'bg-[#0e0e0e]/80 text-gray-400 border-[#333] hover:text-red-400 hover:border-red-800/40 hover:bg-red-950/20')
-                                                    }`}>
-                                                    <FontAwesomeIcon icon={faHeart} className="text-[10px]" />
-                                                    {isFavorited ? 'Favorited' : 'Favorite'}
-                                                </button>
+                                                <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                                                    <button onClick={handleToggleBookmark}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid ${isBookmarked
+                                                            ? (isLight ? 'bg-amber-50 text-amber-500 border-amber-200' : 'bg-amber-950/30 text-amber-400 border-amber-800/40')
+                                                            : (isLight ? 'bg-white/80 text-slate-400 border-slate-200 hover:text-amber-500' : 'bg-[#0e0e0e]/80 text-gray-400 border-[#333] hover:text-amber-400')
+                                                        }`}>
+                                                        <FontAwesomeIcon icon={faBookmark} className="text-[10px]" />
+                                                    </button>
+                                                    <button onClick={handleToggleFavorite}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid ${isFavorited
+                                                            ? (isLight ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100' : 'bg-red-950/30 text-red-400 border-red-800/40 hover:bg-red-950/50')
+                                                            : (isLight ? 'bg-white/80 text-slate-400 border-slate-200 hover:text-red-500 hover:border-red-200 hover:bg-red-50' : 'bg-[#0e0e0e]/80 text-gray-400 border-[#333] hover:text-red-400 hover:border-red-800/40 hover:bg-red-950/20')
+                                                        }`}>
+                                                        <FontAwesomeIcon icon={faHeart} className="text-[10px]" />
+                                                        {isFavorited ? 'Favorited' : 'Favorite'}
+                                                    </button>
+                                                </div>
                                             )}
 
                                             <div className="relative z-10 p-5 sm:p-6">
@@ -670,7 +723,16 @@ const GamesSingle = ({ user, theme }) => {
 
                                                     {/* Info */}
                                                     <div className="flex-1 min-w-0 flex flex-col">
-                                                        <h1 className={`text-xl sm:text-2xl font-bold leading-tight mb-1.5 ${isLight ? 'text-slate-800' : 'text-white'}`}>{game.title}</h1>
+                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                            <h1 className={`text-xl sm:text-2xl font-bold leading-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>{game.title}</h1>
+                                                            {game.status && game.status !== 'published' && (
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                                    game.status === 'draft' ? 'bg-slate-100 text-slate-600' :
+                                                                    game.status === 'early-access' ? 'bg-amber-100 text-amber-600' :
+                                                                    game.status === 'archived' ? 'bg-purple-100 text-purple-600' : ''
+                                                                }`}>{game.status === 'early-access' ? 'Early Access' : game.status?.charAt(0).toUpperCase() + game.status?.slice(1)}</span>
+                                                            )}
+                                                        </div>
                                                         <p className={`text-xs mb-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                                             by{' '}
                                                             <Link to={`/games/developer/${game.details?.developer || 'Anonymous'}`}
@@ -753,10 +815,10 @@ const GamesSingle = ({ user, theme }) => {
                                             {game.carousel ? (
                                                 <div className="relative">
                                                     <div className="relative aspect-video rounded-lg overflow-hidden cursor-pointer"
-                                                        onClick={() => setLightbox({ open: true, src: game.gallery[carouselIndex] })}>
+                                                        onClick={() => setLightbox({ open: true, src: galleryUrl(game.gallery[carouselIndex]) })}>
                                                         <img
-                                                            src={game.gallery[carouselIndex]}
-                                                            alt={`gallery #${carouselIndex + 1}`}
+                                                            src={galleryUrl(game.gallery[carouselIndex])}
+                                                            alt={galleryCaption(game.gallery[carouselIndex]) || `gallery #${carouselIndex + 1}`}
                                                             className="w-full h-full object-cover transition-all duration-500"
                                                         />
                                                         <div className={`absolute inset-0 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center ${isLight ? 'bg-black/20' : 'bg-black/40'}`}>
@@ -797,29 +859,40 @@ const GamesSingle = ({ user, theme }) => {
                                                     )}
 
                                                     <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1 custom-scroll">
-                                                        {game.gallery.map((img, i) => (
+                                                        {game.gallery.map((item, i) => (
                                                             <div key={i} onClick={() => setCarouselIndex(i)}
                                                                 className={`flex-shrink-0 w-16 h-12 rounded-md overflow-hidden cursor-pointer transition-all border-2 border-solid ${carouselIndex === i
                                                                     ? (isLight ? 'border-blue-500 opacity-100' : 'border-blue-400 opacity-100')
                                                                     : (isLight ? 'border-transparent opacity-60 hover:opacity-100' : 'border-transparent opacity-50 hover:opacity-100')
                                                                 }`}>
-                                                                <img src={img} alt={`thumb #${i + 1}`} className="w-full h-full object-cover" />
+                                                                <img src={galleryUrl(item)} alt={galleryCaption(item) || `thumb #${i + 1}`} className="w-full h-full object-cover" />
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                    {game.gallery.map((img, i) => (
-                                                        <div key={i} onClick={() => setLightbox({ open: true, src: img })}
-                                                            className="relative aspect-video rounded-lg overflow-hidden cursor-pointer group">
-                                                            <img src={img} alt={`gallery #${i + 1}`}
-                                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                                                            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isLight ? 'bg-black/20' : 'bg-black/40'}`}>
-                                                                <FontAwesomeIcon icon={faEye} className="text-white text-sm" />
+                                                    {game.gallery.map((item, i) => {
+                                                        const url = galleryUrl(item)
+                                                        const cap = galleryCaption(item)
+                                                        return (
+                                                            <div key={i} onClick={() => setLightbox({ open: true, src: url })}
+                                                                className="relative rounded-lg overflow-hidden cursor-pointer group">
+                                                                <div className="aspect-video">
+                                                                    <img src={url} alt={cap || `gallery #${i + 1}`}
+                                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                                                </div>
+                                                                {cap && (
+                                                                    <div className={`px-2 py-1 text-[10px] ${isLight ? 'bg-slate-50 text-slate-500' : 'bg-[#111] text-gray-500'}`}>
+                                                                        {cap}
+                                                                    </div>
+                                                                )}
+                                                                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isLight ? 'bg-black/20' : 'bg-black/40'}`}>
+                                                                    <FontAwesomeIcon icon={faEye} className="text-white text-sm" />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
+                                                        )
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -922,6 +995,82 @@ const GamesSingle = ({ user, theme }) => {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Changelog */}
+                                    {Array.isArray(game.changelog) && game.changelog.length > 0 && (
+                                        <div className={`${card} p-5 sm:p-6 mb-5`}>
+                                            <h2 className={sectionTitle}>
+                                                <FontAwesomeIcon icon={faHistory} className="text-xs" /> Changelog
+                                            </h2>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {game.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ei) => (
+                                                    <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                                                            <FontAwesomeIcon icon={faFlag} className={`text-xs ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-xs font-bold ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
+                                                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatDate(entry.date)}</span>
+                                                            </div>
+                                                            <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Reviews */}
+                                    <div className={`${card} p-5 sm:p-6 mb-5`}>
+                                        <h2 className={sectionTitle}>
+                                            <FontAwesomeIcon icon={faStar} className="text-xs" /> Reviews
+                                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500'}`}>
+                                                {reviews?.length || 0}
+                                            </span>
+                                        </h2>
+                                        {userId && (
+                                            <div className={`rounded-xl p-4 mb-4 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>Your rating:</span>
+                                                    <StarRating rating={reviewRating} fixedRating={reviewRating} hoverRating={0} isLight={isLight} interactive
+                                                        onHover={v => setReviewRating(v)} onLeave={() => {}} onClick={v => setReviewRating(v)} />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <textarea className={`flex-1 rounded-lg border border-solid px-3 py-2 text-xs resize-none ${isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-[#0a0a0a] border-[#2B2B2B] text-gray-200'}`}
+                                                        rows={2} value={reviewText} onChange={e => setReviewText(e.target.value)} placeholder="Write a review..." />
+                                                    <button onClick={handleSubmitReview} disabled={!reviewText.trim()}
+                                                        className={`self-end px-3 py-2 rounded-lg text-xs font-medium transition-all ${reviewText.trim() ? 'bg-blue-500 text-white hover:bg-blue-600' : `${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#222] text-gray-600'} cursor-not-allowed`}`}>
+                                                        <FontAwesomeIcon icon={faPaperPlane} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {reviews?.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {reviews.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((rev, ri) => (
+                                                    <div key={ri} className={`flex gap-3 p-3 rounded-lg ${isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]'}`}>
+                                                        <img src={rev.user?.avatar || avatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{rev.user?.username || 'User'}</span>
+                                                                {rev.rating > 0 && <StarRating rating={rev.rating} fixedRating={rev.rating} hoverRating={0} isLight={isLight} interactive={false} />}
+                                                                <span className={`text-[10px] ml-auto ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{moment(rev.createdAt).fromNow()}</span>
+                                                            </div>
+                                                            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{rev.text}</p>
+                                                            {String(rev.user?._id) === userId && (
+                                                                <button onClick={handleDeleteReview} className="text-[10px] text-red-500 mt-1 hover:text-red-600">
+                                                                    <FontAwesomeIcon icon={faTrash} className="mr-1" />Delete
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className={`text-xs text-center py-4 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No reviews yet</p>
+                                        )}
+                                    </div>
 
                                     {/* Comments */}
                                     <div className={`${card} p-5 sm:p-6`}>
@@ -1027,7 +1176,7 @@ const GamesSingle = ({ user, theme }) => {
                                                                     {convertTimezone(item.createdAt)}
                                                                 </p>
                                                                 <div className="flex items-center gap-2 mt-1">
-                                                                    <button onClick={() => addLikes(i)} className="flex items-center gap-1">
+                                                                    <button onClick={() => addLikes(item._id)} className="flex items-center gap-1">
                                                                         <FontAwesomeIcon icon={faHeart} className={`text-[10px] ${liked ? 'text-red-500' : (isLight ? 'text-slate-300' : 'text-gray-600')}`} />
                                                                         <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{item.likes?.length || 0}</span>
                                                                     </button>
