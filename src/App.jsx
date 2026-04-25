@@ -86,7 +86,7 @@ const App = () => {
                 <Route path='/' element={<><Navbar path={URI_PATH_HOME} theme={theme} setTheme={setTheme} /> <Outlet/> {user && <ChatWidget theme={theme} />}</>}>
                     <Route index element={<><Home user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime' element={<><Anime user={user} theme={theme}/> <Footer theme={theme} /></>} />
-                    <Route path='/hanime' element={<><Hanime user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/videos' element={<><Hanime user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/anime/watch/:id' element={<><AnimeWatch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/watch/:id' element={<><Watch user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />

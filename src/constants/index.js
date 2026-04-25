@@ -71,18 +71,18 @@ export const video_links = [
     icon: ''
   },
   {
-    path: "movies",
-    name: "Movies",
+    path: "videos",
+    name: "Videos",
     icon: ''
   },
   {
-    path: "anime",
-    name: "Anime",
+    path: "games",
+    name: "Games",
     icon: ''
   },
   {
-    path: "hanime",
-    name: "Uncategorized",
+    path: "projects",
+    name: "Projects",
     icon: ''
   }
 ]

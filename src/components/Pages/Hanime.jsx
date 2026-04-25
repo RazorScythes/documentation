@@ -145,12 +145,12 @@ const Hanime = ({ user, theme }) => {
     const currentPage = parseInt(searchParams.get('page')) || 1
 
     useEffect(() => {
-        document.title = "Uncategorized"
+        document.title = "Videos"
     }, [])
 
     useEffect(() => {
         dispatch(getVideosByType({
-            type: 'hanime',
+            type: 'videos',
             search: searchParams.get('search') || '',
             page: currentPage,
             limit: 20,
@@ -174,7 +174,7 @@ const Hanime = ({ user, theme }) => {
             if (val) params.set(key, val)
             else params.delete(key)
         })
-        navigate(`/hanime?${params.toString()}`)
+        navigate(`/videos?${params.toString()}`)
     }
 
     const handleSearch = () => {

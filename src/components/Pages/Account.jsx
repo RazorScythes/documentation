@@ -5,7 +5,7 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -144,6 +144,12 @@ const Account = ({ user, theme }) => {
     const role = user?.role || 'User'
     const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
 
+    const currentPageName = menuItems.find(item => {
+        if (item.path === '' && !page) return true
+        if (item.path === page) return true
+        return false
+    })?.name || 'Account'
+
     return (
         <div className={`relative overflow-hidden ${main.font} ${isLight ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
@@ -158,12 +164,14 @@ const Account = ({ user, theme }) => {
                         />
 
                         {/* Profile Header */}
-                        <div className={`mt-4 rounded-xl overflow-hidden border border-solid ${isLight ? 'border-blue-200/60' : 'border-[#2B2B2B]'} ${isLight ? 'bg-white/90 backdrop-blur-sm' : 'bg-[#0e0e0e]'}`}>
-                            <div className={`h-20 ${isLight ? 'bg-gradient-to-r from-blue-500 via-sky-500 to-cyan-500' : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600'}`} />
+                        <div className={`rounded-2xl overflow-hidden border ${isLight ? 'border-slate-200/60 shadow-sm' : 'border-[#1C1C1C]'}`}>
+                            <div className={`relative h-28 sm:h-32 ${isLight ? 'bg-gradient-to-br from-blue-500 via-sky-500 to-cyan-400' : 'bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700'}`}>
+                                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+                            </div>
 
-                            <div className="px-6 pb-5 -mt-8">
-                                <div className="flex items-start gap-5">
-                                    <div className={`flex-shrink-0 rounded-full ring-4 ${isLight ? 'ring-white' : 'ring-[#0e0e0e]'}`}>
+                            <div className={`relative px-6 sm:px-8 pb-6 ${isLight ? 'bg-white/90 backdrop-blur-sm' : 'bg-[#0e0e0e]'}`}>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 -mt-10 sm:-mt-12">
+                                    <div className={`flex-shrink-0 rounded-full ring-[3px] ${isLight ? 'ring-white shadow-lg' : 'ring-[#0e0e0e]'}`}>
                                         <Avatar 
                                             theme={theme}
                                             image={image}
@@ -171,11 +179,11 @@ const Account = ({ user, theme }) => {
                                         />
                                     </div>
 
-                                    <div className="flex-1 min-w-0 pt-12">
-                                        <div className="flex items-center justify-between flex-wrap gap-y-2">
+                                    <div className="flex-1 min-w-0 sm:pb-1 w-full">
+                                        <div className="flex items-start sm:items-center justify-between flex-wrap gap-2">
                                             <div>
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <h1 className={`text-sm font-semibold leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h1 className={`text-lg font-bold leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                                                         {profile?.username || 'User'}
                                                     </h1>
                                                     {user?.verification?.verified && (
@@ -186,20 +194,22 @@ const Account = ({ user, theme }) => {
                                                     </span>
                                                 </div>
                                                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
-                                                    {fullName || '—'}
+                                                    {fullName || '—'} {profile?.email ? `· ${profile.email}` : ''}
                                                 </p>
                                             </div>
 
-                                            <div className={`flex items-center gap-1.5 text-xs ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>
-                                                <span className={`font-bold text-sm ${isLight ? 'text-slate-800' : 'text-white'}`}>
-                                                    {user?.subscribers?.length || 0}
-                                                </span>
-                                                <span>Subscribers</span>
+                                            <div className={`flex items-center gap-4`}>
+                                                <div className="text-center">
+                                                    <p className={`text-lg font-bold leading-none ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                                        {user?.subscribers?.length || 0}
+                                                    </p>
+                                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Subscribers</p>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {profile?.bio && (
-                                            <pre className={`mt-2 text-sm whitespace-pre-wrap break-words font-[inherit] m-0 p-0 leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{profile.bio}</pre>
+                                            <pre className={`mt-2 text-sm whitespace-pre-wrap break-words font-[inherit] m-0 p-0 leading-relaxed line-clamp-2 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{profile.bio}</pre>
                                         )}
                                     </div>
                                 </div>
@@ -207,54 +217,60 @@ const Account = ({ user, theme }) => {
                         </div>
 
                         {/* Main Content */}
-                        <div className="w-full md:flex items-start gap-4 mt-4">
+                        <div className="w-full md:flex items-start gap-5 mt-5">
                             {/* Sidebar */}
-                            <div className="md:w-64 w-full flex-shrink-0">
-                                <div className={`rounded-xl overflow-hidden border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-blue-200/60' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
-                                    <nav>
-                                        <ul className="py-1.5">
-                                            {menuItems.map((item, i) => {
+                            <div className="md:w-60 w-full flex-shrink-0">
+                                <div className={`rounded-xl overflow-hidden border ${isLight ? 'bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-sm' : 'bg-[#111] border-[#1C1C1C]'}`}>
+                                    <div className={`px-4 py-3 border-b ${isLight ? 'border-slate-100' : 'border-[#1C1C1C]'}`}>
+                                        <p className={`text-[10px] font-semibold uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>Navigation</p>
+                                    </div>
+                                    <nav className="p-1.5">
+                                        <ul className="space-y-0.5">
+                                            {menuItems.map((item) => {
                                                 const isActive = activePage(item.path)
+                                                const hasDropdown = item.dropdown.length > 0
+                                                const isOpen = openDropdown === item.path
                                                 return (
                                                     <li key={item.path}>
                                                         <div
                                                             role="button"
                                                             tabIndex={0}
-                                                            aria-expanded={item.dropdown.length > 0 ? openDropdown === item.path : undefined}
-                                                            className={`mx-1.5 my-0.5 px-4 py-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                                                            aria-expanded={hasDropdown ? isOpen : undefined}
+                                                            className={`px-3 py-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all duration-200 group ${
                                                                 isActive
                                                                     ? (isLight
-                                                                        ? 'bg-gradient-to-r from-blue-500 to-sky-500 text-white shadow-sm'
-                                                                        : 'bg-blue-600 text-white')
+                                                                        ? 'bg-blue-50 text-blue-700'
+                                                                        : 'bg-blue-600/15 text-blue-400')
                                                                     : (isLight
-                                                                        ? 'text-slate-700 hover:bg-blue-50/80'
-                                                                        : 'text-gray-300 hover:bg-[#1C1C1C]')
+                                                                        ? 'text-slate-600 hover:bg-slate-50'
+                                                                        : 'text-gray-400 hover:bg-[#1C1C1C]')
                                                             }`}
-                                                            onClick={() => (item.dropdown.length > 0 ? toggleDropdown(item.path) : redirect(item.path))}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.dropdown.length > 0 ? toggleDropdown(item.path) : redirect(item.path) }}}
+                                                            onClick={() => (hasDropdown ? toggleDropdown(item.path) : redirect(item.path))}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hasDropdown ? toggleDropdown(item.path) : redirect(item.path) }}}
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <FontAwesomeIcon
-                                                                    icon={item.icon}
-                                                                    className={`text-sm w-4 ${isActive ? 'text-white' : (isLight ? 'text-blue-500' : 'text-gray-500')}`}
-                                                                />
-                                                                <span className="text-sm font-medium">{item.name}</span>
+                                                                <div className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+                                                                    isActive
+                                                                        ? (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
+                                                                        : (isLight ? 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-500' : 'bg-[#1C1C1C] text-gray-500 group-hover:bg-[#222] group-hover:text-gray-400')
+                                                                }`}>
+                                                                    <FontAwesomeIcon icon={item.icon} className="text-xs" />
+                                                                </div>
+                                                                <span className={`text-sm ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.name}</span>
                                                             </div>
-                                                            {item.dropdown.length > 0 && (
+                                                            {hasDropdown && (
                                                                 <FontAwesomeIcon
-                                                                    icon={openDropdown === item.path ? faChevronUp : faChevronDown}
-                                                                    className="text-xs opacity-60"
+                                                                    icon={isOpen ? faChevronUp : faChevronDown}
+                                                                    className={`text-[10px] transition-transform duration-200 ${isActive ? '' : 'opacity-40'}`}
                                                                 />
                                                             )}
                                                         </div>
 
                                                         <div
-                                                            className="overflow-hidden transition-all duration-300"
-                                                            style={{
-                                                                maxHeight: openDropdown === item.path ? `${item.dropdown.length * 40}px` : '0px',
-                                                            }}
+                                                            className="overflow-hidden transition-all duration-300 ease-in-out"
+                                                            style={{ maxHeight: isOpen ? `${item.dropdown.length * 38}px` : '0px' }}
                                                         >
-                                                            <ul className="pl-6 pr-1.5 py-0.5">
+                                                            <ul className="ml-5 pl-3 py-1 space-y-0.5" style={{ borderLeft: `2px solid ${isLight ? '#e2e8f0' : '#1C1C1C'}` }}>
                                                                 {item.dropdown.map((subItem) => {
                                                                     const isSubActive = activeSubPage(item.path, subItem.path)
                                                                     return (
@@ -264,14 +280,14 @@ const Account = ({ user, theme }) => {
                                                                             tabIndex={0}
                                                                             onClick={() => redirect(subItem.path)}
                                                                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); redirect(subItem.path) }}}
-                                                                            className={`px-4 py-2 my-0.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                                                                            className={`px-3 py-2 rounded-md text-[13px] cursor-pointer transition-all duration-200 ${
                                                                                 isSubActive
                                                                                     ? (isLight
-                                                                                        ? 'bg-blue-100/80 text-blue-700 font-medium'
-                                                                                        : 'bg-blue-600/20 text-blue-400 font-medium')
+                                                                                        ? 'text-blue-600 font-semibold bg-blue-50/60'
+                                                                                        : 'text-blue-400 font-semibold bg-blue-600/10')
                                                                                     : (isLight
-                                                                                        ? 'text-slate-600 hover:bg-blue-50/60'
-                                                                                        : 'text-gray-400 hover:bg-[#1C1C1C]')
+                                                                                        ? 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                                                                        : 'text-gray-500 hover:text-gray-300 hover:bg-[#1C1C1C]')
                                                                             }`}
                                                                         >
                                                                             {subItem.name}
@@ -289,10 +305,10 @@ const Account = ({ user, theme }) => {
                             </div>
 
                             {/* Content Area */}
-                            <div className={`w-full mt-4 md:mt-0 rounded-xl border border-solid ${
+                            <div className={`flex-1 min-w-0 mt-4 md:mt-0 rounded-xl border overflow-hidden ${
                                 isLight
-                                    ? 'bg-white/90 backdrop-blur-sm border-blue-200/60'
-                                    : 'bg-[#0e0e0e] border-[#2B2B2B]'
+                                    ? 'bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-sm'
+                                    : 'bg-[#111] border-[#1C1C1C]'
                             } ${isLight ? light.color : dark.color}`}>
                                 {   
                                     activePage('') ?
