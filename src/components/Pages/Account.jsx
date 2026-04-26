@@ -5,7 +5,7 @@ import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faArrowRight, faDatabase } from '@fortawesome/free-solid-svg-icons';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -22,6 +22,7 @@ import Author from './Account/Author';
 import Tags from './Account/Tags';
 import Categories from './Account/Categories';
 import ManageUsers from './Account/ManageUsers';
+import BlobStorage from './Account/BlobStorage';
 
 import Notification from '../Custom/Notification';
 
@@ -109,6 +110,7 @@ const Account = ({ user, theme }) => {
         { name: 'Favorites', icon: faHeart, path: 'favorites', dropdown: [] },
         { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
         ...(['Admin', 'Moderator'].includes(user?.role) ? [{ name: 'Users', icon: faUsers, path: 'users', dropdown: [] }] : []),
+        ...(['Admin'].includes(user?.role) ? [{ name: 'Blob Storage', icon: faDatabase, path: 'storage', dropdown: [] }] : []),
         { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
     ];
     
@@ -347,6 +349,10 @@ const Account = ({ user, theme }) => {
                                     : activePage('users') ?
                                         (['Admin', 'Moderator'].includes(user?.role) ?
                                             <ManageUsers user={user} theme={theme} setNotification={setNotification} />
+                                        : <RedirectOverview />)
+                                    : activePage('storage') ?
+                                        (['Admin'].includes(user?.role) ?
+                                            <BlobStorage user={user} theme={theme} setNotification={setNotification} />
                                         : <RedirectOverview />)
                                     : activePage('settings') ?
                                         <Settings user={user} theme={theme} setNotification={setNotification} />

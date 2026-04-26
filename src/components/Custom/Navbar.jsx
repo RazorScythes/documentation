@@ -35,6 +35,7 @@ const searchableRoutes = {
     games: 'Search Games',
     blogs: 'Search Blogs',
     projects: 'Search Projects',
+    forum: 'Search Forum',
 }
 
 const Navbar = ({ theme, setTheme }) => {
@@ -106,7 +107,8 @@ const Navbar = ({ theme, setTheme }) => {
         socket.emit('join_chat', userId)
 
         socket.on('new_notification', (data) => {
-            dispatch(addRealtimeNotification(data))
+            const notif = data?.notification || data
+            dispatch(addRealtimeNotification({ notification: notif, unreadCount: data?.unreadCount }))
         })
 
         return () => {
@@ -302,15 +304,15 @@ const Navbar = ({ theme, setTheme }) => {
                 <div className={`absolute left-0 z-50 top-full w-full lg:hidden transition-all duration-200 ${isLight ? 'bg-white/95 backdrop-blur-md border-b border-blue-200/60 shadow-md' : 'bg-[#0e0e0e]/95 backdrop-blur-md border-b border-[#2B2B2B] shadow-lg'}`} ref={mobileMenuRef}>
                     <div className={`${main.container} py-2 px-4`}>
                         {video_links.map((link, i) => (
-                            <a
+                            <Link
                                 key={i}
-                                href={`/${link.path}`}
+                                to={`/${link.path}`}
                                 className={`block px-4 py-2.5 rounded-lg text-sm transition-all ${mobileLinkClass(link.path)}`}
                                 onClick={() => setIsActive(false)}
                             >
                                 {link.icon && <FontAwesomeIcon icon={link.icon} className="mr-3 w-4 text-xs opacity-60" />}
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                     </div>
                 </div>
@@ -363,14 +365,14 @@ const Navbar = ({ theme, setTheme }) => {
 
                     <div className="hidden lg:flex items-center gap-1">
                         {video_links.map((link, i) => (
-                            <a
+                            <Link
                                 key={i}
-                                href={`/${link.path}`}
+                                to={`/${link.path}`}
                                 className={`px-3 py-1.5 rounded-lg text-sm transition-all ${linkClass(link.path)}`}
                             >
                                 {link.icon && <FontAwesomeIcon icon={link.icon} className="mr-1.5 text-xs" />}
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                     </div>
                 </div>

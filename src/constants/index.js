@@ -84,6 +84,11 @@ export const video_links = [
     path: "projects",
     name: "Projects",
     icon: ''
+  },
+  {
+    path: "forum",
+    name: "Forum",
+    icon: ''
   }
 ]
 

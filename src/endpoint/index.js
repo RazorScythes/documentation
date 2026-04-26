@@ -343,3 +343,48 @@ export const emptyTrash                      = () => endpoint.delete('/page/empt
 export const getPageImages                   = () => endpoint.get('/page/images/all', getOptions())
 export const uploadPageImages                = (formData) => endpoint.post('/page/images', formData, getOptions())
 export const deletePageImage                 = (id) => endpoint.delete(`/page/images/${id}`, getOptions())
+
+/*
+    COMMUNITY
+*/
+export const getCommunities                  = (params) => endpoint.get('/community', { params })
+export const getCommunityBySlug              = (slug) => endpoint.get(`/community/${slug}`)
+export const createCommunity                 = (formData) => endpoint.post('/community', formData, getOptions())
+export const updateCommunity                 = (id, formData) => endpoint.patch(`/community/${id}`, formData, getOptions())
+export const deleteCommunity                 = (id) => endpoint.delete(`/community/${id}`, getOptions())
+export const joinCommunity                   = (id, body = {}) => endpoint.post(`/community/${id}/join`, body, getOptions())
+export const leaveCommunity                  = (id) => endpoint.post(`/community/${id}/leave`, {}, getOptions())
+export const joinCommunityByCode             = (code) => endpoint.post(`/community/invite/${code}/join`, {}, getOptions())
+export const regenerateInviteCode            = (id) => endpoint.post(`/community/${id}/regenerate-invite`, {}, getOptions())
+export const addCommunityModerator           = (id, formData) => endpoint.post(`/community/${id}/moderator`, formData, getOptions())
+export const removeCommunityModerator        = (id, userId) => endpoint.delete(`/community/${id}/moderator/${userId}`, getOptions())
+export const banFromCommunity                = (id, formData) => endpoint.post(`/community/${id}/ban`, formData, getOptions())
+export const unbanFromCommunity              = (id, userId) => endpoint.delete(`/community/${id}/ban/${userId}`, getOptions())
+
+/*
+    FORUM
+*/
+export const getForumFeed                    = (params) => endpoint.get('/forum/feed', { ...getOptions(), params })
+export const getForumPosts                   = (params) => endpoint.get('/forum/posts', { params })
+export const getForumPost                    = (id) => endpoint.get(`/forum/posts/${id}`)
+export const createForumPost                 = (formData) => endpoint.post('/forum/posts', formData, getOptions())
+export const updateForumPost                 = (id, formData) => endpoint.patch(`/forum/posts/${id}`, formData, getOptions())
+export const deleteForumPost                 = (id) => endpoint.delete(`/forum/posts/${id}`, getOptions())
+export const toggleForumPostPin              = (id) => endpoint.post(`/forum/posts/${id}/pin`, {}, getOptions())
+export const toggleForumPostLock             = (id) => endpoint.post(`/forum/posts/${id}/lock`, {}, getOptions())
+export const voteForumPost                   = (id, formData) => endpoint.post(`/forum/posts/${id}/vote`, formData, getOptions())
+export const getForumComments                = (postId, params) => endpoint.get(`/forum/posts/${postId}/comments`, { params })
+export const createForumComment              = (postId, formData) => endpoint.post(`/forum/posts/${postId}/comments`, formData, getOptions())
+export const updateForumComment              = (id, formData) => endpoint.patch(`/forum/comments/${id}`, formData, getOptions())
+export const deleteForumComment              = (id) => endpoint.delete(`/forum/comments/${id}`, getOptions())
+export const voteForumComment                = (id, formData) => endpoint.post(`/forum/comments/${id}/vote`, formData, getOptions())
+export const getForumTags                    = () => endpoint.get('/forum/tags')
+export const searchForum                     = (params) => endpoint.get('/forum/search', { params })
+
+/*
+    BLOB STORAGE
+*/
+export const getBlobList                     = (params) => endpoint.get('/blob-storage/list', { ...getOptions(), params })
+export const getBlobStats                    = () => endpoint.get('/blob-storage/stats', getOptions())
+export const getUnusedBlobs                  = () => endpoint.get('/blob-storage/unused', getOptions())
+export const deleteBlobs                     = (urls) => endpoint.post('/blob-storage/delete', { urls }, getOptions())

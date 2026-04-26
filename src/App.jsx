@@ -37,6 +37,16 @@ import PagesList from './components/Pages/PageBuilder/PagesList';
 import PageBuilder from './components/Pages/PageBuilder/PageBuilder';
 import PageRenderer from './components/Pages/PageBuilder/PageRenderer';
 
+import ForumHome from './components/Pages/Forum/ForumHome';
+import CommunityList from './components/Pages/Forum/CommunityList';
+import CommunityPage from './components/Pages/Forum/CommunityPage';
+import CommunityCreate from './components/Pages/Forum/CommunityCreate';
+import PostDetail from './components/Pages/Forum/PostDetail';
+import PostCreate from './components/Pages/Forum/PostCreate';
+import ForumSearch from './components/Pages/Forum/ForumSearch';
+import ForumInvite from './components/Pages/Forum/ForumInvite';
+import ForumAdmin from './components/Pages/Forum/ForumAdmin';
+
 const DeadZonePage = React.lazy(() => import('./components/DeadZoneGame/DeadZonePage'));
 const DeadZoneMapEditor = React.lazy(() => import('./components/DeadZoneGame/DeadZoneMapEditor'));
 const GameMaker = React.lazy(() => import('./components/GameMaker/GameMaker'));
@@ -105,6 +115,16 @@ const App = () => {
                     <Route path='/projects/manage' element={<><ProjectManager user={user} theme={theme}/></>} />
                     <Route path='/pages' element={<><PagesList user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/page/:slug' element={<><PageRenderer theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum' element={<><ForumHome user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/communities' element={<><CommunityList user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/communities/new' element={<><CommunityCreate user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/c/:slug' element={<><CommunityPage user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/c/:slug/edit' element={<><CommunityCreate user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/c/:slug/new-post' element={<><PostCreate user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/post/:id' element={<><PostDetail user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/post/:id/edit' element={<><PostCreate user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/search' element={<><ForumSearch user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/forum/invite/:code' element={<><ForumInvite user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/documentation/:category' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page' element={<><Documentation user={user} theme={theme}/></>} />
                     <Route path='/documentation/:category/:page/:subpage' element={<><Documentation user={user} theme={theme}/></>} />
@@ -122,6 +142,7 @@ const App = () => {
                     <Route path='/account/profile/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/videos/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path='/account/globallist/:subpage' element={<><Account user={user} theme={theme}/> <Footer theme={theme} /></>} />
+                    <Route path='/account/forum-admin' element={<><ForumAdmin user={user} theme={theme}/> <Footer theme={theme} /></>} />
                     <Route path={`*`} element={<> <NotFound theme={theme}/> <Footer theme={theme} /></>} />
                 </Route>
 
