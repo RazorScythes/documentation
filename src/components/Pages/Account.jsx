@@ -23,6 +23,7 @@ import Tags from './Account/Tags';
 import Categories from './Account/Categories';
 import ManageUsers from './Account/ManageUsers';
 import BlobStorage from './Account/BlobStorage';
+import MongoStorage from './Account/MongoStorage';
 
 import Notification from '../Custom/Notification';
 
@@ -110,7 +111,10 @@ const Account = ({ user, theme }) => {
         { name: 'Favorites', icon: faHeart, path: 'favorites', dropdown: [] },
         { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
         ...(['Admin', 'Moderator'].includes(user?.role) ? [{ name: 'Users', icon: faUsers, path: 'users', dropdown: [] }] : []),
-        ...(['Admin'].includes(user?.role) ? [{ name: 'Blob Storage', icon: faDatabase, path: 'storage', dropdown: [] }] : []),
+        ...(['Admin'].includes(user?.role) ? [
+            { name: 'Blob Storage', icon: faDatabase, path: 'storage', dropdown: [] },
+            { name: 'MongoDB', icon: faDatabase, path: 'mongodb', dropdown: [] },
+        ] : []),
         { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
     ];
     
@@ -353,6 +357,10 @@ const Account = ({ user, theme }) => {
                                     : activePage('storage') ?
                                         (['Admin'].includes(user?.role) ?
                                             <BlobStorage user={user} theme={theme} setNotification={setNotification} />
+                                        : <RedirectOverview />)
+                                    : activePage('mongodb') ?
+                                        (['Admin'].includes(user?.role) ?
+                                            <MongoStorage user={user} theme={theme} />
                                         : <RedirectOverview />)
                                     : activePage('settings') ?
                                         <Settings user={user} theme={theme} setNotification={setNotification} />

@@ -388,3 +388,11 @@ export const getBlobList                     = (params) => endpoint.get('/blob-s
 export const getBlobStats                    = () => endpoint.get('/blob-storage/stats', getOptions())
 export const getUnusedBlobs                  = () => endpoint.get('/blob-storage/unused', getOptions())
 export const deleteBlobs                     = (urls) => endpoint.post('/blob-storage/delete', { urls }, getOptions())
+
+/*
+    MONGO STORAGE
+*/
+export const getMongoStats                  = () => endpoint.get('/mongo-storage/stats', getOptions())
+export const getMongoCollections            = (db) => endpoint.get('/mongo-storage/collections', { ...getOptions(), params: db ? { db } : {} })
+export const getMongoDocuments              = (params) => endpoint.get('/mongo-storage/documents', { ...getOptions(), params })
+export const createMongoDatabase            = (name) => endpoint.post('/mongo-storage/create-db', { name }, getOptions())
