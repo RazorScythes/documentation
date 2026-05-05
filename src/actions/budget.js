@@ -11,6 +11,9 @@ const initialState = {
     budgetLists     : [],
     goals           : [],
     searchResults   : [],
+    exchangeRates   : null,
+    liveRates       : null,
+    baseCurrency    : 'PHP',
     alert           : {},
     isLoading       : false,
     isSavingsLoading: false,
@@ -149,6 +152,48 @@ export const bulkUpdateBudgetCategory = createAsyncThunk('budget/bulkUpdateCateg
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
         return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update category' } })
+    }
+})
+
+export const bulkUpdateBudgetCurrency = createAsyncThunk('budget/bulkUpdateCurrency', async (data, thunkAPI) => {
+    try {
+        const response = await api.bulkUpdateBudgetCurrency(data)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update currency' } })
+    }
+})
+
+// ==================== EXCHANGE RATES ====================
+
+export const getExchangeRates = createAsyncThunk('budget/getExchangeRates', async (_, thunkAPI) => {
+    try {
+        const response = await api.getExchangeRates()
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to load exchange rates' } })
+    }
+})
+
+export const saveExchangeRates = createAsyncThunk('budget/saveExchangeRates', async (data, thunkAPI) => {
+    try {
+        const response = await api.saveExchangeRates(data)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to save exchange rates' } })
+    }
+})
+
+export const resetExchangeRates = createAsyncThunk('budget/resetExchangeRates', async (_, thunkAPI) => {
+    try {
+        const response = await api.resetExchangeRates()
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to reset exchange rates' } })
     }
 })
 
@@ -480,6 +525,34 @@ export const budgetSlice = createSlice({
             state.alert = action.payload.data.alert
         })
         builder.addCase(bulkUpdateBudgetCategory.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(bulkUpdateBudgetCurrency.fulfilled, (state, action) => {
+            state.expenses = action.payload.data.result
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(bulkUpdateBudgetCurrency.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        // Exchange Rates
+        builder.addCase(getExchangeRates.fulfilled, (state, action) => {
+            state.exchangeRates = action.payload.data.result.rates
+            state.liveRates = action.payload.data.result.liveRates
+            state.baseCurrency = action.payload.data.result.baseCurrency || 'PHP'
+        })
+        builder.addCase(getExchangeRates.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(saveExchangeRates.fulfilled, (state, action) => {
+            state.exchangeRates = action.payload.data.result.rates
+            if (action.payload.data.result.baseCurrency) state.baseCurrency = action.payload.data.result.baseCurrency
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(saveExchangeRates.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(resetExchangeRates.fulfilled, (state, action) => {
+            state.exchangeRates = action.payload.data.result.rates
+            state.liveRates = action.payload.data.result.liveRates
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(resetExchangeRates.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
         // Search
         builder.addCase(searchBudgetExpenses.fulfilled, (state, action) => { state.searchResults = action.payload.data.result })
