@@ -668,6 +668,7 @@ const Budget = ({ user, theme }) => {
                                 viewCurrency={viewCurrency} setViewCurrency={setViewCurrency}
                                 exchangeRates={exchangeRates} activeViewCurrency={activeViewCurrency}
                                 toTargetCurrency={toTargetCurrency} formatCurrencyRaw={formatCurrencyRaw}
+                                PAYMENT_METHODS={PAYMENT_METHODS}
                             />
                         )}
                         {activeTab === 'monthly' && (
@@ -702,6 +703,7 @@ const Budget = ({ user, theme }) => {
                                 debts={debts} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
                                 btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isDebtsLoading}
+                                PAYMENT_METHODS={PAYMENT_METHODS}
                             />
                         )}
                         {activeTab === 'lists' && (
@@ -1988,7 +1990,8 @@ const DailyExpensesTab = ({
     uploadingReceipt, setReceiptViewer,
     savedRates, liveRates, savedBaseCurrency,
     viewCurrency, setViewCurrency, exchangeRates, activeViewCurrency,
-    toTargetCurrency, formatCurrencyRaw
+    toTargetCurrency, formatCurrencyRaw,
+    PAYMENT_METHODS
 }) => {
     const [filterDate, setFilterDate] = useState('')
     const [filterMethod, setFilterMethod] = useState('')
@@ -3778,7 +3781,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
 
 // ==================== DEBT TAB ====================
 
-const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading }) => {
+const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, PAYMENT_METHODS }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [showForm, setShowForm] = useState(false)
     const [editing, setEditing] = useState(null)
