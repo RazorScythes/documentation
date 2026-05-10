@@ -266,6 +266,7 @@ export const deleteReceipt                     = (formData) => endpoint.post('/b
 export const getExchangeRates                  = () => endpoint.get('/budget/exchange-rates')
 export const saveExchangeRates                 = (formData) => endpoint.post('/budget/exchange-rates', formData)
 export const resetExchangeRates                = () => endpoint.post('/budget/exchange-rates/reset')
+export const saveBudgetSettings                = (formData) => endpoint.post('/budget/settings', formData)
 export const getSavings                        = () => endpoint.get('/budget/savings')
 export const saveSavings                       = (formData) => endpoint.post('/budget/savings', formData)
 export const getSavingsHistory                 = () => endpoint.get('/budget/savings/history')

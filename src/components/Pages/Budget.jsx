@@ -12,7 +12,7 @@ import {
     faMoneyBillWave, faCreditCard, faMobileAlt, faUniversity, faCoins,
     faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf,
     faHandHoldingUsd, faUserFriends, faCalendarCheck, faChevronDown, faChevronUp, faListAlt, faSearch, faCogs, faCircle,
-    faEye, faEyeSlash, faExchangeAlt
+    faEye, faEyeSlash, faExchangeAlt, faSpinner
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(fas)
@@ -25,7 +25,7 @@ import {
     deleteBudgetCategory, shareBudgetCategory, unshareBudgetCategory,
     getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
     deleteBudgetExpense, bulkDeleteBudgetExpenses, bulkUpdateBudgetCategory, bulkUpdateBudgetCurrency,
-    getExchangeRates, saveExchangeRates, resetExchangeRates,
+    getExchangeRates, saveExchangeRates, resetExchangeRates, saveBudgetSettings,
     searchBudgetExpenses, importBudgetCSV, processRecurring,
     getBudgetSavings, saveBudgetSavings, getBudgetSavingsHistory, deleteBudgetSavingsHistory,
     getDebts, createDebt, updateDebt, deleteDebt, addDebtPayment, removeDebtPayment, toggleDebtStatus,
@@ -35,11 +35,11 @@ import {
 } from '../../actions/budget'
 import Notification from '../Custom/Notification'
 
-const PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit Card', 'PayPal', 'Other']
+const DEFAULT_PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit Card', 'PayPal', 'Other']
 const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'lists', 'goals', 'summary']
+const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'lists', 'goals', 'summary', 'settings']
 
 const CURRENCIES = [
     { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
@@ -80,9 +80,22 @@ const ICON_GRID = [
     'flag', 'bell', 'envelope', 'calendar', 'clock', 'tag', 'tags', 'bookmark',
 ]
 
+const AnimateIn = ({ children, delay = 0, className = '' }) => {
+    const [visible, setVisible] = useState(false)
+    useEffect(() => {
+        const t = setTimeout(() => setVisible(true), delay)
+        return () => clearTimeout(t)
+    }, [delay])
+    return (
+        <div className={`transition-all duration-500 ease-out ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'} ${className}`}>
+            {children}
+        </div>
+    )
+}
+
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
-    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, alert: budgetAlert, isLoading, isSavingsLoading } = useSelector(state => state.budget)
+    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, budgetSettings, alert: budgetAlert, isLoading, isSavingsLoading, isDebtsLoading, isGoalsLoading, isListsLoading } = useSelector(state => state.budget)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isLight = theme === 'light'
@@ -120,16 +133,35 @@ const Budget = ({ user, theme }) => {
     const [selectedExpenses, setSelectedExpenses] = useState([])
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
+    // YTD expenses (fetched separately so monthly expenses stay in Redux)
+    const [ytdExpenses, setYtdExpenses] = useState([])
+    const [ytdLoading, setYtdLoading] = useState(false)
+
+    const fetchYtdExpenses = async (y) => {
+        setYtdLoading(true)
+        try {
+            const res = await import('../../endpoint').then(m => m.getBudgetExpenses({ year: y }))
+            setYtdExpenses(res.data.result || [])
+        } catch { setYtdExpenses([]) }
+        setYtdLoading(false)
+    }
+
     useEffect(() => {
         if (user) {
             dispatch(getBudgetCategories())
             dispatch(getBudgetDashboard({ month, year }))
             dispatch(getBudgetExpenses({ month, year }))
-            dispatch(processRecurring())
+            dispatch(processRecurring()).then((action) => {
+                if (action?.payload?.data?.created > 0) {
+                    dispatch(getBudgetExpenses({ month, year }))
+                    dispatch(getBudgetDashboard({ month, year }))
+                }
+            })
             dispatch(getExchangeRates())
             dispatch(getBudgetSavings())
             dispatch(getDebts())
             dispatch(getFinancialGoals())
+            fetchYtdExpenses(year)
         }
     }, [user])
 
@@ -139,6 +171,7 @@ const Budget = ({ user, theme }) => {
             dispatch(getBudgetExpenses({ month, year }))
             setSelectedExpenses([])
             setBulkDeleteConfirm(false)
+            fetchYtdExpenses(year)
         }
     }, [month, year])
 
@@ -158,6 +191,7 @@ const Budget = ({ user, theme }) => {
         dispatch(getBudgetDashboard({ month, year }))
         dispatch(getBudgetExpenses({ month, year }))
         dispatch(getBudgetCategories())
+        fetchYtdExpenses(year)
     }
 
     // ==================== HANDLERS ====================
@@ -167,21 +201,23 @@ const Budget = ({ user, theme }) => {
     const [receiptViewer, setReceiptViewer] = useState(null)
 
     const handleExpenseSubmit = async () => {
-        if (editingExpense) {
-            const item = expenseItems[0]
-            if (!item?.description || !item?.amount) return
-            await dispatch(updateBudgetExpense({ ...expenseForm, description: item.description, amount: parseFloat(item.amount), id: editingExpense, month, year }))
-        } else {
-            const validItems = expenseItems.filter(i => i.description && i.amount)
-            if (validItems.length === 0) return
-            await dispatch(createBudgetExpense({ ...expenseForm, items: validItems, month, year }))
-        }
-        setExpenseForm(emptyExpense)
-        setExpenseItems([{ ...emptyItem }])
-        setEditingExpense(null)
-        setShowExpenseForm(false)
-        setAttachmentPreview(null)
-        dispatch(getBudgetDashboard({ month, year }))
+        try {
+            if (editingExpense) {
+                const item = expenseItems[0]
+                if (!item?.description || !item?.amount) return
+                await dispatch(updateBudgetExpense({ ...expenseForm, description: item.description, amount: parseFloat(item.amount), id: editingExpense, month, year })).unwrap()
+            } else {
+                const validItems = expenseItems.filter(i => i.description && i.amount)
+                if (validItems.length === 0) return
+                await dispatch(createBudgetExpense({ ...expenseForm, items: validItems, month, year })).unwrap()
+            }
+            setExpenseForm(emptyExpense)
+            setExpenseItems([{ ...emptyItem }])
+            setEditingExpense(null)
+            setShowExpenseForm(false)
+            setAttachmentPreview(null)
+            dispatch(getBudgetDashboard({ month, year }))
+        } catch (err) { /* form kept open so user can retry */ }
     }
 
     const handleEditExpense = (e) => {
@@ -278,15 +314,17 @@ const Budget = ({ user, theme }) => {
     const handleCategorySubmit = async () => {
         if (!categoryForm.name) return
         const data = { ...categoryForm, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover }
-        if (editingCategory) {
-            await dispatch(updateBudgetCategory({ ...data, id: editingCategory }))
-        } else {
-            await dispatch(createBudgetCategory(data))
-        }
-        setCategoryForm(emptyCategory)
-        setEditingCategory(null)
-        setShowCategoryForm(false)
-        dispatch(getBudgetDashboard({ month, year }))
+        try {
+            if (editingCategory) {
+                await dispatch(updateBudgetCategory({ ...data, id: editingCategory })).unwrap()
+            } else {
+                await dispatch(createBudgetCategory(data)).unwrap()
+            }
+            setCategoryForm(emptyCategory)
+            setEditingCategory(null)
+            setShowCategoryForm(false)
+            dispatch(getBudgetDashboard({ month, year }))
+        } catch (err) { /* form kept open so user can retry */ }
     }
 
     const handleEditCategory = (c) => {
@@ -371,6 +409,7 @@ const Budget = ({ user, theme }) => {
         { id: 'lists', label: 'Lists', icon: faListAlt },
         { id: 'goals', label: 'Goals', icon: faCheckCircle },
         { id: 'summary', label: 'Summary', icon: faFilePdf },
+        { id: 'settings', label: 'Settings', icon: faCogs },
     ]
 
     const paymentIcon = (m) => {
@@ -413,6 +452,12 @@ const Budget = ({ user, theme }) => {
         return merged
     }, [savedRates, liveRates])
 
+    const PAYMENT_METHODS = useMemo(() => {
+        const custom = budgetSettings?.paymentMethods || []
+        const all = [...DEFAULT_PAYMENT_METHODS, ...custom.filter(m => !DEFAULT_PAYMENT_METHODS.includes(m))]
+        return all
+    }, [budgetSettings])
+
     const activeViewCurrency = viewCurrency || 'PHP'
 
     const toTargetCurrency = (amount, fromCurrency, target) => {
@@ -452,6 +497,43 @@ const Budget = ({ user, theme }) => {
         })
     }, [categories, expenses, activeViewCurrency, exchangeRates])
 
+    const ytdData = useMemo(() => {
+        if (!ytdExpenses.length) return null
+        const active = ytdExpenses.filter(e => !e.listOnly)
+        const convert = (amt, cur) => toTargetCurrency(amt, cur || 'PHP', activeViewCurrency) ?? amt
+        const ytdIncome = active.filter(e => e.type === 'income').reduce((s, e) => s + convert(e.amount, e.currency), 0)
+        const ytdExpense = active.filter(e => e.type === 'expense').reduce((s, e) => s + convert(e.amount, e.currency), 0)
+        const ytdBalance = ytdIncome - ytdExpense
+        const ytdTxCount = active.length
+
+        const monthlyBreakdown = {}
+        active.forEach(e => {
+            const d = new Date(e.date)
+            const m = d.getMonth()
+            if (!monthlyBreakdown[m]) monthlyBreakdown[m] = { income: 0, expense: 0, count: 0 }
+            const amt = convert(e.amount, e.currency)
+            if (e.type === 'income') monthlyBreakdown[m].income += amt
+            else monthlyBreakdown[m].expense += amt
+            monthlyBreakdown[m].count++
+        })
+
+        const catSpending = {}
+        active.filter(e => e.type === 'expense').forEach(e => {
+            const catId = e.category?._id || 'uncategorized'
+            const catName = e.category?.name || 'Uncategorized'
+            const catColor = e.category?.color || '#94a3b8'
+            const catIcon = e.category?.icon || ''
+            if (!catSpending[catId]) catSpending[catId] = { name: catName, color: catColor, icon: catIcon, amount: 0 }
+            catSpending[catId].amount += convert(e.amount, e.currency)
+        })
+        const topCategories = Object.values(catSpending).sort((a, b) => b.amount - a.amount).slice(0, 5)
+
+        const elapsed = month
+        const monthlyAvg = elapsed > 0 ? ytdExpense / elapsed : 0
+
+        return { ytdIncome, ytdExpense, ytdBalance, ytdTxCount, monthlyBreakdown, topCategories, monthlyAvg }
+    }, [ytdExpenses, activeViewCurrency, exchangeRates, month])
+
     const statusColor = (pct) => {
         if (pct >= 100) return { bg: isLight ? 'bg-red-50' : 'bg-red-900/20', text: 'text-red-500', bar: 'bg-red-500', border: isLight ? 'border-red-200' : 'border-red-800/50' }
         if (pct >= 80) return { bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20', text: 'text-amber-500', bar: 'bg-amber-500', border: isLight ? 'border-amber-200' : 'border-amber-800/50' }
@@ -478,6 +560,11 @@ const Budget = ({ user, theme }) => {
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${isLight ? light.body : dark.body}`}>
+            <style>{`
+                @keyframes barGrow { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); transform-origin: left; } }
+                @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes countPulse { 0% { transform: scale(0.95); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
+            `}</style>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
                 <div className={`${styles.boxWidthEx}`}>
                     <div className="relative px-0 my-6 sm:my-12">
@@ -554,7 +641,7 @@ const Budget = ({ user, theme }) => {
                         </div>
 
                         {/* Tab Content */}
-                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} />}
+                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} />}
                         {activeTab === 'daily' && (
                             <DailyExpensesTab
                                 groupedByDate={groupedByDate} categories={categories} expenses={expenses}
@@ -591,6 +678,7 @@ const Budget = ({ user, theme }) => {
                                 expenses={expenses} formatCurrencyRaw={formatCurrencyRaw}
                                 activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency}
                                 categories={categories} paymentIcon={paymentIcon}
+                                setReceiptViewer={setReceiptViewer}
                             />
                         )}
                         {activeTab === 'categories' && (
@@ -613,21 +701,21 @@ const Budget = ({ user, theme }) => {
                             <DebtTab
                                 debts={debts} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
-                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isLoading}
+                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isDebtsLoading}
                             />
                         )}
                         {activeTab === 'lists' && (
                             <ListsTab
                                 budgetLists={budgetLists} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
-                                isLoading={isLoading}
+                                isLoading={isListsLoading}
                             />
                         )}
                         {activeTab === 'goals' && (
                             <GoalsTab
                                 goals={goals} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
-                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isLoading}
+                                btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isGoalsLoading}
                             />
                         )}
                         {activeTab === 'summary' && (
@@ -638,6 +726,20 @@ const Budget = ({ user, theme }) => {
                                 formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw}
                                 statusColor={statusColor} paymentIcon={paymentIcon} isLoading={isLoading}
                                 activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency}
+                                ytdData={ytdData} ytdLoading={ytdLoading}
+                            />
+                        )}
+                        {activeTab === 'settings' && (
+                            <SettingsTab
+                                isLight={isLight} card={card} inputCls={inputCls} selectCls={selectCls}
+                                btnPrimary={btnPrimary} btnSecondary={btnSecondary}
+                                dispatch={dispatch} categories={categories} expenses={expenses}
+                                savedRates={savedRates} liveRates={liveRates}
+                                savedBaseCurrency={savedBaseCurrency} exchangeRates={exchangeRates}
+                                viewCurrency={viewCurrency} setViewCurrency={setViewCurrency}
+                                activeViewCurrency={activeViewCurrency} formatCurrencyRaw={formatCurrencyRaw}
+                                budgetSettings={budgetSettings} PAYMENT_METHODS={PAYMENT_METHODS}
+                                month={month} year={year}
                             />
                         )}
                     </div>
@@ -669,7 +771,7 @@ const Budget = ({ user, theme }) => {
 
 // ==================== DASHBOARD TAB ====================
 
-const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon }) => {
+const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon, setReceiptViewer, ytdData, ytdLoading }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
 
     if (isLoading || !dashboard) {
@@ -844,22 +946,24 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                 {summaryCards.map((s, i) => {
                     const cm = colorMap[s.color]
                     return (
-                        <div key={i} className={`${card} p-5`}>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cm.bg}`}>
-                                    <FontAwesomeIcon icon={s.icon} className={`text-sm ${cm.icon}`} />
+                        <AnimateIn key={i} delay={i * 80}>
+                            <div className={`${card} p-5`}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cm.bg}`}>
+                                        <FontAwesomeIcon icon={s.icon} className={`text-sm ${cm.icon}`} />
+                                    </div>
                                 </div>
+                                <p className={`text-lg sm:text-xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
                             </div>
-                            <p className={`text-lg sm:text-xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
-                        </div>
+                        </AnimateIn>
                     )
                 })}
             </div>
 
             {/* Currency Breakdown */}
             {currencyBreakdown.length > 0 && (
-                <div className={`${card} px-4 py-3`}>
+                <AnimateIn delay={350}><div className={`${card} px-4 py-3`}>
                     <div className="flex items-center gap-2 mb-2">
                         <FontAwesomeIcon icon={faExchangeAlt} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                         <span className={`text-[11px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Raw Currency Totals</span>
@@ -873,10 +977,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                             </div>
                         ))}
                     </div>
-                </div>
+                </div></AnimateIn>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={400}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Top Categories */}
                 <div className={`${card} p-5`}>
                     <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Top Spending Categories</h3>
@@ -899,7 +1003,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                             </div>
                                         </div>
                                         <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
+                                            <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, backgroundColor: cat.color, animation: `barGrow 0.8s ease-out ${0.4 + i * 0.1}s both` }} />
                                         </div>
                                     </div>
                                 )
@@ -936,10 +1040,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No payments recorded this month.</p>
                     )}
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Income Sources + Budget Status */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={500}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Income Sources */}
                 <div className={`${card} p-5`}>
                     <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Income Sources</h3>
@@ -962,7 +1066,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                             </div>
                                         </div>
                                         <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: cat.color }} />
+                                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.color, animation: `barGrow 0.8s ease-out ${0.5 + i * 0.1}s both` }} />
                                         </div>
                                     </div>
                                 )
@@ -995,7 +1099,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                             </div>
                                         </div>
                                         <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                            <div className={`h-full rounded-full transition-all duration-500 ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%` }} />
+                                            <div className={`h-full rounded-full ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%`, animation: `barGrow 0.8s ease-out 0.6s both` }} />
                                         </div>
                                     </div>
                                 )
@@ -1005,20 +1109,20 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No budgets set up.</p>
                     )}
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Daily Spending Chart */}
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={600}><div className={`${card} p-5`}>
                 <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
                 {d.dailyTotals && Object.keys(d.dailyTotals).length > 0 ? (
                     <DailyChart dailyTotals={d.dailyTotals} month={d.month} year={d.year} isLight={isLight} formatCurrency={formatCurrency} />
                 ) : (
                     <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No daily data available.</p>
                 )}
-            </div>
+            </div></AnimateIn>
 
             {/* Recent Transactions + Top Expenses */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={700}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Recent Transactions */}
                 <div className={`${card} overflow-hidden`}>
                     <div className={`px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
@@ -1098,10 +1202,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         </div>
                     )}
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Savings / Debts / Goals Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <AnimateIn delay={800}><div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className={`${card} p-4 cursor-pointer transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} onClick={() => setSavingsDrilldown(true)}>
                     <div className="flex items-center gap-2.5 mb-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'}`}>
@@ -1144,16 +1248,16 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                     {activeGoals.length > 0 && (
                         <>
                             <div className={`h-1.5 rounded-full overflow-hidden mt-2 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                <div className="h-full rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${Math.min(goalsOverallPct, 100)}%` }} />
+                                <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(goalsOverallPct, 100)}%`, animation: 'barGrow 0.8s ease-out 0.8s both' }} />
                             </div>
                             <p className={`text-[10px] mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{goalsOverallPct}% overall · {formatCurrency(goalsTotalSaved)} / {formatCurrency(goalsTotalTarget)}</p>
                         </>
                     )}
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Monthly Overview */}
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={900}><div className={`${card} p-5`}>
                 <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Monthly Overview</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                     <div className="text-center">
@@ -1204,7 +1308,114 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Budget rollover from last month: <span className="font-semibold">{formatCurrency(d.rolloverAmount)}</span></span>
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
+
+            {/* Year-to-Date Overview */}
+            <AnimateIn delay={1000}><div className={`${card} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                            <FontAwesomeIcon icon={faCalendarCheck} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                        </div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Year-to-Date ({year})</h3>
+                    </div>
+                </div>
+                {ytdLoading || !ytdData ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="text-center">
+                                <div className={`h-7 w-20 mx-auto animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`} />
+                                <div className={`h-3 w-16 mx-auto mt-2 animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`} />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                            <div className="text-center">
+                                <p className={`text-xl sm:text-2xl font-bold text-emerald-500`}>{formatCurrencyRaw(ytdData.ytdIncome, activeViewCurrency)}</p>
+                                <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>YTD Income</p>
+                            </div>
+                            <div className="text-center">
+                                <p className={`text-xl sm:text-2xl font-bold text-red-500`}>{formatCurrencyRaw(ytdData.ytdExpense, activeViewCurrency)}</p>
+                                <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>YTD Expenses</p>
+                            </div>
+                            <div className="text-center">
+                                <p className={`text-xl sm:text-2xl font-bold ${ytdData.ytdBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(ytdData.ytdBalance, activeViewCurrency)}</p>
+                                <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Net Balance</p>
+                            </div>
+                            <div className="text-center">
+                                <p className={`text-xl sm:text-2xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{ytdData.ytdTxCount}</p>
+                                <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Transactions</p>
+                            </div>
+                        </div>
+
+                        {/* Monthly Avg + Monthly Bar Chart */}
+                        <div className={`mt-4 pt-4 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Monthly Spending ({MONTHS[0].slice(0, 3)} – {MONTHS[month - 1].slice(0, 3)})</span>
+                                <span className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Avg: {formatCurrencyRaw(ytdData.monthlyAvg, activeViewCurrency)}/mo</span>
+                            </div>
+                            <div className="flex items-end gap-1 h-20">
+                                {Array.from({ length: month }, (_, i) => {
+                                    const data = ytdData.monthlyBreakdown[i] || { expense: 0 }
+                                    const maxExpense = Math.max(...Object.values(ytdData.monthlyBreakdown).map(m => m.expense), 1)
+                                    const heightPct = maxExpense > 0 ? (data.expense / maxExpense) * 100 : 0
+                                    const isCurrent = i === month - 1
+                                    return (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${MONTHS[i]}: ${formatCurrencyRaw(data.expense, activeViewCurrency)}`}>
+                                            <div className="w-full relative" style={{ height: '60px' }}>
+                                                <div
+                                                    className={`absolute bottom-0 w-full rounded-t transition-all duration-500 ${
+                                                        isCurrent
+                                                            ? (isLight ? 'bg-indigo-500' : 'bg-indigo-400')
+                                                            : (isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]')
+                                                    }`}
+                                                    style={{ height: `${Math.max(heightPct, 4)}%`, animation: `barGrow 0.6s ease-out ${0.3 + i * 0.05}s both`, transformOrigin: 'bottom' }}
+                                                />
+                                            </div>
+                                            <span className={`text-[9px] ${isCurrent ? (isLight ? 'text-indigo-600 font-bold' : 'text-indigo-400 font-bold') : (isLight ? 'text-slate-400' : 'text-gray-600')}`}>
+                                                {MONTHS[i].slice(0, 1)}
+                                            </span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {/* YTD Top Categories */}
+                        {ytdData.topCategories.length > 0 && (
+                            <div className={`mt-4 pt-4 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Top YTD Categories</span>
+                                <div className="space-y-2 mt-2">
+                                    {ytdData.topCategories.map((cat, i) => {
+                                        const pct = ytdData.ytdExpense > 0 ? Math.round((cat.amount / ytdData.ytdExpense) * 100) : 0
+                                        return (
+                                            <div key={i}>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                                                            {cat.icon ? <SafeIcon name={cat.icon} cls="text-[10px]" style={{ color: cat.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />}
+                                                        </div>
+                                                        <span className={`text-xs ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{cat.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrencyRaw(cat.amount, activeViewCurrency)}</span>
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{pct}%</span>
+                                                    </div>
+                                                </div>
+                                                <div className={`h-1 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: cat.color, animation: `barGrow 0.8s ease-out ${0.5 + i * 0.1}s both` }} />
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+            </div></AnimateIn>
 
             {/* Drilldown Modal */}
             {drilldown && (
@@ -1316,7 +1527,17 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                     {cat?.icon ? <SafeIcon name={cat.icon} cls="text-[11px]" style={{ color: cat.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat?.color || '#94a3b8' }} />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
+                                                        {e.notes && (
+                                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
+                                                        )}
+                                                        {e.attachments?.length > 0 && (
+                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
+                                                                <FontAwesomeIcon icon={faFileExport} className="text-[7px] mr-0.5" />RECEIPT
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                                         {drilldown.type !== 'payment' && e.paymentMethod && (
@@ -1777,7 +1998,11 @@ const DailyExpensesTab = ({
     const [isSearching, setIsSearching] = useState(false)
     const [showCSVImport, setShowCSVImport] = useState(false)
     const [csvData, setCsvData] = useState([])
+    const [showRecurring, setShowRecurring] = useState(false)
     const searchTimeout = useRef(null)
+    const searchIdRef = useRef(0)
+
+    const recurringTemplates = useMemo(() => expenses.filter(e => e.isRecurring && e.recurrenceRule), [expenses])
 
     const [showRateEditor, setShowRateEditor] = useState(false)
     const [rateEditorValues, setRateEditorValues] = useState({})
@@ -1820,13 +2045,36 @@ const DailyExpensesTab = ({
         if (searchTimeout.current) clearTimeout(searchTimeout.current)
         if (q.length >= 2) {
             setIsSearching(true)
+            const id = ++searchIdRef.current
             searchTimeout.current = setTimeout(() => {
-                dispatch(searchBudgetExpenses({ q }))
+                dispatch(searchBudgetExpenses({ q })).finally(() => {
+                    if (searchIdRef.current === id) setIsSearching(false)
+                })
             }, 400)
         } else {
+            searchIdRef.current++
             setIsSearching(false)
             dispatch(clearSearchResults())
         }
+    }
+
+    const parseCSVLine = (line) => {
+        const cols = []
+        let cur = '', inQuotes = false
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i]
+            if (inQuotes) {
+                if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++ }
+                else if (ch === '"') inQuotes = false
+                else cur += ch
+            } else {
+                if (ch === '"') inQuotes = true
+                else if (ch === ',') { cols.push(cur.trim()); cur = '' }
+                else cur += ch
+            }
+        }
+        cols.push(cur.trim())
+        return cols
     }
 
     const handleCSVFile = (e) => {
@@ -1837,9 +2085,9 @@ const DailyExpensesTab = ({
             const text = ev.target.result
             const lines = text.split('\n').filter(l => l.trim())
             if (lines.length < 2) return
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+            const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/"/g, ''))
             const rows = lines.slice(1).map(line => {
-                const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+                const cols = parseCSVLine(line)
                 const row = {}
                 headers.forEach((h, i) => { row[h] = cols[i] || '' })
                 return {
@@ -1990,7 +2238,7 @@ const DailyExpensesTab = ({
     return (
         <div className="space-y-4">
             {/* Summary Strip */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+            <AnimateIn delay={0}><div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div className={`${card} px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3`}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
                         <FontAwesomeIcon icon={faCalendarDay} className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`} />
@@ -2036,10 +2284,10 @@ const DailyExpensesTab = ({
                         )}
                     </div>
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Currency Conversion Panel */}
-            <div className={`${card} px-3 sm:px-4 py-3`}>
+            <AnimateIn delay={100}><div className={`${card} px-3 sm:px-4 py-3`}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                         <FontAwesomeIcon icon={faExchangeAlt} className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
@@ -2170,10 +2418,10 @@ const DailyExpensesTab = ({
                         </div>
                     </div>
                 </div>
-            )}
+            )}</AnimateIn>
 
             {/* Search + CSV Import */}
-            <div className={`${card} p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2`}>
+            <AnimateIn delay={200}><div className={`${card} p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2`}>
                 <div className="flex-1 relative">
                     <FontAwesomeIcon icon={faSearch} className={`absolute left-3 top-1/2 -translate-y-1/2 text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                     <input
@@ -2189,23 +2437,37 @@ const DailyExpensesTab = ({
                         <input type="file" accept=".csv" className="hidden" onChange={handleCSVFile} />
                     </label>
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Search Results */}
-            {isSearching && searchResults.length > 0 && (
+            {searchQuery.length >= 2 && (
                 <div className={`${card} p-4`}>
-                    <h4 className={`text-xs font-semibold mb-3 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Search Results ({searchResults.length})</h4>
-                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                        {searchResults.slice(0, 20).map(e => (
-                            <div key={e._id} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                    <span className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</span>
-                                </div>
-                                <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}</span>
+                    {isSearching ? (
+                        <div className="flex items-center justify-center gap-2 py-4">
+                            <FontAwesomeIcon icon={faSpinner} className={`text-sm animate-spin ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                            <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Searching...</span>
+                        </div>
+                    ) : searchResults.length > 0 ? (
+                        <>
+                            <h4 className={`text-xs font-semibold mb-3 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Search Results ({searchResults.length})</h4>
+                            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                                {searchResults.slice(0, 20).map(e => (
+                                    <div key={e._id} className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                            <span className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</span>
+                                        </div>
+                                        <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}</span>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-4 gap-1">
+                            <FontAwesomeIcon icon={faSearch} className={`text-lg ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                            <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No results found for "{searchQuery}"</span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -2335,7 +2597,7 @@ const DailyExpensesTab = ({
             )}
 
             {/* Add Transaction Form */}
-            <div className={`${card} overflow-hidden`}>
+            <AnimateIn delay={300}><div className={`${card} overflow-hidden`}>
                 <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {editingExpense ? 'Edit Transaction' : 'Transactions'}
@@ -2693,14 +2955,78 @@ const DailyExpensesTab = ({
                         <p className={`text-xs mt-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{hasFilters ? <span className="cursor-pointer hover:underline" onClick={clearFilters}>Clear filters</span> : 'Click "Add New" to get started.'}</p>
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
+
+            {/* Recurring Templates */}
+            {recurringTemplates.length > 0 && (
+                <div className={`${card} overflow-hidden`}>
+                    <button onClick={() => setShowRecurring(!showRecurring)} className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
+                        <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faSyncAlt} className={`text-xs ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                            <span className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Recurring Templates ({recurringTemplates.length})</span>
+                        </div>
+                        <FontAwesomeIcon icon={showRecurring ? faChevronUp : faChevronDown} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                    </button>
+                    {showRecurring && (
+                        <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#1f1f1f]'}`}>
+                                {recurringTemplates.map(t => {
+                                    const cat = categories.find(c => c._id === t.category?._id)
+                                    return (
+                                        <div key={t._id} className={`flex items-center gap-3 px-4 py-3 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
+                                            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (cat?.color || '#94a3b8') + '20' }}>
+                                                {cat?.icon ? <SafeIcon name={cat.icon} cls="text-[11px]" style={{ color: cat.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat?.color || '#94a3b8' }} />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{t.description}</p>
+                                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400'}`}>
+                                                        {t.recurrenceRule}
+                                                    </span>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#222] text-gray-400'}`}>
+                                                        {t.paymentMethod || 'Cash'}
+                                                    </span>
+                                                    {t.recurrenceEnd && (
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                            ends {new Date(t.recurrenceEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                                <p className={`text-sm font-semibold ${t.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                    {t.type === 'income' ? '+' : '-'}{formatCurrencyRaw(t.amount, t.currency || 'PHP')}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                <button onClick={() => handleEditExpense(t)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#222] text-gray-500'}`} title="Edit template">
+                                                    <FontAwesomeIcon icon={faPen} className="text-[10px]" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        dispatch(updateBudgetExpense({ id: t._id, ...t, category: t.category?._id, isRecurring: false, recurrenceRule: '', recurrenceEnd: null, month, year }))
+                                                    }}
+                                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'hover:bg-amber-50 text-amber-500' : 'hover:bg-amber-900/10 text-amber-400'}`}
+                                                    title="Stop recurring"
+                                                >
+                                                    <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
 
 // ==================== MONTHLY BUDGET TAB ====================
 
-const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year, isLoading, expenses, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, categories, paymentIcon }) => {
+const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year, isLoading, expenses, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, categories, paymentIcon, setReceiptViewer }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [drilldown, setDrilldown] = useState(null)
 
@@ -2750,7 +3076,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
     return (
         <div className="space-y-4">
             {/* Overall Budget Bar */}
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={0}><div className={`${card} p-5`}>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {MONTHS[month - 1]} {year} — Overall Budget
@@ -2760,21 +3086,22 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                     </span>
                 </div>
                 <div className={`h-3 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                    <div className={`h-full rounded-full transition-all duration-700 ${overallStatus.bar}`} style={{ width: `${Math.min(overallPct, 100)}%` }} />
+                    <div className={`h-full rounded-full ${overallStatus.bar}`} style={{ width: `${Math.min(overallPct, 100)}%`, animation: 'barGrow 0.8s ease-out 0.3s both' }} />
                 </div>
                 <div className="flex items-center justify-between mt-2">
                     <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Spent: {formatCurrency(totalSpent)}</span>
                     <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget: {formatCurrency(totalBudget)}</span>
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Per Category */}
             {monthlyBudgetData.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {monthlyBudgetData.map(cat => {
+                    {monthlyBudgetData.map((cat, catIdx) => {
                         const sc = statusColor(cat.percentage)
                         return (
-                            <div key={cat._id} className={`${card} p-4 border-l-4 cursor-pointer transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} style={{ borderLeftColor: cat.color }} onClick={() => setDrilldown(cat)}>
+                            <AnimateIn key={cat._id} delay={catIdx * 80}>
+                            <div className={`${card} p-4 border-l-4 cursor-pointer transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} style={{ borderLeftColor: cat.color }} onClick={() => setDrilldown(cat)}>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
@@ -2788,7 +3115,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                                 </div>
                                 {cat.budget > 0 && (
                                     <div className={`h-2 rounded-full overflow-hidden mb-2 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                        <div className={`h-full rounded-full transition-all duration-500 ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%` }} />
+                                        <div className={`h-full rounded-full ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%`, animation: `barGrow 0.8s ease-out ${0.2 + catIdx * 0.08}s both` }} />
                                     </div>
                                 )}
                                 <div className="flex items-center justify-between">
@@ -2810,6 +3137,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                                     </div>
                                 )}
                             </div>
+                            </AnimateIn>
                         )
                     })}
                 </div>
@@ -2887,7 +3215,17 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                                                     {drilldown.icon ? <SafeIcon name={drilldown.icon} cls="text-[11px]" style={{ color: drilldown.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: drilldown.color }} />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
+                                                        {e.notes && (
+                                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
+                                                        )}
+                                                        {e.attachments?.length > 0 && (
+                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
+                                                                <FontAwesomeIcon icon={faFileExport} className="text-[7px] mr-0.5" />RECEIPT
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                                                         {e.paymentMethod && (
@@ -2965,7 +3303,7 @@ const CategoriesTab = ({
 
     return (
         <div className="space-y-4">
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={0}><div className={`${card} p-5`}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {editingCategory ? 'Edit Category' : 'Manage Categories'}
@@ -3067,10 +3405,10 @@ const CategoriesTab = ({
                         </div>
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
 
             {/* Expense Categories */}
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={100}><div className={`${card} p-5`}>
                 <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                     Expense Categories ({expenseCats.length})
                 </h4>
@@ -3112,10 +3450,10 @@ const CategoriesTab = ({
                 ) : (
                     <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No expense categories yet.</p>
                 )}
-            </div>
+            </div></AnimateIn>
 
             {/* Income Categories */}
-            <div className={`${card} p-5`}>
+            <AnimateIn delay={200}><div className={`${card} p-5`}>
                 <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                     Income Categories ({incomeCats.length})
                 </h4>
@@ -3147,7 +3485,7 @@ const CategoriesTab = ({
                 ) : (
                     <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No income categories yet.</p>
                 )}
-            </div>
+            </div></AnimateIn>
         </div>
     )
 }
@@ -3178,7 +3516,6 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
     const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
     useEffect(() => {
-        dispatch(getBudgetSavings())
         dispatch(getBudgetSavingsHistory())
     }, [dispatch])
 
@@ -3274,7 +3611,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
     return (
         <div className="space-y-5">
             {/* Sub Tabs */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+            <AnimateIn delay={0}><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                 <div className="flex items-center gap-1">
                     {savingsSubTabs.map(t => (
                         <button key={t.id} onClick={() => setSubTab(t.id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${subTab === t.id ? (isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-500/10 text-blue-400') : (isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-400 hover:bg-white/5')}`}>
@@ -3296,11 +3633,11 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                         )}
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
 
             {subTab === 'counter' && <>
             {/* Grand Total Card */}
-            <div className={`${card} p-4 sm:p-5`}>
+            <AnimateIn delay={100}><div className={`${card} p-4 sm:p-5`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-500/10 text-blue-400'}`}>
@@ -3322,10 +3659,10 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                         </div>
                     </div>
                 </div>
-            </div>
+            </div></AnimateIn>
 
             {/* Denomination Table */}
-            <div className={`${card} overflow-hidden`}>
+            <AnimateIn delay={200}><div className={`${card} overflow-hidden`}>
                 <table className="w-full text-sm">
                     <thead>
                         <tr className={isLight ? 'bg-slate-50 border-b border-solid border-slate-200/80' : 'bg-white/[0.03] border-b border-solid border-[#2B2B2B]'}>
@@ -3384,7 +3721,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                         </tr>
                     </tfoot>
                 </table>
-            </div>
+            </div></AnimateIn>
             </>}
 
             {subTab === 'history' && (
@@ -3451,8 +3788,6 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
     const [deleteConfirm, setDeleteConfirm] = useState(null)
     const [filterStatus, setFilterStatus] = useState('all')
 
-    useEffect(() => { dispatch(getDebts()) }, [])
-
     const resetForm = () => {
         setForm({ name: '', type: 'owe', person: '', total_amount: '', due_date: '', notes: '' })
         setEditing(null)
@@ -3462,12 +3797,11 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
     const handleSubmit = async () => {
         if (!form.name || !form.total_amount) return
         const data = { ...form, total_amount: parseFloat(form.total_amount) }
-        if (editing) {
-            await dispatch(updateDebt({ ...data, id: editing }))
-        } else {
-            await dispatch(createDebt(data))
-        }
-        resetForm()
+        try {
+            if (editing) await dispatch(updateDebt({ ...data, id: editing })).unwrap()
+            else await dispatch(createDebt(data)).unwrap()
+            resetForm()
+        } catch (err) { /* form kept open */ }
     }
 
     const handleEdit = (d) => {
@@ -3549,24 +3883,24 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
         <div className="space-y-4">
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className={`${card} p-4`}>
+                <AnimateIn delay={0}><div className={`${card} p-4`}>
                     <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>You Owe</p>
                     <p className={`text-lg font-bold mt-1 text-red-500`}>{formatCurrency(totalOwed)}</p>
-                </div>
-                <div className={`${card} p-4`}>
+                </div></AnimateIn>
+                <AnimateIn delay={80}><div className={`${card} p-4`}>
                     <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Owed to You</p>
                     <p className={`text-lg font-bold mt-1 text-emerald-500`}>{formatCurrency(totalOwedToYou)}</p>
-                </div>
-                <div className={`${card} p-4`}>
+                </div></AnimateIn>
+                <AnimateIn delay={160}><div className={`${card} p-4`}>
                     <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Active / Paid</p>
                     <p className={`text-lg font-bold mt-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
                         {activeCount} <span className={`text-sm font-normal ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>/ {paidCount}</span>
                     </p>
-                </div>
+                </div></AnimateIn>
             </div>
 
             {/* Toolbar */}
-            <div className={`${card} overflow-hidden`}>
+            <AnimateIn delay={250}><div className={`${card} overflow-hidden`}>
                 <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
@@ -3691,8 +4025,8 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                                                 {/* Progress bar */}
                                                 <div className="mt-2">
                                                     <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                                        <div className={`h-full rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
-                                                            style={{ width: `${Math.min(pct, 100)}%` }} />
+                                                        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                                                            style={{ width: `${Math.min(pct, 100)}%`, animation: 'barGrow 0.8s ease-out 0.3s both' }} />
                                                     </div>
                                                     <div className="flex items-center justify-between mt-1">
                                                         <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
@@ -3819,7 +4153,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                         </p>
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
         </div>
     )
 }
@@ -3995,12 +4329,11 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
 
     const handleSubmit = async () => {
         if (!form.name.trim()) return
-        if (editingList) {
-            await dispatch(updateBudgetList({ id: editingList, ...form }))
-        } else {
-            await dispatch(createBudgetList(form))
-        }
-        resetForm()
+        try {
+            if (editingList) await dispatch(updateBudgetList({ id: editingList, ...form })).unwrap()
+            else await dispatch(createBudgetList(form)).unwrap()
+            resetForm()
+        } catch (err) { /* form kept open */ }
     }
 
     const handleDelete = async (id) => {
@@ -4099,7 +4432,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className={`${card} p-4 sm:p-5`}>
+            <AnimateIn delay={0}><div className={`${card} p-4 sm:p-5`}>
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className={`text-sm sm:text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Budget Lists</h2>
@@ -4227,7 +4560,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                         </div>
                     </div>
                 </div>
-            )}
+            )}</AnimateIn>
 
             {/* Lists */}
             {budgetLists.length === 0 && !showForm ? (
@@ -4238,11 +4571,12 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {budgetLists.map(list => {
+                    {budgetLists.map((list, listIdx) => {
                         const stats = getListStats(list)
                         const isExpanded = expandedList === list._id
                         return (
-                            <div key={list._id} className={`${card} overflow-hidden`}>
+                            <AnimateIn key={list._id} delay={listIdx * 100}>
+                            <div className={`${card} overflow-hidden`}>
                                 <div className="relative">
                                     <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ backgroundColor: list.color || '#3b82f6' }} />
                                     <div className="p-4 sm:p-5 pt-5 sm:pt-6">
@@ -4295,7 +4629,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                         {stats.total > 0 && (
                                             <div className="mt-3 flex items-center gap-3">
                                                 <div className={`flex-1 h-1 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1f1f1f]'}`}>
-                                                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stats.pct}%`, backgroundColor: list.color || '#3b82f6' }} />
+                                                    <div className="h-full rounded-full" style={{ width: `${stats.pct}%`, backgroundColor: list.color || '#3b82f6', animation: 'barGrow 0.8s ease-out 0.3s both' }} />
                                                 </div>
                                                 <span className={`text-[10px] font-medium flex-shrink-0 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{stats.checked}/{stats.total} done</span>
                                             </div>
@@ -4391,6 +4725,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                     <QuickAddItem list={list} quickAddItem={quickAddItem} isLight={isLight} inputCls={inputCls} />
                                 </div>
                             </div>
+                            </AnimateIn>
                         )
                     })}
                 </div>
@@ -4436,7 +4771,7 @@ const QuickAddItem = ({ list, quickAddItem, isLight, inputCls }) => {
 
 // ==================== SUMMARY TAB ====================
 
-const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, paymentIcon, isLoading, activeViewCurrency, toTargetCurrency }) => {
+const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, paymentIcon, isLoading, activeViewCurrency, toTargetCurrency, ytdData, ytdLoading }) => {
     const summaryRef = useRef(null)
     const [downloading, setDownloading] = useState(false)
     const [pdfError, setPdfError] = useState('')
@@ -4515,6 +4850,37 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
         }
     }
 
+    const handleDownloadCSV = () => {
+        const escapeCSV = (val) => {
+            const str = String(val ?? '')
+            return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str.replace(/"/g, '""')}"` : str
+        }
+        const headers = ['Date', 'Description', 'Type', 'Category', 'Amount', 'Currency', 'Converted Amount', 'View Currency', 'Payment Method', 'Notes']
+        const rows = expenses.map(e => {
+            const cat = categories.find(c => c._id === e.category?._id)
+            const converted = toTargetCurrency(e.amount, e.currency || 'PHP', activeViewCurrency)
+            return [
+                new Date(e.date).toLocaleDateString('en-US'),
+                e.description,
+                e.type,
+                cat?.name || 'Uncategorized',
+                e.amount,
+                e.currency || 'PHP',
+                converted ?? e.amount,
+                activeViewCurrency,
+                e.paymentMethod || 'Cash',
+                e.notes || '',
+            ].map(escapeCSV).join(',')
+        })
+        const csv = [headers.join(','), ...rows].join('\n')
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = `Budget_${MONTHS[month - 1]}_${year}.csv`
+        link.click()
+        URL.revokeObjectURL(link.href)
+    }
+
     if (isLoading || !dashboard) {
         return (
             <div className="space-y-4">
@@ -4582,8 +4948,18 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
 
     return (
         <div className="space-y-4">
-            {/* Download Button */}
-            <div className="flex justify-end">
+            {/* Download Buttons */}
+            <AnimateIn delay={0}><div className="flex justify-end gap-2">
+                <button
+                    onClick={handleDownloadCSV}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight
+                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    }`}
+                >
+                    <FontAwesomeIcon icon={faFileExport} className="text-xs" />
+                    Download CSV
+                </button>
                 <button
                     onClick={handleDownloadPDF}
                     disabled={downloading}
@@ -4604,7 +4980,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                         </>
                     )}
                 </button>
-            </div>
+            </div></AnimateIn>
 
             {pdfError && (
                 <div className={`rounded-lg p-3 mb-2 text-sm font-medium flex items-center gap-2 ${isLight ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-red-900/20 text-red-400 border border-red-800/50'}`}>
@@ -4614,7 +4990,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
             )}
 
             {/* Printable Summary */}
-            <div ref={summaryRef} className={`${card} overflow-hidden`}>
+            <AnimateIn delay={100}><div ref={summaryRef} className={`${card} overflow-hidden`}>
                 {/* Header */}
                 <div className={`px-4 sm:px-6 py-4 sm:py-5 border-b border-solid ${isLight ? 'border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50' : 'border-[#1f1f1f] bg-gradient-to-r from-blue-900/10 to-indigo-900/10'}`}>
                     <div className="flex items-center justify-between">
@@ -4836,6 +5212,102 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                         </div>
                     )}
 
+                    {/* Year-to-Date Summary */}
+                    {ytdData && !ytdLoading && (
+                        <div>
+                            <h4 className={sectionTitle}>
+                                <FontAwesomeIcon icon={faCalendarCheck} className="mr-1.5 text-indigo-400 text-[10px]" />
+                                Year-to-Date ({year})
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                                {[
+                                    { label: 'YTD Income', value: formatCurrencyRaw(ytdData.ytdIncome, activeViewCurrency), color: 'emerald' },
+                                    { label: 'YTD Expenses', value: formatCurrencyRaw(ytdData.ytdExpense, activeViewCurrency), color: 'red' },
+                                    { label: 'Net Balance', value: formatCurrencyRaw(ytdData.ytdBalance, activeViewCurrency), color: ytdData.ytdBalance >= 0 ? 'blue' : 'red' },
+                                    { label: 'Monthly Avg', value: formatCurrencyRaw(ytdData.monthlyAvg, activeViewCurrency), color: 'amber' },
+                                ].map((item, i) => {
+                                    const colors = {
+                                        emerald: isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-900/15 text-emerald-400 border-emerald-800/30',
+                                        red: isLight ? 'bg-red-50 text-red-700 border-red-200' : 'bg-red-900/15 text-red-400 border-red-800/30',
+                                        blue: isLight ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-blue-900/15 text-blue-400 border-blue-800/30',
+                                        amber: isLight ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-amber-900/15 text-amber-400 border-amber-800/30',
+                                    }
+                                    return (
+                                        <div key={i} className={`rounded-lg p-3 border border-solid ${colors[item.color]}`}>
+                                            <p className="text-[10px] font-medium uppercase tracking-wider opacity-70">{item.label}</p>
+                                            <p className="text-sm font-bold mt-1">{item.value}</p>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+
+                            {/* Monthly Breakdown Table */}
+                            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+                            <div className="overflow-hidden rounded-lg border border-solid min-w-[400px]" style={{ borderColor: isLight ? '#e2e8f0' : '#1f1f1f' }}>
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className={isLight ? 'bg-slate-50 text-slate-400' : 'bg-[#111] text-gray-500'}>
+                                            <th className="px-3 py-2 text-left font-semibold">Month</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Income</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Expenses</th>
+                                            <th className="px-3 py-2 text-right font-semibold">Net</th>
+                                            <th className="px-3 py-2 text-center font-semibold">Txns</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Array.from({ length: month }, (_, i) => {
+                                            const data = ytdData.monthlyBreakdown[i] || { income: 0, expense: 0, count: 0 }
+                                            const net = data.income - data.expense
+                                            return (
+                                                <tr key={i} className={i > 0 ? `border-t border-solid ${isLight ? 'border-slate-50' : 'border-[#1a1a1a]'}` : ''}>
+                                                    <td className={`px-3 py-2 font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{MONTHS[i].slice(0, 3)}</td>
+                                                    <td className="px-3 py-2 text-right text-emerald-500 font-semibold">{data.income > 0 ? formatCurrencyRaw(data.income, activeViewCurrency) : '—'}</td>
+                                                    <td className="px-3 py-2 text-right text-red-500 font-semibold">{data.expense > 0 ? formatCurrencyRaw(data.expense, activeViewCurrency) : '—'}</td>
+                                                    <td className={`px-3 py-2 text-right font-semibold ${net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{data.count > 0 ? formatCurrencyRaw(net, activeViewCurrency) : '—'}</td>
+                                                    <td className={`px-3 py-2 text-center ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{data.count || '—'}</td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className={`border-t-2 border-solid ${isLight ? 'border-slate-200 bg-slate-50' : 'border-[#2B2B2B] bg-[#111]'}`}>
+                                            <td className={`px-3 py-2 font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Total</td>
+                                            <td className="px-3 py-2 text-right font-bold text-emerald-500">{formatCurrencyRaw(ytdData.ytdIncome, activeViewCurrency)}</td>
+                                            <td className="px-3 py-2 text-right font-bold text-red-500">{formatCurrencyRaw(ytdData.ytdExpense, activeViewCurrency)}</td>
+                                            <td className={`px-3 py-2 text-right font-bold ${ytdData.ytdBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(ytdData.ytdBalance, activeViewCurrency)}</td>
+                                            <td className={`px-3 py-2 text-center font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{ytdData.ytdTxCount}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            </div>
+
+                            {/* YTD Top Categories */}
+                            {ytdData.topCategories.length > 0 && (
+                                <div className="mt-4">
+                                    <span className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Top Spending Categories (YTD)</span>
+                                    <div className="space-y-1.5 mt-2">
+                                        {ytdData.topCategories.map((cat, i) => {
+                                            const pct = ytdData.ytdExpense > 0 ? Math.round((cat.amount / ytdData.ytdExpense) * 100) : 0
+                                            return (
+                                                <div key={i} className={`flex items-center justify-between py-1 text-xs`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                                                            {cat.icon ? <SafeIcon name={cat.icon} cls="text-[8px]" style={{ color: cat.color }} /> : <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />}
+                                                        </div>
+                                                        <span className={isLight ? 'text-slate-600' : 'text-gray-300'}>{cat.name}</span>
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{pct}%</span>
+                                                    </div>
+                                                    <span className={`font-semibold ${isLight ? 'text-slate-800' : 'text-gray-100'}`}>{formatCurrencyRaw(cat.amount, activeViewCurrency)}</span>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Daily Transaction Log */}
                     {groupedByDate.length > 0 && (
                         <div>
@@ -4956,7 +5428,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                         <span>Budget Manager · {MONTHS[month - 1]} {year}</span>
                     </div>
                 </div>
-            </div>
+            </div></AnimateIn>
         </div>
     )
 }
@@ -4969,18 +5441,21 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
     const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
     const [contribForm, setContribForm] = useState({ goalId: null, amount: '', notes: '' })
     const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const [expandedGoal, setExpandedGoal] = useState(null)
+    const [showCompleted, setShowCompleted] = useState(false)
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
-
-    useEffect(() => { dispatch(getFinancialGoals()) }, [])
+    const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
 
     const resetForm = () => { setForm({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' }); setEditing(null); setShowForm(false) }
 
     const handleSubmit = async () => {
         if (!form.name || !form.targetAmount) return
         const data = { ...form, targetAmount: parseFloat(form.targetAmount) }
-        if (editing) await dispatch(updateFinancialGoal({ ...data, id: editing }))
-        else await dispatch(createFinancialGoal(data))
-        resetForm()
+        try {
+            if (editing) await dispatch(updateFinancialGoal({ ...data, id: editing })).unwrap()
+            else await dispatch(createFinancialGoal(data)).unwrap()
+            resetForm()
+        } catch (err) { /* form kept open */ }
     }
 
     const handleEdit = (g) => {
@@ -5004,14 +5479,19 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
     const completedGoals = goals.filter(g => g.status === 'completed')
     const totalTarget = activeGoals.reduce((s, g) => s + g.targetAmount, 0)
     const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0)
+    const overallPct = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0
+    const totalContributions = goals.reduce((s, g) => s + (g.contributions?.length || 0), 0)
 
     if (isLoading) {
         return (
             <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[...Array(4)].map((_, i) => <div key={i} className={`${card} p-4`}><div className={`h-3 w-16 mb-2 ${pulse}`} /><div className={`h-5 w-24 ${pulse}`} /></div>)}
+                </div>
                 {[...Array(3)].map((_, i) => (
                     <div key={i} className={`${card} p-5`}>
-                        <div className={`h-4 w-32 mb-3 ${pulse}`} />
-                        <div className={`h-3 rounded-full w-full ${pulse}`} />
+                        <div className={`h-4 w-40 mb-3 ${pulse}`} />
+                        <div className={`h-2.5 rounded-full w-full ${pulse}`} />
                     </div>
                 ))}
             </div>
@@ -5020,184 +5500,914 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
 
     return (
         <div className="space-y-4">
-            {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className={`${card} px-4 py-3 text-center`}>
-                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Active Goals</p>
-                    <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{activeGoals.length}</p>
+            {/* Header Bar */}
+            <AnimateIn delay={0}><div className="flex items-center justify-between">
+                <div>
+                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Financial Goals</h3>
+                    <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{activeGoals.length} active · {completedGoals.length} completed · {totalContributions} contributions</p>
                 </div>
-                <div className={`${card} px-4 py-3 text-center`}>
-                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Saved</p>
-                    <p className="text-lg font-bold text-emerald-500">{formatCurrency(totalSaved)}</p>
-                </div>
-                <div className={`${card} px-4 py-3 text-center`}>
-                    <p className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Target</p>
-                    <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{formatCurrency(totalTarget)}</p>
-                </div>
+                <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${
+                    showForm
+                        ? (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#252525]')
+                        : (isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500')
+                }`}>
+                    <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
+                    {showForm ? 'Close' : 'New Goal'}
+                </button>
+            </div></AnimateIn>
+
+            {/* Stat Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                    { label: 'Total Saved', value: formatCurrency(totalSaved), color: 'text-emerald-500', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/10', icon: faPiggyBank, iconColor: 'text-emerald-500' },
+                    { label: 'Total Target', value: formatCurrency(totalTarget), color: isLight ? 'text-slate-700' : 'text-gray-200', bg: isLight ? 'bg-slate-50' : 'bg-[#111]', icon: faArrowUp, iconColor: isLight ? 'text-slate-400' : 'text-gray-500' },
+                    { label: 'Remaining', value: formatCurrency(Math.max(totalTarget - totalSaved, 0)), color: isLight ? 'text-amber-600' : 'text-amber-400', bg: isLight ? 'bg-amber-50' : 'bg-amber-900/10', icon: faWallet, iconColor: 'text-amber-500' },
+                    { label: 'Progress', value: `${overallPct}%`, color: overallPct >= 100 ? 'text-emerald-500' : (isLight ? 'text-blue-600' : 'text-blue-400'), bg: isLight ? 'bg-blue-50' : 'bg-blue-900/10', icon: faChartPie, iconColor: 'text-blue-500' },
+                ].map((s, i) => (
+                    <AnimateIn key={i} delay={40 + i * 50}><div className={`${card} p-4`}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <FontAwesomeIcon icon={s.icon} className={`text-[9px] ${s.iconColor}`} />
+                            <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
+                        </div>
+                        <p className={`text-lg font-extrabold leading-tight ${s.color}`}>{s.value}</p>
+                    </div></AnimateIn>
+                ))}
             </div>
 
-            {/* Add Goal */}
-            <div className={`${card} p-5`}>
+            {/* Overall Progress Bar */}
+            {totalTarget > 0 && (
+                <AnimateIn delay={250}><div className={`${card} px-5 py-3`}>
+                    <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                            <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                <div className={`h-full rounded-full ${overallPct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(overallPct, 100)}%`, animation: 'barGrow 1s ease-out 0.3s both' }} />
+                            </div>
+                        </div>
+                        <span className={`text-xs font-bold flex-shrink-0 ${overallPct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-500' : 'text-gray-400')}`}>{formatCurrency(totalSaved)} / {formatCurrency(totalTarget)}</span>
+                    </div>
+                </div></AnimateIn>
+            )}
+
+            {/* Form */}
+            {showForm && (
+                <AnimateIn delay={0}><div className={`${card} p-5`}>
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: form.color + '20' }}>
+                            <SafeIcon name={form.icon || 'bullseye'} cls="text-sm" style={{ color: form.color }} />
+                        </div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Goal' : 'New Goal'}</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="sm:col-span-2">
+                            <label className={labelCls}>Goal Name</label>
+                            <input type="text" placeholder="e.g., Emergency Fund, Vacation, New Laptop..." value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Target Amount</label>
+                            <input type="number" placeholder="0.00" value={form.targetAmount} onChange={e => setForm({...form, targetAmount: e.target.value})} className={inputCls} min="0" step="0.01" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Deadline (optional)</label>
+                            <input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className={inputCls} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Category (optional)</label>
+                            <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={`${selectCls} w-full`}>
+                                <option value="">None</option>
+                                {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Notes (optional)</label>
+                            <input type="text" placeholder="Description or notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={inputCls} />
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label className={labelCls}>Color</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {CATEGORY_COLORS.map(c => (
+                                    <button key={c} onClick={() => setForm({...form, color: c})} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                        <button onClick={resetForm} className={btnSecondary}>Cancel</button>
+                        <button onClick={handleSubmit} className={btnPrimary} disabled={!form.name || !form.targetAmount}>
+                            <FontAwesomeIcon icon={editing ? faCheck : faPlus} className="mr-1.5 text-xs" />
+                            {editing ? 'Save Changes' : 'Create Goal'}
+                        </button>
+                    </div>
+                </div></AnimateIn>
+            )}
+
+            {/* Active Goals */}
+            {activeGoals.map((g, gIdx) => {
+                const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
+                const remaining = Math.max(g.targetAmount - g.currentAmount, 0)
+                const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
+                const isExpanded = expandedGoal === g._id
+                const isOverdue = daysLeft !== null && daysLeft < 0
+                const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
+                const monthlyNeeded = daysLeft && daysLeft > 0 && remaining > 0 ? remaining / (daysLeft / 30) : null
+
+                return (
+                    <AnimateIn key={g._id} delay={300 + gIdx * 60}>
+                    <div className={`${card} overflow-hidden`}>
+                        <div className="p-5">
+                            {/* Row 1: Icon + Name + Actions */}
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '15' }}>
+                                        <SafeIcon name={g.icon || 'bullseye'} cls="text-sm" style={{ color: g.color }} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className={`text-sm font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>{g.name}</h4>
+                                            <span className={`text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${
+                                                pct >= 100 ? 'bg-emerald-500/10 text-emerald-500' : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400')
+                                            }`}>{pct}%</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            {g.category && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{g.category.name}</span>}
+                                            {g.category && daysLeft !== null && <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>·</span>}
+                                            {daysLeft !== null && (
+                                                <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : isUrgent ? 'text-amber-500' : (isLight ? 'text-slate-400' : 'text-gray-500')}`}>
+                                                    {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
+                                    <button onClick={() => handleEdit(g)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                        <FontAwesomeIcon icon={faPen} className="text-[10px]" />
+                                    </button>
+                                    <button onClick={() => handleDelete(g._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500')}`}>
+                                        <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Row 2: Amount + Progress */}
+                            <div className="mb-3">
+                                <div className="flex items-baseline justify-between mb-1.5">
+                                    <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
+                                        <span className="font-semibold" style={{ color: g.color }}>{formatCurrency(g.currentAmount)}</span> of {formatCurrency(g.targetAmount)}
+                                    </span>
+                                    {remaining > 0 && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(remaining)} left</span>}
+                                </div>
+                                <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#141414]'}`}>
+                                    <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: g.color, animation: `barGrow 0.8s ease-out ${0.2 + gIdx * 0.08}s both` }} />
+                                </div>
+                            </div>
+
+                            {/* Row 3: Add Funds + Info */}
+                            <div className="flex items-center justify-between">
+                                {contribForm.goalId === g._id ? (
+                                    <div className="flex items-center gap-2 flex-1">
+                                        <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs`} min="0" step="0.01" autoFocus />
+                                        <input type="text" placeholder="Note" value={contribForm.notes} onChange={e => setContribForm({...contribForm, notes: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs hidden sm:block`} />
+                                        <button onClick={handleContribute} disabled={!contribForm.amount} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}>
+                                            <FontAwesomeIcon icon={faCheck} className="text-[9px]" />
+                                        </button>
+                                        <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`text-xs px-1.5 py-1.5 rounded-lg ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1f1f1f]'}`}>
+                                            <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/15 text-emerald-400 hover:bg-emerald-900/25'}`}>
+                                            <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
+                                            Add Funds
+                                        </button>
+                                        {monthlyNeeded && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(monthlyNeeded)}/mo to reach target</span>}
+                                    </div>
+                                )}
+                                <button onClick={() => setExpandedGoal(isExpanded ? null : g._id)} className={`flex items-center gap-1 text-[10px] ml-2 flex-shrink-0 px-2 py-1.5 rounded-lg transition-all ${isLight ? 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' : 'text-gray-500 hover:bg-[#151515] hover:text-gray-300'}`}>
+                                    {g.contributions?.length || 0} entries
+                                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[8px] ml-0.5" />
+                                </button>
+                            </div>
+
+                            {/* Expanded: Contribution Timeline */}
+                            {isExpanded && g.contributions?.length > 0 && (
+                                <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    {g.notes && <p className={`text-[11px] mb-3 px-2 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{g.notes}</p>}
+                                    <div className="relative pl-4">
+                                        <div className={`absolute left-[5px] top-1 bottom-1 w-px ${isLight ? 'bg-slate-200' : 'bg-[#222]'}`} />
+                                        {g.contributions.slice().reverse().slice(0, 10).map((c, i) => (
+                                            <div key={i} className="relative flex items-start gap-3 mb-2 last:mb-0">
+                                                <div className="absolute left-[-13px] top-1.5 w-2 h-2 rounded-full border-2 flex-shrink-0" style={{ borderColor: g.color, backgroundColor: i === 0 ? g.color : 'transparent' }} />
+                                                <div className="flex items-center justify-between flex-1 min-w-0">
+                                                    <div className="min-w-0">
+                                                        <span className={`text-xs font-semibold text-emerald-500`}>+{formatCurrency(c.amount)}</span>
+                                                        {c.notes && <span className={`text-[10px] ml-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.notes}</span>}
+                                                    </div>
+                                                    <span className={`text-[10px] flex-shrink-0 ml-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                        {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {g.contributions.length > 10 && (
+                                            <p className={`text-[10px] ml-2 mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>+{g.contributions.length - 10} earlier</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {isExpanded && (!g.contributions || g.contributions.length === 0) && (
+                                <div className={`mt-3 pt-3 border-t border-solid text-center py-4 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No contributions yet</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    </AnimateIn>
+                )
+            })}
+
+            {/* Completed Goals */}
+            {completedGoals.length > 0 && (
+                <AnimateIn delay={400}><div className={`${card} overflow-hidden`}>
+                    <button onClick={() => setShowCompleted(!showCompleted)} className={`w-full flex items-center justify-between px-5 py-3.5 transition-all ${isLight ? 'hover:bg-slate-50/50' : 'hover:bg-[#111]/50'}`}>
+                        <div className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faCheckCircle} className="text-xs text-emerald-500" />
+                            <span className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Completed ({completedGoals.length})</span>
+                        </div>
+                        <FontAwesomeIcon icon={showCompleted ? faChevronUp : faChevronDown} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                    </button>
+                    {showCompleted && (
+                        <div className={`px-5 pb-4 space-y-1.5`}>
+                            {completedGoals.map(g => (
+                                <div key={g._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '15' }}>
+                                            <SafeIcon name={g.icon || 'bullseye'} cls="text-[10px]" style={{ color: g.color }} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className={`text-xs font-semibold truncate ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</p>
+                                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                {g.contributions?.length || 0} contributions · {g.deadline ? new Date(g.updatedAt || g.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No deadline'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs font-bold text-emerald-500 flex-shrink-0 ml-3">{formatCurrency(g.currentAmount)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div></AnimateIn>
+            )}
+
+            {/* Empty State */}
+            {goals.length === 0 && !showForm && (
+                <AnimateIn delay={200}><div className={`${card} py-12 text-center`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                        <FontAwesomeIcon icon={faPiggyBank} className={`text-lg ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                    </div>
+                    <p className={`text-sm font-semibold mb-1 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>No goals yet</p>
+                    <p className={`text-xs mb-4 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Start tracking what you're saving for.</p>
+                    <button onClick={() => setShowForm(true)} className={`text-xs font-semibold px-4 py-2 rounded-lg ${isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                        <FontAwesomeIcon icon={faPlus} className="mr-1.5 text-[10px]" />
+                        Create Goal
+                    </button>
+                </div></AnimateIn>
+            )}
+        </div>
+    )
+}
+
+// ==================== SETTINGS TAB ====================
+
+const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year }) => {
+    const [rateEdits, setRateEdits] = useState({})
+    const [rateEditorOpen, setRateEditorOpen] = useState(false)
+    const [savingRates, setSavingRates] = useState(false)
+    const [resettingRates, setResettingRates] = useState(false)
+    const [confirmReset, setConfirmReset] = useState(false)
+    const [notification, setNotification] = useState(null)
+    const [newPaymentMethod, setNewPaymentMethod] = useState('')
+    const [savingSettings, setSavingSettings] = useState(false)
+    const [editingFormat, setEditingFormat] = useState(false)
+    const [formatEdits, setFormatEdits] = useState({
+        numberFormat: budgetSettings?.numberFormat || 'en-PH',
+        dateFormat: budgetSettings?.dateFormat || 'en-US',
+        decimalPlaces: budgetSettings?.decimalPlaces ?? 2,
+        startOfWeek: budgetSettings?.startOfWeek || 'monday',
+    })
+    const [editingCatId, setEditingCatId] = useState(null)
+    const [catBudgetEdit, setCatBudgetEdit] = useState('')
+
+    useEffect(() => {
+        setFormatEdits({
+            numberFormat: budgetSettings?.numberFormat || 'en-PH',
+            dateFormat: budgetSettings?.dateFormat || 'en-US',
+            decimalPlaces: budgetSettings?.decimalPlaces ?? 2,
+            startOfWeek: budgetSettings?.startOfWeek || 'monday',
+        })
+    }, [budgetSettings])
+
+    const notify = (msg, variant = 'success') => {
+        setNotification({ msg, variant })
+        setTimeout(() => setNotification(null), 3000)
+    }
+
+    useEffect(() => {
+        const init = {}
+        CURRENCIES.filter(c => c.code !== 'PHP').forEach(c => {
+            init[c.code] = exchangeRates[c.code] || ''
+        })
+        setRateEdits(init)
+    }, [exchangeRates])
+
+    const handleSetDefaultCurrency = async (code) => {
+        await dispatch(saveExchangeRates({ rates: savedRates || {}, baseCurrency: code }))
+        setViewCurrency(code === 'PHP' ? '' : code)
+        notify(`Default currency set to ${code}`)
+    }
+
+    const handleSaveRates = async () => {
+        setSavingRates(true)
+        const rates = {}
+        Object.entries(rateEdits).forEach(([code, val]) => {
+            const num = parseFloat(val)
+            if (num > 0) rates[code] = num
+        })
+        await dispatch(saveExchangeRates({ rates }))
+        setSavingRates(false)
+        setRateEditorOpen(false)
+        notify('Exchange rates saved')
+    }
+
+    const handleResetRates = async () => {
+        setResettingRates(true)
+        const result = await dispatch(resetExchangeRates())
+        setResettingRates(false)
+        setConfirmReset(false)
+        const freshLive = result.payload?.data?.result?.liveRates || liveRates || DEFAULT_EXCHANGE_RATES
+        const init = {}
+        CURRENCIES.filter(c => c.code !== 'PHP').forEach(c => {
+            init[c.code] = freshLive[c.code] || DEFAULT_EXCHANGE_RATES[c.code] || ''
+        })
+        setRateEdits(init)
+        notify('Exchange rates reset to live rates')
+    }
+
+    const saveSettings = async (overrides = {}) => {
+        setSavingSettings(true)
+        const current = budgetSettings || {}
+        await dispatch(saveBudgetSettings({ budgetSettings: { ...current, ...overrides } }))
+        setSavingSettings(false)
+    }
+
+    const handleAddPaymentMethod = async () => {
+        const name = newPaymentMethod.trim()
+        if (!name) return
+        if (PAYMENT_METHODS.includes(name)) { notify('Method already exists', 'danger'); return }
+        const customMethods = [...(budgetSettings?.paymentMethods || []), name]
+        await saveSettings({ paymentMethods: customMethods })
+        setNewPaymentMethod('')
+        notify(`Added "${name}"`)
+    }
+
+    const handleRemovePaymentMethod = async (name) => {
+        if (DEFAULT_PAYMENT_METHODS.includes(name)) { notify('Cannot remove default method', 'danger'); return }
+        const customMethods = (budgetSettings?.paymentMethods || []).filter(m => m !== name)
+        await saveSettings({ paymentMethods: customMethods })
+        notify(`Removed "${name}"`)
+    }
+
+    const handleToggleRollover = async (cat) => {
+        await dispatch(updateBudgetCategory({ id: cat._id, name: cat.name, color: cat.color, type: cat.type, budget: cat.budget || 0, icon: cat.icon || '', rollover: !cat.rollover }))
+        dispatch(getBudgetDashboard({ month, year }))
+        notify(`${cat.name} rollover ${cat.rollover ? 'disabled' : 'enabled'}`)
+    }
+
+    const handleSaveCatBudget = async (cat) => {
+        const newBudget = parseFloat(catBudgetEdit) || 0
+        await dispatch(updateBudgetCategory({ id: cat._id, name: cat.name, color: cat.color, type: cat.type, budget: newBudget, icon: cat.icon || '', rollover: !!cat.rollover }))
+        dispatch(getBudgetDashboard({ month, year }))
+        setEditingCatId(null)
+        setCatBudgetEdit('')
+        notify(`${cat.name} budget updated to ${newBudget}`)
+    }
+
+    const handleSaveFormatSettings = async () => {
+        await saveSettings(formatEdits)
+        setEditingFormat(false)
+        notify('Formatting settings saved')
+    }
+
+    const catStats = useMemo(() => {
+        const expCats = categories.filter(c => c.type === 'expense')
+        const incCats = categories.filter(c => c.type === 'income')
+        const withBudget = expCats.filter(c => c.budget > 0)
+        const withRollover = expCats.filter(c => c.rollover)
+        return { total: categories.length, expense: expCats.length, income: incCats.length, withBudget: withBudget.length, withRollover: withRollover.length }
+    }, [categories])
+
+    const expenseStats = useMemo(() => {
+        const active = expenses.filter(e => !e.listOnly)
+        const listOnly = expenses.length - active.length
+        const recurring = expenses.filter(e => e.isRecurring)
+        const currencies = [...new Set(expenses.map(e => e.currency || 'PHP'))]
+        const methods = [...new Set(expenses.map(e => e.paymentMethod || 'Cash'))]
+        return { total: expenses.length, active: active.length, listOnly, recurring: recurring.length, currencies, methods }
+    }, [expenses])
+
+    const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
+    const sectionCls = `text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`
+    const descCls = `text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`
+
+    const NUMBER_FORMATS = [
+        { value: 'en-PH', label: 'en-PH — 1,234.56' },
+        { value: 'en-US', label: 'en-US — 1,234.56' },
+        { value: 'de-DE', label: 'de-DE — 1.234,56' },
+        { value: 'fr-FR', label: 'fr-FR — 1 234,56' },
+        { value: 'ja-JP', label: 'ja-JP — 1,234.56' },
+    ]
+    const DATE_FORMATS = [
+        { value: 'en-US', label: 'en-US — Jan 1, 2026' },
+        { value: 'en-GB', label: 'en-GB — 1 Jan 2026' },
+        { value: 'ISO', label: 'ISO — 2026-01-01' },
+        { value: 'de-DE', label: 'de-DE — 1.1.2026' },
+        { value: 'ja-JP', label: 'ja-JP — 2026/1/1' },
+    ]
+
+    return (
+        <div className="space-y-4">
+            {notification && (
+                <div className={`rounded-lg px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-all ${
+                    notification.variant === 'success'
+                        ? (isLight ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-emerald-900/20 text-emerald-400 border border-emerald-800/50')
+                        : (isLight ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-900/20 text-red-400 border border-red-800/50')
+                }`}>
+                    <FontAwesomeIcon icon={notification.variant === 'success' ? faCheckCircle : faExclamationTriangle} className="text-[10px]" />
+                    {notification.msg}
+                </div>
+            )}
+
+            {/* ─── Default Currency ─── */}
+            <AnimateIn delay={0}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'}`}>
+                        <FontAwesomeIcon icon={faExchangeAlt} className={`text-sm ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Default Currency</h3>
+                        <p className={descCls}>All amounts will be displayed in this currency</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className={labelCls}>Display Currency</label>
+                        <select
+                            value={viewCurrency}
+                            onChange={e => setViewCurrency(e.target.value)}
+                            className={`${selectCls} w-full`}
+                        >
+                            {CURRENCIES.map(c => {
+                                const val = c.code === 'PHP' ? '' : c.code
+                                const isDefault = c.code === (savedBaseCurrency || 'PHP')
+                                return <option key={c.code} value={val}>{c.symbol} {c.code} — {c.name}{isDefault ? ' ★ Default' : ''}</option>
+                            })}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        {activeViewCurrency !== (savedBaseCurrency || 'PHP') ? (
+                            <button onClick={() => handleSetDefaultCurrency(activeViewCurrency)} className={`${btnPrimary} w-full justify-center`}>
+                                <FontAwesomeIcon icon={faCheck} className="mr-1.5 text-xs" />
+                                Set {activeViewCurrency} as Default
+                            </button>
+                        ) : (
+                            <div className={`w-full text-center py-2.5 rounded-lg text-xs font-medium ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>
+                                <FontAwesomeIcon icon={faCheckCircle} className="mr-1.5" />
+                                {activeViewCurrency} is your default currency
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div></AnimateIn>
+
+            {/* ─── Exchange Rates ─── */}
+            <AnimateIn delay={100}><div className={`${card} p-5`}>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Goal' : 'Financial Goals'}</h3>
-                    <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400') : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')}`}>
-                        <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
-                        {showForm ? 'Cancel' : 'New Goal'}
+                    <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-50' : 'bg-amber-900/20'}`}>
+                            <FontAwesomeIcon icon={faCoins} className={`text-sm ${isLight ? 'text-amber-500' : 'text-amber-400'}`} />
+                        </div>
+                        <div>
+                            <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Exchange Rates</h3>
+                            <p className={descCls}>Rates relative to PHP (₱1 = X foreign)</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setRateEditorOpen(!rateEditorOpen)} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                        rateEditorOpen
+                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                            : (isLight ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-amber-900/20 text-amber-400 hover:bg-amber-900/30')
+                    }`}>
+                        <FontAwesomeIcon icon={rateEditorOpen ? faTimes : faPen} className="text-[10px]" />
+                        {rateEditorOpen ? 'Cancel' : 'Edit Rates'}
                     </button>
                 </div>
 
-                {showForm && (
-                    <div className={`p-4 rounded-lg mb-4 border border-solid ${isLight ? 'bg-slate-50/50 border-slate-200/60' : 'bg-[#141414] border-[#2B2B2B]'}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Goal Name</label>
-                                <input type="text" placeholder="e.g., Emergency Fund" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {CURRENCIES.filter(c => c.code !== 'PHP').map(c => (
+                        <div key={c.code} className={`px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                            <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs font-bold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{c.symbol} {c.code}</span>
+                                {savedRates?.[c.code] && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400'}`}>Custom</span>}
                             </div>
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Target Amount</label>
-                                <input type="number" placeholder="0.00" value={form.targetAmount} onChange={e => setForm({...form, targetAmount: e.target.value})} className={inputCls} min="0" step="0.01" />
-                            </div>
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Deadline (optional)</label>
-                                <input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className={inputCls} />
-                            </div>
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Category (optional)</label>
-                                <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={`${selectCls} w-full`}>
-                                    <option value="">None</option>
-                                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Color</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {CATEGORY_COLORS.map(c => (
-                                        <button key={c} onClick={() => setForm({...form, color: c})} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Notes</label>
-                                <input type="text" placeholder="Optional notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={inputCls} />
-                            </div>
+                            {rateEditorOpen ? (
+                                <input
+                                    type="number"
+                                    value={rateEdits[c.code] || ''}
+                                    onChange={e => setRateEdits(prev => ({ ...prev, [c.code]: e.target.value }))}
+                                    className={`${inputCls} !py-1.5 !text-xs`}
+                                    step="any"
+                                    min="0"
+                                    placeholder={`${DEFAULT_EXCHANGE_RATES[c.code] || ''}`}
+                                />
+                            ) : (
+                                <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                    {exchangeRates[c.code]?.toFixed(4) || '—'}
+                                </p>
+                            )}
                         </div>
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={resetForm} className={btnSecondary}>Cancel</button>
-                            <button onClick={handleSubmit} className={btnPrimary} disabled={!form.name || !form.targetAmount}>
-                                <FontAwesomeIcon icon={editing ? faCheck : faPlus} className="mr-1.5 text-xs" />
-                                {editing ? 'Update' : 'Create Goal'}
-                            </button>
+                    ))}
+                </div>
+
+                {rateEditorOpen && (
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                        <div className="flex items-center gap-2">
+                            {confirmReset ? (
+                                <>
+                                    <span className={`text-xs ${isLight ? 'text-red-500' : 'text-red-400'}`}>Reset all to live rates?</span>
+                                    <button onClick={handleResetRates} disabled={resettingRates} className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all ${isLight ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-red-600 text-white hover:bg-red-700'}`}>
+                                        {resettingRates ? <FontAwesomeIcon icon={faSpinner} className="animate-spin" /> : 'Confirm'}
+                                    </button>
+                                    <button onClick={() => setConfirmReset(false)} className={`text-xs px-2 py-1.5 rounded-lg ${isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-400 hover:bg-[#1f1f1f]'}`}>No</button>
+                                </>
+                            ) : (
+                                <button onClick={() => setConfirmReset(true)} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#2a2a2a]'}`}>
+                                    <FontAwesomeIcon icon={faSyncAlt} className="mr-1.5 text-[10px]" />
+                                    Reset to Live
+                                </button>
+                            )}
                         </div>
+                        <button onClick={handleSaveRates} disabled={savingRates} className={btnPrimary}>
+                            {savingRates ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-1.5" /> : <FontAwesomeIcon icon={faCheck} className="mr-1.5 text-xs" />}
+                            Save Rates
+                        </button>
                     </div>
                 )}
-            </div>
+            </div></AnimateIn>
 
-            {/* Active Goals */}
-            {activeGoals.length > 0 && (
-                <div className="space-y-3">
-                    {activeGoals.map(g => {
-                        const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
-                        const barColor = pct >= 100 ? 'bg-emerald-500' : pct >= 60 ? 'bg-blue-500' : 'bg-amber-500'
-                        const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
+            {/* ─── Payment Methods ─── */}
+            <AnimateIn delay={200}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
+                        <FontAwesomeIcon icon={faCreditCard} className={`text-sm ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Payment Methods</h3>
+                        <p className={descCls}>Add or remove methods available when recording transactions</p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {PAYMENT_METHODS.map(m => {
+                        const used = expenseStats.methods.includes(m)
+                        const isCustom = !DEFAULT_PAYMENT_METHODS.includes(m)
                         return (
-                            <div key={g._id} className={`${card} p-5 border-l-4`} style={{ borderLeftColor: g.color }}>
-                                <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: g.color + '20' }}>
-                                            <SafeIcon name={g.icon || 'bullseye'} cls="text-sm" style={{ color: g.color }} />
-                                        </div>
-                                        <div>
-                                            <h4 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.name}</h4>
-                                            <div className="flex items-center gap-2 text-[11px]">
-                                                {g.category && <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{g.category.name}</span>}
-                                                {daysLeft !== null && (
-                                                    <span className={daysLeft < 0 ? 'text-red-500' : daysLeft < 30 ? 'text-amber-500' : (isLight ? 'text-slate-400' : 'text-gray-500')}>
-                                                        {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                        <button onClick={() => handleEdit(g)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
-                                            <FontAwesomeIcon icon={faPen} className="text-[10px]" />
-                                        </button>
-                                        <button onClick={() => handleDelete(g._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`}>
-                                            <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center justify-between mb-1.5 text-xs">
-                                    <span className={isLight ? 'text-slate-500' : 'text-gray-400'}>{formatCurrency(g.currentAmount)} / {formatCurrency(g.targetAmount)}</span>
-                                    <span className={`font-bold ${pct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-600' : 'text-gray-300')}`}>{pct}%</span>
-                                </div>
-                                <div className={`h-2.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                    <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                                </div>
-
-                                {/* Contribute */}
-                                <div className="flex items-center gap-2 mt-3">
-                                    {contribForm.goalId === g._id ? (
-                                        <>
-                                            <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5`} min="0" step="0.01" />
-                                            <button onClick={handleContribute} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${isLight ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white'}`} disabled={!contribForm.amount}>Add</button>
-                                            <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`px-2 py-1.5 rounded-lg text-xs ${isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-400 hover:bg-[#1f1f1f]'}`}>
-                                                <FontAwesomeIcon icon={faTimes} />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'}`}>
-                                            <FontAwesomeIcon icon={faPlus} className="text-[9px]" />
-                                            Add Funds
-                                        </button>
-                                    )}
-                                </div>
-
-                                {g.contributions?.length > 0 && (
-                                    <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                        <p className={`text-[11px] font-semibold mb-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Recent contributions</p>
-                                        <div className="space-y-1">
-                                            {g.contributions.slice(-3).reverse().map((c, i) => (
-                                                <div key={i} className="flex items-center justify-between text-xs">
-                                                    <span className={isLight ? 'text-slate-500' : 'text-gray-400'}>{new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                                    <span className="font-semibold text-emerald-500">+{formatCurrency(c.amount)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                            <div key={m} className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-solid transition-all ${
+                                used
+                                    ? (isLight ? 'bg-violet-50 border-violet-200 text-violet-700' : 'bg-violet-900/15 border-violet-800/30 text-violet-400')
+                                    : (isLight ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-[#111] border-[#2B2B2B] text-gray-500')
+                            }`}>
+                                <FontAwesomeIcon icon={
+                                    m === 'GCash' ? faMobileAlt : m === 'Bank' || m === 'BPI' ? faUniversity :
+                                    m === 'Credit Card' ? faCreditCard : m === 'Debit Card' ? faCreditCard :
+                                    m === 'PayPal' ? faMoneyBillWave : faCoins
+                                } className="text-[10px]" />
+                                <span className="text-xs font-medium">{m}</span>
+                                {used && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-violet-100 text-violet-600' : 'bg-violet-900/30 text-violet-300'}`}>In use</span>}
+                                {isCustom && (
+                                    <button onClick={() => handleRemovePaymentMethod(m)} disabled={savingSettings} className={`ml-1 w-4 h-4 rounded-full flex items-center justify-center transition-all ${isLight ? 'hover:bg-red-100 text-red-400 hover:text-red-600' : 'hover:bg-red-900/30 text-red-500 hover:text-red-400'}`}>
+                                        <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
+                                    </button>
                                 )}
                             </div>
                         )
                     })}
                 </div>
-            )}
+                <div className="flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={newPaymentMethod}
+                        onChange={e => setNewPaymentMethod(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddPaymentMethod()}
+                        placeholder="Add custom method..."
+                        className={`${inputCls} flex-1 !py-2`}
+                    />
+                    <button onClick={handleAddPaymentMethod} disabled={!newPaymentMethod.trim() || savingSettings} className={btnPrimary}>
+                        {savingSettings ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-1.5" /> : <FontAwesomeIcon icon={faPlus} className="mr-1.5 text-xs" />}
+                        Add
+                    </button>
+                </div>
+            </div></AnimateIn>
 
-            {/* Completed Goals */}
-            {completedGoals.length > 0 && (
-                <div className={`${card} p-5`}>
-                    <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Completed ({completedGoals.length})</h4>
-                    <div className="space-y-2">
-                        {completedGoals.map(g => (
-                            <div key={g._id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-emerald-50/50' : 'bg-emerald-900/10'}`}>
-                                <div className="flex items-center gap-2">
-                                    <FontAwesomeIcon icon={faCheckCircle} className="text-emerald-500 text-xs" />
-                                    <span className={`text-sm ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</span>
+            {/* ─── Categories Overview ─── */}
+            <AnimateIn delay={300}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-50' : 'bg-emerald-900/20'}`}>
+                        <FontAwesomeIcon icon={faTags} className={`text-sm ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Categories Overview</h3>
+                        <p className={descCls}>Toggle rollover and edit budgets inline</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
+                    {[
+                        { label: 'Total', value: catStats.total, icon: faTags, color: isLight ? 'text-slate-600' : 'text-gray-300' },
+                        { label: 'Expense', value: catStats.expense, icon: faArrowDown, color: 'text-red-500' },
+                        { label: 'Income', value: catStats.income, icon: faArrowUp, color: 'text-emerald-500' },
+                        { label: 'With Budget', value: catStats.withBudget, icon: faWallet, color: isLight ? 'text-blue-600' : 'text-blue-400' },
+                        { label: 'Rollover', value: catStats.withRollover, icon: faSyncAlt, color: isLight ? 'text-amber-600' : 'text-amber-400' },
+                    ].map((s, i) => (
+                        <div key={i} className={`text-center px-3 py-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                            <FontAwesomeIcon icon={s.icon} className={`text-xs mb-1.5 ${s.color}`} />
+                            <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
+                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className={`border-t border-solid pt-3 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <p className={`${sectionCls} mb-3`}>Expense Categories</p>
+                    <div className="space-y-1.5">
+                        {categories.filter(c => c.type === 'expense').map(cat => (
+                            <div key={cat._id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                    {cat.icon && <SafeIcon name={cat.icon} cls="text-[10px]" style={{ color: cat.color }} />}
+                                    {!cat.icon && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />}
+                                    <span className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
                                 </div>
-                                <span className="text-sm font-semibold text-emerald-500">{formatCurrency(g.currentAmount)}</span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {editingCatId === cat._id ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <input
+                                                type="number"
+                                                value={catBudgetEdit}
+                                                onChange={e => setCatBudgetEdit(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleSaveCatBudget(cat)}
+                                                className={`${inputCls} !py-1 !px-2 !text-xs w-20`}
+                                                placeholder="0"
+                                                min="0"
+                                                autoFocus
+                                            />
+                                            <button onClick={() => handleSaveCatBudget(cat)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'}`}>
+                                                <FontAwesomeIcon icon={faCheck} className="text-[9px]" />
+                                            </button>
+                                            <button onClick={() => { setEditingCatId(null); setCatBudgetEdit('') }} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-[#2a2a2a] text-gray-500'}`}>
+                                                <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => { setEditingCatId(cat._id); setCatBudgetEdit(cat.budget?.toString() || '0') }} className={`text-[10px] font-medium px-2 py-1 rounded transition-all ${
+                                            cat.budget > 0
+                                                ? (isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/30')
+                                                : (isLight ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-[#1a1a1a] text-gray-500 hover:bg-[#222]')
+                                        }`}>
+                                            <FontAwesomeIcon icon={faWallet} className="mr-1" />
+                                            {cat.budget > 0 ? formatCurrencyRaw(cat.budget, 'PHP') : 'No budget'}
+                                        </button>
+                                    )}
+                                    <button onClick={() => handleToggleRollover(cat)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                                        cat.rollover
+                                            ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400')
+                                            : (isLight ? 'bg-slate-100 text-slate-300 hover:text-slate-500' : 'bg-[#1a1a1a] text-gray-600 hover:text-gray-400')
+                                    }`} title={cat.rollover ? 'Disable rollover' : 'Enable rollover'}>
+                                        <FontAwesomeIcon icon={faSyncAlt} className="text-[10px]" />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            )}
 
-            {goals.length === 0 && !showForm && (
-                <div className={`${card} p-8 text-center`}>
-                    <FontAwesomeIcon icon={faCheckCircle} className={`text-3xl mb-3 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                    <p className={`text-sm font-medium mb-1 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>No financial goals yet</p>
-                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Create goals to track your savings progress.</p>
+                {categories.filter(c => c.type === 'income').length > 0 && (
+                    <div className={`mt-4 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <p className={`${sectionCls} mb-3`}>Income Categories</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {categories.filter(c => c.type === 'income').map(c => (
+                                <span key={c._id} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${isLight ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-900/15 text-emerald-400'}`}>
+                                    {c.icon && <SafeIcon name={c.icon} cls="text-[9px]" style={{ color: c.color }} />}
+                                    {c.name}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div></AnimateIn>
+
+            {/* ─── Transaction Stats ─── */}
+            <AnimateIn delay={400}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-cyan-50' : 'bg-cyan-900/20'}`}>
+                        <FontAwesomeIcon icon={faChartPie} className={`text-sm ${isLight ? 'text-cyan-500' : 'text-cyan-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Current Month Stats</h3>
+                        <p className={descCls}>Transaction statistics for the selected month</p>
+                    </div>
                 </div>
-            )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                        { label: 'Total Transactions', value: expenseStats.total, color: isLight ? 'text-slate-700' : 'text-gray-200' },
+                        { label: 'Active', value: expenseStats.active, color: isLight ? 'text-blue-600' : 'text-blue-400' },
+                        { label: 'List Only', value: expenseStats.listOnly, color: isLight ? 'text-amber-600' : 'text-amber-400' },
+                        { label: 'Recurring', value: expenseStats.recurring, color: isLight ? 'text-violet-600' : 'text-violet-400' },
+                    ].map((s, i) => (
+                        <div key={i} className={`text-center px-3 py-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {expenseStats.currencies.length > 0 && (
+                    <div className={`mt-4 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <p className={`${sectionCls} mb-2`}>Currencies in Use</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {expenseStats.currencies.map(code => {
+                                const cur = CURRENCIES.find(c => c.code === code)
+                                return (
+                                    <span key={code} className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg ${
+                                        code === activeViewCurrency
+                                            ? (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
+                                            : (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                                    }`}>
+                                        {cur?.symbol || ''} {code}
+                                        {code === activeViewCurrency && <FontAwesomeIcon icon={faEye} className="text-[9px] ml-0.5" />}
+                                    </span>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+            </div></AnimateIn>
+
+            {/* ─── Data & Formatting ─── */}
+            <AnimateIn delay={500}><div className={`${card} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-rose-50' : 'bg-rose-900/20'}`}>
+                            <FontAwesomeIcon icon={faCogs} className={`text-sm ${isLight ? 'text-rose-500' : 'text-rose-400'}`} />
+                        </div>
+                        <div>
+                            <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Data & Formatting</h3>
+                            <p className={descCls}>Customize how your data is displayed</p>
+                        </div>
+                    </div>
+                    {!editingFormat && (
+                        <button onClick={() => setEditingFormat(true)} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-rose-900/20 text-rose-400 hover:bg-rose-900/30'}`}>
+                            <FontAwesomeIcon icon={faPen} className="text-[10px]" />
+                            Edit
+                        </button>
+                    )}
+                </div>
+                {editingFormat ? (
+                    <div className="space-y-3">
+                        <div>
+                            <label className={labelCls}>Number Format</label>
+                            <select value={formatEdits.numberFormat} onChange={e => setFormatEdits(p => ({ ...p, numberFormat: e.target.value }))} className={`${selectCls} w-full`}>
+                                {NUMBER_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Date Format</label>
+                            <select value={formatEdits.dateFormat} onChange={e => setFormatEdits(p => ({ ...p, dateFormat: e.target.value }))} className={`${selectCls} w-full`}>
+                                {DATE_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Decimal Places</label>
+                            <select value={formatEdits.decimalPlaces} onChange={e => setFormatEdits(p => ({ ...p, decimalPlaces: parseInt(e.target.value) }))} className={`${selectCls} w-full`}>
+                                <option value={0}>0</option>
+                                <option value={1}>1</option>
+                                <option value={2}>2</option>
+                                <option value={3}>3</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Start of Week</label>
+                            <select value={formatEdits.startOfWeek} onChange={e => setFormatEdits(p => ({ ...p, startOfWeek: e.target.value }))} className={`${selectCls} w-full`}>
+                                <option value="monday">Monday</option>
+                                <option value="sunday">Sunday</option>
+                                <option value="saturday">Saturday</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2">
+                            <button onClick={handleSaveFormatSettings} disabled={savingSettings} className={btnPrimary}>
+                                {savingSettings ? <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-1.5" /> : <FontAwesomeIcon icon={faCheck} className="mr-1.5 text-xs" />}
+                                Save Settings
+                            </button>
+                            <button onClick={() => { setEditingFormat(false); setFormatEdits({ numberFormat: budgetSettings?.numberFormat || 'en-PH', dateFormat: budgetSettings?.dateFormat || 'en-US', decimalPlaces: budgetSettings?.decimalPlaces ?? 2, startOfWeek: budgetSettings?.startOfWeek || 'monday' }) }} className={btnSecondary}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {[
+                            { label: 'Number Format', value: budgetSettings?.numberFormat || 'en-PH', desc: 'Controls thousand separators and decimal notation' },
+                            { label: 'Date Format', value: budgetSettings?.dateFormat || 'en-US', desc: 'Controls how dates are displayed throughout the app' },
+                            { label: 'Decimal Places', value: String(budgetSettings?.decimalPlaces ?? 2), desc: 'Number of decimal places shown for amounts' },
+                            { label: 'Start of Week', value: (budgetSettings?.startOfWeek || 'monday').charAt(0).toUpperCase() + (budgetSettings?.startOfWeek || 'monday').slice(1), desc: 'First day of the week in calendar views' },
+                            { label: 'Base Currency', value: 'PHP (₱)', desc: 'Internal base for all exchange rate calculations' },
+                            { label: 'Rate Source', value: 'open.er-api.com', desc: 'Live rates refresh every 6 hours, overridable manually' },
+                        ].map((item, i) => (
+                            <div key={i} className={`flex items-start justify-between px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                <div>
+                                    <p className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{item.label}</p>
+                                    <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{item.desc}</p>
+                                </div>
+                                <span className={`text-xs font-bold flex-shrink-0 ml-3 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{item.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div></AnimateIn>
+
+            {/* ─── Supported Currencies ─── */}
+            <AnimateIn delay={600}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                        <FontAwesomeIcon icon={faMoneyBillWave} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Supported Currencies</h3>
+                        <p className={descCls}>Available currencies for transactions and display</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {CURRENCIES.map(c => {
+                        const isActive = c.code === activeViewCurrency
+                        const isDefault = c.code === (savedBaseCurrency || 'PHP')
+                        const rate = c.code === 'PHP' ? null : exchangeRates[c.code]
+                        return (
+                            <div key={c.code} className={`px-3 py-2.5 rounded-lg border border-solid transition-all ${
+                                isActive
+                                    ? (isLight ? 'bg-indigo-50 border-indigo-200' : 'bg-indigo-900/15 border-indigo-800/30')
+                                    : (isLight ? 'bg-white border-slate-200' : 'bg-[#111] border-[#2B2B2B]')
+                            }`}>
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{c.symbol} {c.code}</span>
+                                    <div className="flex items-center gap-1">
+                                        {isDefault && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>★</span>}
+                                        {isActive && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-900/30 text-indigo-400'}`}>Viewing</span>}
+                                    </div>
+                                </div>
+                                <p className={`text-[11px] truncate ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.name}</p>
+                                {rate && <p className={`text-[10px] mt-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>₱1 = {rate.toFixed(4)}</p>}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div></AnimateIn>
+
+            {/* ─── Feature Reference ─── */}
+            <AnimateIn delay={700}><div className={`${card} p-5`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-teal-50' : 'bg-teal-900/20'}`}>
+                        <FontAwesomeIcon icon={faEye} className={`text-sm ${isLight ? 'text-teal-500' : 'text-teal-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Feature Reference</h3>
+                        <p className={descCls}>How special features work in the Budget Manager</p>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    {[
+                        { icon: faEyeSlash, title: 'List Only', desc: 'Mark transactions as "list only" to exclude them from all totals, budgets, and charts while still keeping them visible.', color: isLight ? 'text-amber-500' : 'text-amber-400' },
+                        { icon: faSyncAlt, title: 'Budget Rollover', desc: 'Enable per-category to carry unspent budget from the previous month into the current month automatically.', color: isLight ? 'text-blue-500' : 'text-blue-400' },
+                        { icon: faSyncAlt, title: 'Recurring Transactions', desc: 'Set transactions to repeat daily, weekly, biweekly, or monthly. They auto-generate when you visit the app.', color: isLight ? 'text-violet-500' : 'text-violet-400' },
+                        { icon: faUserFriends, title: 'Shared Categories', desc: 'Share expense categories with other users so they can record transactions under the same categories.', color: isLight ? 'text-emerald-500' : 'text-emerald-400' },
+                        { icon: faCalendarCheck, title: 'Year-to-Date', desc: 'Dashboard and Summary tabs show YTD aggregates — income, expenses, balance, and monthly breakdown for the current year.', color: isLight ? 'text-indigo-500' : 'text-indigo-400' },
+                    ].map((f, i) => (
+                        <div key={i} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+                                <FontAwesomeIcon icon={f.icon} className={`text-xs ${f.color}`} />
+                            </div>
+                            <div>
+                                <p className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{f.title}</p>
+                                <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{f.desc}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div></AnimateIn>
         </div>
     )
 }

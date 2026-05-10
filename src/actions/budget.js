@@ -14,9 +14,13 @@ const initialState = {
     exchangeRates   : null,
     liveRates       : null,
     baseCurrency    : 'PHP',
+    budgetSettings  : null,
     alert           : {},
     isLoading       : false,
     isSavingsLoading: false,
+    isDebtsLoading  : false,
+    isGoalsLoading  : false,
+    isListsLoading  : false,
 }
 
 // ==================== DASHBOARD ====================
@@ -194,6 +198,18 @@ export const resetExchangeRates = createAsyncThunk('budget/resetExchangeRates', 
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
         return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to reset exchange rates' } })
+    }
+})
+
+// ==================== BUDGET SETTINGS ====================
+
+export const saveBudgetSettings = createAsyncThunk('budget/saveBudgetSettings', async (data, thunkAPI) => {
+    try {
+        const response = await api.saveBudgetSettings(data)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to save settings' } })
     }
 })
 
@@ -537,6 +553,7 @@ export const budgetSlice = createSlice({
             state.exchangeRates = action.payload.data.result.rates
             state.liveRates = action.payload.data.result.liveRates
             state.baseCurrency = action.payload.data.result.baseCurrency || 'PHP'
+            if (action.payload.data.result.budgetSettings) state.budgetSettings = action.payload.data.result.budgetSettings
         })
         builder.addCase(getExchangeRates.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
@@ -553,6 +570,13 @@ export const budgetSlice = createSlice({
             state.alert = action.payload.data.alert
         })
         builder.addCase(resetExchangeRates.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        // Budget Settings
+        builder.addCase(saveBudgetSettings.fulfilled, (state, action) => {
+            state.budgetSettings = action.payload.data.result.budgetSettings
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(saveBudgetSettings.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
         // Search
         builder.addCase(searchBudgetExpenses.fulfilled, (state, action) => { state.searchResults = action.payload.data.result })
@@ -605,8 +629,9 @@ export const budgetSlice = createSlice({
         builder.addCase(deleteBudgetSavingsHistory.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
         // Debts
-        builder.addCase(getDebts.fulfilled, (state, action) => { state.debts = action.payload.data.result })
-        builder.addCase(getDebts.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+        builder.addCase(getDebts.pending, (state) => { state.isDebtsLoading = true })
+        builder.addCase(getDebts.fulfilled, (state, action) => { state.debts = action.payload.data.result; state.isDebtsLoading = false })
+        builder.addCase(getDebts.rejected, (state, action) => { state.alert = action.payload?.alert || {}; state.isDebtsLoading = false })
 
         builder.addCase(createDebt.fulfilled, (state, action) => {
             state.debts = action.payload.data.result
@@ -645,8 +670,9 @@ export const budgetSlice = createSlice({
         builder.addCase(toggleDebtStatus.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
         // Budget Lists
-        builder.addCase(getBudgetLists.fulfilled, (state, action) => { state.budgetLists = action.payload.data.result })
-        builder.addCase(getBudgetLists.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+        builder.addCase(getBudgetLists.pending, (state) => { state.isListsLoading = true })
+        builder.addCase(getBudgetLists.fulfilled, (state, action) => { state.budgetLists = action.payload.data.result; state.isListsLoading = false })
+        builder.addCase(getBudgetLists.rejected, (state, action) => { state.alert = action.payload?.alert || {}; state.isListsLoading = false })
 
         builder.addCase(createBudgetList.fulfilled, (state, action) => {
             state.budgetLists = action.payload.data.result
@@ -667,8 +693,9 @@ export const budgetSlice = createSlice({
         builder.addCase(deleteBudgetList.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
 
         // Financial Goals
-        builder.addCase(getFinancialGoals.fulfilled, (state, action) => { state.goals = action.payload.data.result })
-        builder.addCase(getFinancialGoals.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+        builder.addCase(getFinancialGoals.pending, (state) => { state.isGoalsLoading = true })
+        builder.addCase(getFinancialGoals.fulfilled, (state, action) => { state.goals = action.payload.data.result; state.isGoalsLoading = false })
+        builder.addCase(getFinancialGoals.rejected, (state, action) => { state.alert = action.payload?.alert || {}; state.isGoalsLoading = false })
 
         builder.addCase(createFinancialGoal.fulfilled, (state, action) => {
             state.goals = action.payload.data.result
