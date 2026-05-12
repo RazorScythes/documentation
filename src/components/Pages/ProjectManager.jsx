@@ -725,9 +725,9 @@ const ProjectManager = ({ user, theme }) => {
     const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
-    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
+    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300'}`
     const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
-    const sectionBorder = isLight ? 'border-slate-100' : 'border-[#1f1f1f]'
+    const sectionBorder = isLight ? 'border-slate-100' : 'border-[#0e0e0e]'
     const mutedText = isLight ? 'text-slate-400' : 'text-gray-600'
     const subText = isLight ? 'text-slate-500' : 'text-gray-400'
 
@@ -886,7 +886,7 @@ const ProjectManager = ({ user, theme }) => {
             </div>
         )
 
-        const elCls = `rounded-lg p-3 mb-2 ${isLight ? 'bg-slate-50/70 border border-solid border-slate-100' : 'bg-[#111]/50 border border-solid border-[#1f1f1f]'}`
+        const elCls = `rounded-lg p-3 mb-2 ${isLight ? 'bg-slate-50/70 border border-solid border-slate-100' : 'bg-[#111]/50 border border-solid border-[#0e0e0e]'}`
 
         switch (item.element) {
             case 'heading':
@@ -1356,7 +1356,7 @@ const ProjectManager = ({ user, theme }) => {
                                 ))}
                             </div>
                             {view !== 'form' && (
-                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <button onClick={() => setActiveTab('projects')}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'projects'
                                             ? (isLight ? 'bg-purple-50 text-purple-600' : 'bg-purple-900/20 text-purple-400')
@@ -1555,7 +1555,7 @@ const ProjectManager = ({ user, theme }) => {
                                                 <div key={cat._id}
                                                     className={`flex items-center justify-between px-4 py-3 rounded-xl border border-solid transition-all ${editCatId === cat._id
                                                         ? (isLight ? 'border-blue-200 bg-blue-50/50' : 'border-blue-800 bg-blue-900/10')
-                                                        : (isLight ? 'border-slate-100 hover:border-slate-200 bg-white' : 'border-[#1f1f1f] hover:border-[#2B2B2B] bg-[#0e0e0e]')
+                                                        : (isLight ? 'border-slate-100 hover:border-slate-200 bg-white' : 'border-[#0e0e0e] hover:border-[#2B2B2B] bg-[#0e0e0e]')
                                                     }`}>
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-50' : 'bg-amber-900/20'}`}>
@@ -1897,7 +1897,7 @@ const ProjectManager = ({ user, theme }) => {
                                             {form.attachments?.length > 0 && (
                                                 <div className="space-y-1.5 mb-3">
                                                     {form.attachments.map((att, ai) => (
-                                                        <div key={ai} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                        <div key={ai} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                             <FontAwesomeIcon icon={faFile} className={isLight ? 'text-blue-400' : 'text-blue-500'} />
                                                             <div className="flex-1 min-w-0">
                                                                 <p className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{att.name}</p>
@@ -1926,7 +1926,7 @@ const ProjectManager = ({ user, theme }) => {
                                         {/* Changelog */}
                                         <div>
                                             <label className={labelCls}><FontAwesomeIcon icon={faHistory} className="mr-1" />Changelog</label>
-                                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                 <input type="text" className={`${inputCls} w-20 text-xs`} value={changelogVersion}
                                                     onChange={e => setChangelogVersion(e.target.value)} placeholder="v1.0" />
                                                 <input type="text" className={`${inputCls} text-xs`} value={changelogDesc}
@@ -1940,7 +1940,7 @@ const ProjectManager = ({ user, theme }) => {
                                             {form.changelog?.length > 0 && (
                                                 <div className="space-y-1.5 mb-3 mt-1">
                                                     {form.changelog.map((entry, ci) => (
-                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                             <span className={`font-bold whitespace-nowrap ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
                                                             <span className={`flex-1 truncate ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</span>
                                                             <span className={`text-[10px] whitespace-nowrap ${mutedText}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
@@ -1989,7 +1989,7 @@ const ProjectManager = ({ user, theme }) => {
                                             )}
                                         </div>
                                         {/* Privacy */}
-                                        <div className={`rounded-lg p-3 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                        <div className={`rounded-lg p-3 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input type="checkbox" checked={form.privacy} onChange={() => setForm({ ...form, privacy: !form.privacy })}
                                                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />

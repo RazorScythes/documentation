@@ -78,7 +78,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
 
             {/* Email Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-rose-100' : 'bg-rose-900/30'}`}>
                             <FontAwesomeIcon icon={faEnvelope} className={`text-sm ${isLight ? 'text-rose-600' : 'text-rose-400'}`} />
@@ -121,7 +121,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
 
             {/* Subjects Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                             <FontAwesomeIcon icon={faTags} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
@@ -130,7 +130,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
                     </div>
                     <button onClick={() => setShowSubjectForm(!showSubjectForm)}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showSubjectForm
-                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                             : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                         }`}>
                         <FontAwesomeIcon icon={showSubjectForm ? faTimes : faPlus} className="text-[10px]" />
@@ -139,7 +139,7 @@ const Contact = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeco
                 </div>
 
                 {showSubjectForm && (
-                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]'}`}>
                         <div>
                             <label className={labelCls}>Subject Name</label>
                             <div className="flex gap-2">

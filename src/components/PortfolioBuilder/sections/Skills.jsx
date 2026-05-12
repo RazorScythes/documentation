@@ -45,7 +45,7 @@ const ColorPicker = ({ value, onChange, isLight }) => {
                                 </button>
                             ))}
                         </div>
-                        <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                             <div className="flex items-center gap-2">
                                 <input type="color" value={value || '#3b82f6'} onChange={(e) => { onChange(e.target.value); setOpen(false) }}
                                     className="w-8 h-8 rounded-md cursor-pointer border-0 p-0" />
@@ -205,7 +205,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
 
             {/* Details Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
                             <FontAwesomeIcon icon={faLaptopCode} className={`text-sm ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
@@ -246,7 +246,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
 
             {/* Skills List Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
                             <FontAwesomeIcon icon={faLaptopCode} className={`text-sm ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
@@ -255,7 +255,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
                     </div>
                     <button onClick={() => { setShowForm(!showForm); setEditingSkill(null) }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm
-                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                             : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                         }`}>
                         <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
@@ -265,7 +265,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
 
                 {/* Add Form */}
                 {showForm && (
-                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]'}`}>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label className={labelCls}>Skill Name <span className="text-red-400">*</span></label>
@@ -334,7 +334,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
                                 editingSkill === i
                                     ? (isLight ? 'bg-amber-50' : 'bg-amber-900/10')
                                     : (isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]')
-                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                 <div className="w-3 h-3 rounded-full flex-shrink-0 border border-solid" style={{ backgroundColor: s.hex || '#3b82f6', borderColor: s.hex || '#3b82f6' }} />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
@@ -371,7 +371,7 @@ const Skills = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSecon
 
             {/* Icons Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                             <FontAwesomeIcon icon={faImage} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />

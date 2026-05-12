@@ -106,7 +106,7 @@ const GameCard = ({ game, isLight, isFavorited, onToggleFavorite }) => {
 }
 
 const SkeletonCard = ({ isLight }) => {
-    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#0e0e0e]'}`
     return (
         <div className={`rounded-xl overflow-hidden ${isLight ? 'bg-white/90 border border-solid border-slate-200/80' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B]'}`}>
             <div className={`aspect-[16/10] ${pulse}`} />
@@ -263,7 +263,7 @@ const GamesPage = ({ user, theme }) => {
     const card = `rounded-xl border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`
     const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800 placeholder:text-slate-300' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200 placeholder:text-gray-600'}`
     const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
-    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+    const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#0e0e0e]'}`
 
     const heading = key ? `Search: "${decodeURIComponent(key)}"` : developer ? `Developer: ${decodeURIComponent(developer)}` : 'Browse Games'
     const subheading = key ? 'Showing results for your search query' : developer ? 'Games by this developer' : 'Discover and explore games'
@@ -338,7 +338,7 @@ const GamesPage = ({ user, theme }) => {
                                 </div>
 
                                 {isLoaded && (
-                                    <div className={`flex items-center gap-2 mt-4 pt-4 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2 mt-4 pt-4 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{processed.length} game{processed.length !== 1 ? 's' : ''}</span>
                                         {(key || developer) && (
                                             <Link to="/games" className={`text-[11px] ml-auto transition-colors ${isLight ? 'text-blue-500 hover:text-blue-600' : 'text-blue-400 hover:text-blue-300'}`}>
@@ -473,11 +473,11 @@ const GamesPage = ({ user, theme }) => {
                                                 </p>
                                                 <div className="flex items-center gap-1">
                                                     <button disabled={page === 0} onClick={() => { setPage(0); window.scrollTo(0, 0) }}
-                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                         <FontAwesomeIcon icon={faAngleDoubleLeft} className="text-[10px]" />
                                                     </button>
                                                     <button disabled={page === 0} onClick={() => { setPage(page - 1); window.scrollTo(0, 0) }}
-                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                         <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
                                                     </button>
                                                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -490,16 +490,16 @@ const GamesPage = ({ user, theme }) => {
                                                             <button key={pn} onClick={() => { setPage(pn); window.scrollTo(0, 0) }}
                                                                 className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-medium transition-all ${page === pn
                                                                     ? (isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white')
-                                                                    : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400')
+                                                                    : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400')
                                                                 }`}>{pn + 1}</button>
                                                         )
                                                     })}
                                                     <button disabled={page >= totalPages - 1} onClick={() => { setPage(page + 1); window.scrollTo(0, 0) }}
-                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                         <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                                                     </button>
                                                     <button disabled={page >= totalPages - 1} onClick={() => { setPage(totalPages - 1); window.scrollTo(0, 0) }}
-                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                        className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                         <FontAwesomeIcon icon={faAngleDoubleRight} className="text-[10px]" />
                                                     </button>
                                                 </div>
@@ -533,7 +533,7 @@ const GamesPage = ({ user, theme }) => {
                                     </div>
                                 ) : (
                                     <div className={`${card} overflow-hidden`}>
-                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                                 <FontAwesomeIcon icon={faLayerGroup} className={`text-xs ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
                                             </div>
@@ -572,7 +572,7 @@ const GamesPage = ({ user, theme }) => {
                                     </div>
                                 ) : tagsList?.length > 0 && (
                                     <div className={`${card} overflow-hidden`}>
-                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                                                 <FontAwesomeIcon icon={faTag} className={`text-xs ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
                                             </div>
@@ -597,7 +597,7 @@ const GamesPage = ({ user, theme }) => {
                                 {/* Developer Link */}
                                 {developer && (
                                     <div className={`${card} overflow-hidden`}>
-                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
                                                 <FontAwesomeIcon icon={faCode} className={`text-xs ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
                                             </div>

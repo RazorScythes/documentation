@@ -210,7 +210,7 @@ const Groups = ({ user, theme, setNotification }) => {
                                     </tr></thead>
                                     <tbody>
                                         {pageData.length > 0 ? pageData.map((row, i) => (
-                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#1F1F1F]'}`}>
+                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#0e0e0e]'}`}>
                                                 <td className={`${tdClass} w-10`}><input type="checkbox" checked={selected.includes(row._id)} onChange={() => toggleOne(row._id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500" /></td>
                                                 <td className={tdClass}><span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{row.group_name}</span></td>
                                                 <td className={tdClass}><span className={`text-xs max-w-[200px] truncate block ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{row.description || '—'}</span></td>

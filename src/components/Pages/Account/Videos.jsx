@@ -202,7 +202,7 @@ const VideoTable = ({ theme, data, loading, isLight, onEdit, onDelete, onPreview
                             <tr key={row._id || i}
                                 className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${
                                     selected.includes(row._id) ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')
-                                } ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#1F1F1F]'}`}>
+                                } ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#0e0e0e]'}`}>
 
                                 {/* Checkbox */}
                                 <td className={`${tdClass} w-10`}>

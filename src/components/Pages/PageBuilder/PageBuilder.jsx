@@ -175,7 +175,7 @@ const PageBuilder = ({ theme }) => {
                     <div className={`w-60 flex-shrink-0 flex flex-col border-r border-solid overflow-hidden ${
                         isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'
                     }`}>
-                        <div className={`flex border-b border-solid flex-shrink-0 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className={`flex border-b border-solid flex-shrink-0 ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                             {[
                                 { key: 'components', icon: faCubes, label: 'Add' },
                                 { key: 'layers', icon: faLayerGroup, label: 'Layers' },

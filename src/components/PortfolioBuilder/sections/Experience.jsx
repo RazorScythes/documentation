@@ -113,7 +113,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
         <div className="space-y-4">
             {/* Experience List Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                             <FontAwesomeIcon icon={faBriefcase} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
@@ -130,7 +130,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
                         )}
                         <button onClick={() => { if (editingIndex !== null) cancelEdit(); else { setShowForm(!showForm); resetForm() } }}
                             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm && editingIndex === null
-                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                                 : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                             }`}>
                             <FontAwesomeIcon icon={showForm && editingIndex === null ? faTimes : faPlus} className="text-[10px]" />
@@ -142,7 +142,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
                 {showForm && (
                     <div className={`px-4 sm:px-5 py-4 border-b border-solid ${editingIndex !== null
                         ? (isLight ? 'bg-amber-50/50 border-amber-200/50' : 'bg-amber-900/10 border-amber-800/30')
-                        : (isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]')
+                        : (isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]')
                     }`}>
                         {editingIndex !== null && (
                             <div className="flex items-center justify-between mb-3">
@@ -221,7 +221,7 @@ const Experience = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnS
                                 editingIndex === i
                                     ? (isLight ? 'bg-amber-50' : 'bg-amber-900/10')
                                     : (isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]')
-                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                 {e.company_logo ? (
                                     <img src={e.company_logo} className={`w-9 h-9 rounded-lg object-cover flex-shrink-0 ${isLight ? 'border border-slate-200' : 'border border-[#333]'}`} alt="" />
                                 ) : (

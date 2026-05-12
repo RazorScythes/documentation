@@ -589,7 +589,7 @@ const MongoStorage = ({ user, theme }) => {
                                                     className={`w-full text-left px-4 sm:px-5 py-3 flex items-center gap-3 transition-colors ${
                                                         isExpanded
                                                             ? (isLight ? 'bg-indigo-50/50' : 'bg-indigo-950/10')
-                                                            : (isLight ? 'hover:bg-slate-50/60' : 'hover:bg-[#1f1f1f]')
+                                                            : (isLight ? 'hover:bg-slate-50/60' : 'hover:bg-[#0e0e0e]')
                                                     }`}
                                                 >
                                                     <FontAwesomeIcon icon={faChevronRight} className={`h-2.5 w-2.5 shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''} ${isLight ? 'text-slate-400' : 'text-zinc-600'}`} />

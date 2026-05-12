@@ -16,7 +16,7 @@ const card    = (l: boolean) => `rounded-xl border border-solid ${l ? 'bg-white/
 const inputCls= (l: boolean) => `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all select-text ${l ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`;
 const selCls  = (l: boolean) => `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${l ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`;
 const btnP    = (l: boolean) => `px-4 py-2 rounded-lg text-sm font-medium transition-all ${l ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`;
-const btnS    = (l: boolean) => `px-4 py-2 rounded-lg text-sm font-medium transition-all ${l ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`;
+const btnS    = (l: boolean) => `px-4 py-2 rounded-lg text-sm font-medium transition-all ${l ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300'}`;
 const lblCls  = (l: boolean) => `block text-xs font-medium mb-1.5 ${l ? 'text-slate-500' : 'text-gray-400'}`;
 
 /* ─── props / constants ──────────────────────────────────────── */
@@ -428,7 +428,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                     <h1 className={`text-base sm:text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Map Editor</h1>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={toggleTheme} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-400'}`}>
+                    <button onClick={toggleTheme} className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-400'}`}>
                       {isLight ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
                     </button>
                     {view !== 'tabs' ? (
@@ -441,7 +441,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
 
                 {/* ─── tabs ─── */}
                 {view === 'tabs' && (
-                  <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     {([
                       { id: 'structures' as TabId, label: 'Structures', Icon: GamepadIcon, count: def.data.structures.length, active: 'bg-amber-50 text-amber-600', activeDark: 'bg-amber-900/20 text-amber-400' },
                       { id: 'biomes' as TabId,     label: 'Biomes',     Icon: LayersIcon,  count: def.data.biomes.length,     active: 'bg-cyan-50 text-cyan-600',   activeDark: 'bg-cyan-900/20 text-cyan-400' },
@@ -460,7 +460,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ STRUCTURES TAB ══════════════ */}
               {view === 'tabs' && tab === 'structures' && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                         <GamepadIcon className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
@@ -488,7 +488,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                           {def.data.structures.map((s, i) => {
                             const catDef = def.data.categories.find(c => c.id === s.category);
                             return (
-                              <tr key={s.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                              <tr key={s.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                 <td className={`px-4 py-3 text-sm font-medium ${isLight ? 'text-slate-800' : 'text-gray-200'}`}>{s.label || '—'}</td>
                                 <td className="px-4 py-3">
                                   {catDef ? (
@@ -533,7 +533,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ BIOMES TAB ══════════════ */}
               {view === 'tabs' && tab === 'biomes' && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-cyan-100' : 'bg-cyan-900/30'}`}>
                         <LayersIcon className={`w-3.5 h-3.5 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
@@ -559,7 +559,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                         </thead>
                         <tbody>
                           {def.data.biomes.map((b, i) => (
-                            <tr key={b.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <tr key={b.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                               <td className={`px-4 py-3 text-sm font-medium ${isLight ? 'text-slate-800' : 'text-gray-200'}`}>{b.label || '—'}</td>
                               <td className="px-4 py-3">
                                 <span className="inline-flex items-center gap-2">
@@ -589,7 +589,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ CATEGORIES TAB ══════════════ */}
               {view === 'tabs' && tab === 'categories' && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-green-100' : 'bg-green-900/30'}`}>
                         <TagIcon className={`w-3.5 h-3.5 ${isLight ? 'text-green-600' : 'text-green-400'}`} />
@@ -615,7 +615,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                         </thead>
                         <tbody>
                           {def.data.categories.map((c, i) => (
-                            <tr key={c.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <tr key={c.id ?? i} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                               <td className="px-4 py-3">
                                 <span className="inline-flex items-center gap-2">
                                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
@@ -648,7 +648,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ SPRITES TAB ══════════════ */}
               {view === 'tabs' && tab === 'sprites' && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-100' : 'bg-indigo-900/30'}`}>
                         <ImageIcon className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
@@ -766,7 +766,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ FOLDER FORM ══════════════ */}
               {view === 'folderForm' && editFolder && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ backgroundColor: editFolder.color + '30', color: editFolder.color }}>
                       {(editFolder.name ?? 'N')[0].toUpperCase()}
                     </div>
@@ -836,7 +836,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <button onClick={backToTabs} className={btnS(isLight)}>Cancel</button>
                     <button onClick={saveFolder} disabled={saving} className={`${btnP(isLight)} min-w-[120px] ${saving ? 'opacity-50 pointer-events-none' : ''}`}>
                       {saving ? 'Saving...' : 'Save Folder'}
@@ -848,7 +848,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ STRUCTURE FORM ══════════════ */}
               {view === 'structForm' && editStruct && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold ${isLight ? 'bg-amber-100 text-amber-700' : 'bg-amber-900/30 text-amber-400'}`}>
                       {(editStruct.label ?? 'N')[0].toUpperCase()}
                     </div>
@@ -943,7 +943,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <button onClick={backToTabs} className={btnS(isLight)}>Cancel</button>
                     <button onClick={saveStruct} disabled={saving} className={`${btnP(isLight)} min-w-[120px] ${saving ? 'opacity-50 pointer-events-none' : ''}`}>
                       {saving ? 'Saving...' : 'Save Structure'}
@@ -955,7 +955,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ BIOME FORM ══════════════ */}
               {view === 'biomeForm' && editBiome && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ backgroundColor: editBiome.color + '30', color: editBiome.color }}>
                       {(editBiome.label ?? 'N')[0].toUpperCase()}
                     </div>
@@ -1006,7 +1006,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <button onClick={backToTabs} className={btnS(isLight)}>Cancel</button>
                     <button onClick={saveBiome} disabled={saving} className={`${btnP(isLight)} min-w-[120px] ${saving ? 'opacity-50 pointer-events-none' : ''}`}>
                       {saving ? 'Saving...' : 'Save Biome'}
@@ -1018,7 +1018,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
               {/* ══════════════ CATEGORY FORM ══════════════ */}
               {view === 'catForm' && editCat && (
                 <div className={`${card(isLight)} overflow-hidden`}>
-                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold" style={{ backgroundColor: editCat.color + '30', color: editCat.color }}>
                       {(editCat.label ?? 'N')[0].toUpperCase()}
                     </div>
@@ -1055,7 +1055,7 @@ export default function EditorLanding({ onExit, onOpenCanvas, onSpritesChange }:
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                  <div className={`flex items-center justify-end gap-2 px-4 sm:px-5 py-3.5 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <button onClick={backToTabs} className={btnS(isLight)}>Cancel</button>
                     <button onClick={saveCat} disabled={saving} className={`${btnP(isLight)} min-w-[120px] ${saving ? 'opacity-50 pointer-events-none' : ''}`}>
                       {saving ? 'Saving...' : 'Save Category'}

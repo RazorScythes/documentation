@@ -375,7 +375,7 @@ const GameManager = ({ user, theme }) => {
     const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
-    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
+    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300'}`
     const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
 
     if (!user) {
@@ -438,7 +438,7 @@ const GameManager = ({ user, theme }) => {
                                         <button onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
                                             className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border border-solid ${isLight
                                                 ? 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
-                                                : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300 border-[#333]'
+                                                : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300 border-[#333]'
                                             }`}>
                                             Cancel
                                         </button>
@@ -482,7 +482,7 @@ const GameManager = ({ user, theme }) => {
                             </div>
 
                             {view !== 'form' && (
-                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <button onClick={() => setActiveTab('games')}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'games'
                                             ? (isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400')
@@ -785,7 +785,7 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== FAVORITES TAB ========== */}
                         {activeTab === 'favorites' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-red-100' : 'bg-red-900/30'}`}>
                                         <FontAwesomeIcon icon={faHeart} className={`text-sm ${isLight ? 'text-red-500' : 'text-red-400'}`} />
                                     </div>
@@ -863,7 +863,7 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== COLLECTIONS TAB ========== */}
                         {activeTab === 'collections' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <h3 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                                         <FontAwesomeIcon icon={faLayerGroup} className="mr-2 text-xs" />
                                         {selectedCollection ? selectedCollection.name : 'My Collections'}
@@ -945,7 +945,7 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== TRASH TAB ========== */}
                         {activeTab === 'trash' && view !== 'form' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex items-center gap-2.5">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-orange-100' : 'bg-orange-900/30'}`}>
                                             <FontAwesomeIcon icon={faTrash} className={`text-sm ${isLight ? 'text-orange-500' : 'text-orange-400'}`} />
@@ -974,7 +974,7 @@ const GameManager = ({ user, theme }) => {
                                         <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                     </div>
                                 ) : trash?.length > 0 ? (
-                                    <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#1f1f1f]'}`}>
+                                    <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#0e0e0e]'}`}>
                                         {trash.map((g) => {
                                             const daysLeft = getDaysRemaining(g.deleted_at)
                                             return (
@@ -1043,7 +1043,7 @@ const GameManager = ({ user, theme }) => {
                         {view === 'list' && activeTab === 'games' && (
                             <div className={`${card} overflow-hidden`}>
                                 {/* Toolbar */}
-                                <div className={`flex flex-col gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setShowFilters(!showFilters)}
@@ -1090,7 +1090,7 @@ const GameManager = ({ user, theme }) => {
 
                                     {/* Filter row */}
                                     {showFilters && (
-                                        <div className={`flex flex-wrap items-center gap-2 pt-2 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex flex-wrap items-center gap-2 pt-2 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(0) }}
                                                 className={`${selectCls} text-xs py-1.5`}>
                                                 <option value="">All Categories</option>
@@ -1174,7 +1174,7 @@ const GameManager = ({ user, theme }) => {
                                             </thead>
                                             <tbody>
                                                 {pageData.map((g) => (
-                                                    <tr key={g._id} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                                    <tr key={g._id} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                                         <td className="px-4 py-3">
                                                             <input type="checkbox" checked={selectedIds.includes(g._id)} onChange={() => toggleSelect(g._id)}
                                                                 className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 cursor-pointer" />
@@ -1199,7 +1199,7 @@ const GameManager = ({ user, theme }) => {
                                                             <button onClick={() => handleTogglePrivacy(g._id)}
                                                                 className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${g.privacy
                                                                     ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400')
-                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#1f1f1f] text-gray-600')
+                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#0e0e0e] text-gray-600')
                                                                 }`}>
                                                                 <FontAwesomeIcon icon={g.privacy ? faLock : faLockOpen} className="text-xs" />
                                                             </button>
@@ -1208,7 +1208,7 @@ const GameManager = ({ user, theme }) => {
                                                             <button onClick={() => handleToggleStrict(g._id)}
                                                                 className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${g.strict
                                                                     ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400')
-                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#1f1f1f] text-gray-600')
+                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#0e0e0e] text-gray-600')
                                                                 }`}>
                                                                 <FontAwesomeIcon icon={faShieldAlt} className="text-xs" />
                                                             </button>
@@ -1268,7 +1268,7 @@ const GameManager = ({ user, theme }) => {
                                 )}
 
                                 {/* Footer: Pagination + Page size */}
-                                <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex items-center gap-2 sm:gap-3">
                                         <p className={`text-[11px] whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                             {processed.length > 0
@@ -1288,11 +1288,11 @@ const GameManager = ({ user, theme }) => {
                                     {totalPages > 1 && (
                                         <div className="flex items-center gap-1">
                                             <button disabled={page === 0} onClick={() => setPage(0)}
-                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                 <FontAwesomeIcon icon={faAngleDoubleLeft} className="text-[10px]" />
                                             </button>
                                             <button disabled={page === 0} onClick={() => setPage(page - 1)}
-                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                 <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
                                             </button>
                                             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -1305,18 +1305,18 @@ const GameManager = ({ user, theme }) => {
                                                     <button key={pageNum} onClick={() => setPage(pageNum)}
                                                         className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-medium transition-all ${page === pageNum
                                                             ? (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
-                                                            : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400')
+                                                            : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400')
                                                         }`}>
                                                         {pageNum + 1}
                                                     </button>
                                                 )
                                             })}
                                             <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}
-                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                 <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                                             </button>
                                             <button disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}
-                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                 <FontAwesomeIcon icon={faAngleDoubleRight} className="text-[10px]" />
                                             </button>
                                         </div>
@@ -1328,7 +1328,7 @@ const GameManager = ({ user, theme }) => {
                         {/* ========== ANALYTICS TAB ========== */}
                         {activeTab === 'analytics' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex items-center gap-3 px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex items-center gap-3 px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
                                         <FontAwesomeIcon icon={faChartBar} className={`text-base ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
                                     </div>
@@ -1379,7 +1379,7 @@ const GameManager = ({ user, theme }) => {
                             <div className="space-y-4">
                                 {/* Basic Info */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                             <FontAwesomeIcon icon={faGamepad} className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
                                         </div>
@@ -1482,7 +1482,7 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Details */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-cyan-100' : 'bg-cyan-900/30'}`}>
                                             <FontAwesomeIcon icon={faDesktop} className={`text-sm ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
                                         </div>
@@ -1522,7 +1522,7 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Tags */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
                                             <FontAwesomeIcon icon={faTag} className={`text-sm ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
                                         </div>
@@ -1551,7 +1551,7 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Download Links */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className="flex items-center gap-2.5">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
                                                 <FontAwesomeIcon icon={faDownload} className={`text-sm ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
@@ -1568,7 +1568,7 @@ const GameManager = ({ user, theme }) => {
                                         </div>
                                         <div className="space-y-4">
                                             {form.download_link.map((bucket, bi) => (
-                                                <div key={bi} className={`rounded-lg p-3 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                <div key={bi} className={`rounded-lg p-3 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                     <div className="flex items-center justify-between mb-2">
                                                         <span className={`text-xs font-bold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{bucket.storage_name}</span>
                                                         <button onClick={() => removeDownloadBucket(bi)} className={`text-xs ${isLight ? 'text-red-400 hover:text-red-600' : 'text-red-500 hover:text-red-300'}`}>
@@ -1581,7 +1581,7 @@ const GameManager = ({ user, theme }) => {
                                                         <button onClick={() => addLinkToBucket(bi)} className={btnPrimary} disabled={!linkInputs[bi]}><FontAwesomeIcon icon={faPlus} className="text-xs" /></button>
                                                     </div>
                                                     {bucket.links.map((link, li) => (
-                                                        <div key={li} className={`flex items-center gap-2 py-1.5 text-xs ${li > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                                                        <div key={li} className={`flex items-center gap-2 py-1.5 text-xs ${li > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                                             <FontAwesomeIcon icon={faLink} className={`flex-shrink-0 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
                                                             <span className={`flex-1 truncate ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{link}</span>
                                                             <button onClick={() => removeLinkFromBucket(bi, li)} className={`${isLight ? 'text-red-400 hover:text-red-600' : 'text-red-500 hover:text-red-300'}`}>
@@ -1598,7 +1598,7 @@ const GameManager = ({ user, theme }) => {
                                 {/* Access Keys */}
                                 {form.privacy && (
                                     <div className={`${card} overflow-hidden`}>
-                                        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <div className="flex items-center gap-2.5">
                                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-rose-100' : 'bg-rose-900/30'}`}>
                                                     <FontAwesomeIcon icon={faKey} className={`text-sm ${isLight ? 'text-rose-600' : 'text-rose-400'}`} />
@@ -1612,7 +1612,7 @@ const GameManager = ({ user, theme }) => {
                                         {form.access_key.length > 0 && (
                                             <div className="px-4 sm:px-5 py-3 space-y-2">
                                                 {form.access_key.map((k, i) => (
-                                                    <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                    <div key={i} className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2.5 rounded-lg ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                         <code className={`text-xs font-mono px-2.5 py-1.5 rounded-md self-start ${isLight ? 'bg-white text-slate-700 border border-solid border-slate-200' : 'bg-[#1a1a1a] text-gray-200 border border-solid border-[#2B2B2B]'}`}>{k.key}</code>
                                                         <div className="flex items-center gap-2 sm:ml-auto">
                                                             <label className={`text-[11px] flex-shrink-0 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Limit</label>
@@ -1638,7 +1638,7 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Gallery */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-100' : 'bg-indigo-900/30'}`}>
                                             <FontAwesomeIcon icon={faImages} className={`text-sm ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
                                         </div>
@@ -1674,7 +1674,7 @@ const GameManager = ({ user, theme }) => {
                                                             </div>
                                                             <input type="text" value={caption} onChange={(e) => updateGalleryCaption(i, e.target.value)}
                                                                 placeholder="Caption..."
-                                                                className={`w-full text-[10px] px-2 py-1 border-t border-solid ${isLight ? 'bg-white border-slate-100 text-slate-600' : 'bg-[#111] border-[#1f1f1f] text-gray-400'}`} />
+                                                                className={`w-full text-[10px] px-2 py-1 border-t border-solid ${isLight ? 'bg-white border-slate-100 text-slate-600' : 'bg-[#111] border-[#0e0e0e] text-gray-400'}`} />
                                                             <button onClick={() => removeGalleryUrl(i)}
                                                                 className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
@@ -1689,14 +1689,14 @@ const GameManager = ({ user, theme }) => {
 
                                 {/* Changelog */}
                                 <div className={`${card} overflow-hidden`}>
-                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
                                             <FontAwesomeIcon icon={faHistory} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
                                         </div>
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Changelog ({form.changelog?.length || 0})</h3>
                                     </div>
                                     <div className="px-4 sm:px-5 py-4 space-y-3">
-                                        <div className={`flex flex-col sm:flex-row gap-2 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                        <div className={`flex flex-col sm:flex-row gap-2 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                             <input type="text" value={changelogVersion} onChange={(e) => setChangelogVersion(e.target.value)} placeholder="Version" className={`${inputCls} w-24`} />
                                             <input type="text" value={changelogDesc} onChange={(e) => setChangelogDesc(e.target.value)} placeholder="What changed..." className={`${inputCls}`}
                                                 onKeyDown={(e) => {
@@ -1716,7 +1716,7 @@ const GameManager = ({ user, theme }) => {
                                         {form.changelog?.length > 0 && (
                                             <div className="space-y-2">
                                                 {form.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ci) => (
-                                                    <div key={ci} className={`flex items-start gap-3 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                    <div key={ci} className={`flex items-start gap-3 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
                                                             <FontAwesomeIcon icon={faHistory} className={`text-[10px] ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
                                                         </div>

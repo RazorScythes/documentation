@@ -151,7 +151,7 @@ const PropsPanel = ({ isLight }) => {
 
     return (
         <div className="flex flex-col h-full">
-            <div className={`px-3 py-2 border-b border-solid flex-shrink-0 ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#111]'}`}>
+            <div className={`px-3 py-2 border-b border-solid flex-shrink-0 ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#0e0e0e] bg-[#111]'}`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <FontAwesomeIcon icon={reg.icon} className={`text-[10px] ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
@@ -178,7 +178,7 @@ const PropsPanel = ({ isLight }) => {
 
             <div className="flex-1 overflow-y-auto">
                 {isImageType && (
-                    <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                         <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                             Choose Image
                         </div>
@@ -193,7 +193,7 @@ const PropsPanel = ({ isLight }) => {
                 )}
 
                 {reg.propsSchema.length > 0 && (
-                    <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                         <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                             Properties
                         </div>
@@ -255,7 +255,7 @@ const PropsPanel = ({ isLight }) => {
                     </div>
                 )}
 
-                <div className={`flex border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     {[
                         { key: 'desktop', icon: faDesktop, label: 'Desktop' },
                         { key: 'tablet', icon: faTabletAlt, label: 'Tablet' },

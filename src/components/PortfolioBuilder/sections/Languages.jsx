@@ -81,7 +81,7 @@ const Languages = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSe
     return (
         <div className="space-y-4">
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-teal-100' : 'bg-teal-900/30'}`}>
                             <FontAwesomeIcon icon={faLanguage} className={`text-sm ${isLight ? 'text-teal-600' : 'text-teal-400'}`} />
@@ -98,7 +98,7 @@ const Languages = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSe
                         )}
                         <button onClick={() => { if (editingIndex !== null) cancelEdit(); else { setShowForm(!showForm); resetForm() } }}
                             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm && editingIndex === null
-                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                                 : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                             }`}>
                             <FontAwesomeIcon icon={showForm && editingIndex === null ? faTimes : faPlus} className="text-[10px]" />
@@ -110,7 +110,7 @@ const Languages = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSe
                 {showForm && (
                     <div className={`px-4 sm:px-5 py-4 border-b border-solid ${editingIndex !== null
                         ? (isLight ? 'bg-teal-50/50 border-teal-200/50' : 'bg-teal-900/10 border-teal-800/30')
-                        : (isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]')
+                        : (isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]')
                     }`}>
                         {editingIndex !== null && (
                             <div className="flex items-center justify-between mb-3">
@@ -156,7 +156,7 @@ const Languages = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSe
                                     editingIndex === i
                                         ? (isLight ? 'bg-teal-50' : 'bg-teal-900/10')
                                         : (isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]')
-                                } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                                } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-teal-50 text-teal-600' : 'bg-teal-900/20 text-teal-400'}`}>
                                         <FontAwesomeIcon icon={faLanguage} className="text-base" />
                                     </div>

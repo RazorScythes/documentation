@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react'
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
@@ -12,7 +13,7 @@ import {
     faMoneyBillWave, faCreditCard, faMobileAlt, faUniversity, faCoins,
     faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf,
     faHandHoldingUsd, faUserFriends, faCalendarCheck, faChevronDown, faChevronUp, faListAlt, faSearch, faCogs, faCircle,
-    faEye, faEyeSlash, faExchangeAlt, faSpinner
+    faEye, faEyeSlash, faExchangeAlt, faSpinner, faClone, faShare, faLock, faUsers
 } from '@fortawesome/free-solid-svg-icons'
 
 library.add(fas)
@@ -31,9 +32,17 @@ import {
     getDebts, createDebt, updateDebt, deleteDebt, addDebtPayment, removeDebtPayment, toggleDebtStatus,
     getBudgetLists, createBudgetList, updateBudgetList, deleteBudgetList,
     getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal, addGoalContribution,
+    shareBudget, unshareBudget, updateBudgetShareAction, getSharedBudgets, getSharedUsers, setViewingBudgetOwner,
     clearAlert, clearSearchResults
 } from '../../actions/budget'
 import Notification from '../Custom/Notification'
+import BudgetContext from './Budget/BudgetContext'
+import { ModalOverlay as ModalOverlayShared, AnimateIn as AnimateInShared, SafeIcon as SafeIconShared } from './Budget/SharedComponents'
+import { toLocalDateString as toLocalDateStringUtil } from './Budget/utils'
+import {
+    DEFAULT_PAYMENT_METHODS as DPM, CATEGORY_COLORS as CC, MONTHS as M, VALID_TABS as VT,
+    CURRENCIES as CUR, DEFAULT_EXCHANGE_RATES as DER, ICON_GRID as IG, DENOMINATIONS as DEN
+} from './Budget/constants'
 
 const DEFAULT_PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit Card', 'PayPal', 'Other']
 const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
@@ -80,6 +89,42 @@ const ICON_GRID = [
     'flag', 'bell', 'envelope', 'calendar', 'clock', 'tag', 'tags', 'bookmark',
 ]
 
+const toLocalDateString = (dateVal) => {
+    const d = new Date(dateVal)
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+}
+
+const ModalOverlay = ({ children, onClose, className = '' }) => {
+    const overlayRef = useRef(null)
+    const onCloseRef = useRef(onClose)
+    onCloseRef.current = onClose
+
+    useEffect(() => {
+        document.body.style.overflow = 'hidden'
+        const handleKey = (e) => { if (e.key === 'Escape') onCloseRef.current() }
+        window.addEventListener('keydown', handleKey)
+
+        const focusable = overlayRef.current?.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        if (focusable?.length) focusable[0].focus()
+
+        return () => {
+            document.body.style.overflow = ''
+            window.removeEventListener('keydown', handleKey)
+        }
+    }, [])
+
+    return createPortal(
+        <div ref={overlayRef} className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 ${className}`} onClick={onClose}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            {children}
+        </div>,
+        document.body
+    )
+}
+
 const AnimateIn = ({ children, delay = 0, className = '' }) => {
     const [visible, setVisible] = useState(false)
     useEffect(() => {
@@ -95,11 +140,22 @@ const AnimateIn = ({ children, delay = 0, className = '' }) => {
 
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
-    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, budgetSettings, alert: budgetAlert, isLoading, isSavingsLoading, isDebtsLoading, isGoalsLoading, isListsLoading } = useSelector(state => state.budget)
+    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, budgetSettings, sharedUsers, sharedBudgets, viewingBudgetOwner, alert: budgetAlert, isLoading, isSavingsLoading, isDebtsLoading, isGoalsLoading, isListsLoading } = useSelector(state => state.budget)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isLight = theme === 'light'
     const now = new Date()
+
+    const isViewingShared = !!viewingBudgetOwner
+    const viewingRole = isViewingShared ? (sharedBudgets.find(s => s.owner?._id === viewingBudgetOwner?.id)?.role || 'viewer') : 'owner'
+    const isViewer = viewingRole === 'viewer'
+    const isOwner = !isViewingShared
+    const budgetOwnerId = isViewingShared ? viewingBudgetOwner.id : undefined
+    const ownerParam = budgetOwnerId ? { budgetOwnerId } : {}
+
+    const [showShareBudgetModal, setShowShareBudgetModal] = useState(false)
+    const [shareBudgetUsername, setShareBudgetUsername] = useState('')
+    const [shareBudgetRole, setShareBudgetRole] = useState('viewer')
 
     const tabParam = searchParams.get('tab')
     const [activeTab, setActiveTabState] = useState(VALID_TABS.includes(tabParam) ? tabParam : 'dashboard')
@@ -114,7 +170,15 @@ const Budget = ({ user, theme }) => {
 
     // expense form
     const emptyItem = { description: '', amount: '' }
-    const emptyExpense = { date: new Date().toISOString().split('T')[0], category: '', type: 'expense', paymentMethod: 'Cash', notes: '', currency: 'PHP', listOnly: false, isRecurring: false, recurrenceRule: '', recurrenceEnd: '' }
+    const getDefaultDate = () => {
+        const today = new Date()
+        if (today.getMonth() + 1 === month && today.getFullYear() === year) {
+            return today.toISOString().split('T')[0]
+        }
+        const d = new Date(year, month - 1, 1)
+        return d.toISOString().split('T')[0]
+    }
+    const emptyExpense = { date: getDefaultDate(), category: '', type: 'expense', paymentMethod: 'Cash', notes: '', currency: 'PHP', listOnly: false, isRecurring: false, recurrenceRule: '', recurrenceEnd: '' }
     const [expenseForm, setExpenseForm] = useState(emptyExpense)
     const [expenseItems, setExpenseItems] = useState([{ ...emptyItem }])
     const [editingExpense, setEditingExpense] = useState(null)
@@ -142,38 +206,54 @@ const Budget = ({ user, theme }) => {
         try {
             const res = await import('../../endpoint').then(m => m.getBudgetExpenses({ year: y }))
             setYtdExpenses(res.data.result || [])
-        } catch { setYtdExpenses([]) }
+        } catch (err) {
+            console.error('Failed to fetch YTD expenses:', err)
+            setYtdExpenses([])
+            setNotification({ msg: 'Failed to load year-to-date data.', variant: 'danger' })
+            setShowNotif(true)
+        }
         setYtdLoading(false)
     }
 
     useEffect(() => {
         if (user) {
-            dispatch(getBudgetCategories())
-            dispatch(getBudgetDashboard({ month, year }))
-            dispatch(getBudgetExpenses({ month, year }))
-            dispatch(processRecurring()).then((action) => {
-                if (action?.payload?.data?.created > 0) {
-                    dispatch(getBudgetExpenses({ month, year }))
-                    dispatch(getBudgetDashboard({ month, year }))
-                }
-            })
-            dispatch(getExchangeRates())
-            dispatch(getBudgetSavings())
-            dispatch(getDebts())
-            dispatch(getFinancialGoals())
+            dispatch(getBudgetCategories(ownerParam))
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+            dispatch(getBudgetExpenses({ month, year, ...ownerParam }))
+            if (!isViewingShared) {
+                dispatch(processRecurring()).then((action) => {
+                    if (action?.payload?.data?.created > 0) {
+                        dispatch(getBudgetExpenses({ month, year }))
+                        dispatch(getBudgetDashboard({ month, year }))
+                    }
+                })
+            }
+            dispatch(getExchangeRates(ownerParam))
+            dispatch(getBudgetSavings(ownerParam))
+            dispatch(getDebts(ownerParam))
+            dispatch(getFinancialGoals(ownerParam))
+            dispatch(getBudgetLists(ownerParam))
+            dispatch(getSharedBudgets())
+            dispatch(getSharedUsers())
             fetchYtdExpenses(year)
         }
     }, [user])
 
     useEffect(() => {
         if (user) {
-            dispatch(getBudgetDashboard({ month, year }))
-            dispatch(getBudgetExpenses({ month, year }))
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+            dispatch(getBudgetExpenses({ month, year, ...ownerParam }))
+            dispatch(getBudgetCategories(ownerParam))
+            dispatch(getExchangeRates(ownerParam))
+            dispatch(getBudgetSavings(ownerParam))
+            dispatch(getDebts(ownerParam))
+            dispatch(getFinancialGoals(ownerParam))
+            dispatch(getBudgetLists(ownerParam))
             setSelectedExpenses([])
             setBulkDeleteConfirm(false)
             fetchYtdExpenses(year)
         }
-    }, [month, year])
+    }, [month, year, budgetOwnerId])
 
     useEffect(() => {
         if (budgetAlert && Object.keys(budgetAlert).length > 0) {
@@ -188,9 +268,9 @@ const Budget = ({ user, theme }) => {
     }, [showNotif])
 
     const refreshData = () => {
-        dispatch(getBudgetDashboard({ month, year }))
-        dispatch(getBudgetExpenses({ month, year }))
-        dispatch(getBudgetCategories())
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        dispatch(getBudgetExpenses({ month, year, ...ownerParam }))
+        dispatch(getBudgetCategories(ownerParam))
         fetchYtdExpenses(year)
     }
 
@@ -200,29 +280,49 @@ const Budget = ({ user, theme }) => {
     const [uploadingReceipt, setUploadingReceipt] = useState(false)
     const [receiptViewer, setReceiptViewer] = useState(null)
 
-    const handleExpenseSubmit = async () => {
+    // ==================== KEYBOARD SHORTCUTS ====================
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+            if (e.key === 'Escape') {
+                if (receiptViewer) { setReceiptViewer(null); return }
+                if (showExpenseForm) { setShowExpenseForm(false); setEditingExpense(null); return }
+                if (showCategoryForm) { setShowCategoryForm(false); setEditingCategory(null); return }
+            }
+            if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) prevMonth()
+            if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) nextMonth()
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [receiptViewer, showExpenseForm, showCategoryForm])
+
+    const handleExpenseSubmit = useCallback(async () => {
         try {
             if (editingExpense) {
                 const item = expenseItems[0]
                 if (!item?.description || !item?.amount) return
-                await dispatch(updateBudgetExpense({ ...expenseForm, description: item.description, amount: parseFloat(item.amount), id: editingExpense, month, year })).unwrap()
+                await dispatch(updateBudgetExpense({ ...expenseForm, ...ownerParam, description: item.description, amount: parseFloat(item.amount), id: editingExpense, month, year })).unwrap()
             } else {
                 const validItems = expenseItems.filter(i => i.description && i.amount)
                 if (validItems.length === 0) return
-                await dispatch(createBudgetExpense({ ...expenseForm, items: validItems, month, year })).unwrap()
+                await dispatch(createBudgetExpense({ ...expenseForm, ...ownerParam, items: validItems, month, year })).unwrap()
             }
             setExpenseForm(emptyExpense)
             setExpenseItems([{ ...emptyItem }])
             setEditingExpense(null)
             setShowExpenseForm(false)
             setAttachmentPreview(null)
-            dispatch(getBudgetDashboard({ month, year }))
-        } catch (err) { /* form kept open so user can retry */ }
-    }
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        } catch (err) {
+            setNotification({ msg: err?.message || 'Failed to save transaction. Please try again.', variant: 'danger' })
+            setShowNotif(true)
+        }
+    }, [editingExpense, expenseForm, expenseItems, emptyExpense, emptyItem, month, year, dispatch, ownerParam])
 
-    const handleEditExpense = (e) => {
+    const handleEditExpense = useCallback((e) => {
         setExpenseForm({
-            date: new Date(e.date).toISOString().split('T')[0],
+            date: toLocalDateString(e.date),
             category: e.category?._id || '',
             type: e.type,
             paymentMethod: e.paymentMethod,
@@ -232,13 +332,33 @@ const Budget = ({ user, theme }) => {
             attachments: e.attachments || [],
             isRecurring: !!e.isRecurring,
             recurrenceRule: e.recurrenceRule || '',
-            recurrenceEnd: e.recurrenceEnd ? new Date(e.recurrenceEnd).toISOString().split('T')[0] : '',
+            recurrenceEnd: e.recurrenceEnd ? toLocalDateString(e.recurrenceEnd) : '',
         })
         setExpenseItems([{ description: e.description, amount: e.amount.toString() }])
         setEditingExpense(e._id)
         setShowExpenseForm(true)
         setAttachmentPreview(e.attachments?.[0] || null)
-    }
+    }, [])
+
+    const handleDuplicateExpense = useCallback((e) => {
+        setExpenseForm({
+            date: getDefaultDate(),
+            category: e.category?._id || '',
+            type: e.type,
+            paymentMethod: e.paymentMethod,
+            notes: e.notes || '',
+            currency: e.currency || 'PHP',
+            listOnly: !!e.listOnly,
+            attachments: [],
+            isRecurring: false,
+            recurrenceRule: '',
+            recurrenceEnd: '',
+        })
+        setExpenseItems([{ description: e.description, amount: e.amount.toString() }])
+        setEditingExpense(null)
+        setShowExpenseForm(true)
+        setAttachmentPreview(null)
+    }, [getDefaultDate])
 
     const handleReceiptUpload = async (e) => {
         const file = e.target.files?.[0]
@@ -266,16 +386,16 @@ const Budget = ({ user, theme }) => {
         setExpenseForm(prev => ({ ...prev, attachments: [] }))
     }
 
-    const handleDeleteExpense = async (id) => {
+    const handleDeleteExpense = useCallback(async (id) => {
         if (deleteConfirm === id) {
-            await dispatch(deleteBudgetExpense({ id, month, year }))
-            dispatch(getBudgetDashboard({ month, year }))
+            await dispatch(deleteBudgetExpense({ id, month, year, ...ownerParam }))
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
             setDeleteConfirm(null)
         } else {
             setDeleteConfirm(id)
             setTimeout(() => setDeleteConfirm(null), 3000)
         }
-    }
+    }, [deleteConfirm, month, year, dispatch, ownerParam])
 
     const handleBulkDelete = async () => {
         if (!bulkDeleteConfirm) {
@@ -283,37 +403,43 @@ const Budget = ({ user, theme }) => {
             setTimeout(() => setBulkDeleteConfirm(false), 3000)
             return
         }
-        await dispatch(bulkDeleteBudgetExpenses({ ids: selectedExpenses, month, year }))
+        await dispatch(bulkDeleteBudgetExpenses({ ids: selectedExpenses, month, year, ...ownerParam }))
         setSelectedExpenses([])
         setBulkDeleteConfirm(false)
-        dispatch(getBudgetDashboard({ month, year }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
     }
 
     const handleBulkCategoryUpdate = async (categoryId) => {
-        await dispatch(bulkUpdateBudgetCategory({ ids: selectedExpenses, category: categoryId, month, year }))
+        await dispatch(bulkUpdateBudgetCategory({ ids: selectedExpenses, category: categoryId, month, year, ...ownerParam }))
         setSelectedExpenses([])
-        dispatch(getBudgetDashboard({ month, year }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
     }
 
     const handleBulkCurrencyUpdate = async (currency) => {
-        await dispatch(bulkUpdateBudgetCurrency({ ids: selectedExpenses, currency, month, year }))
+        await dispatch(bulkUpdateBudgetCurrency({ ids: selectedExpenses, currency, month, year, ...ownerParam }))
         setSelectedExpenses([])
-        dispatch(getBudgetDashboard({ month, year }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
     }
 
     const toggleSelectExpense = (id) => {
         setSelectedExpenses(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
     }
 
-    const toggleSelectAll = () => {
-        const allIds = expenses.map(e => e._id)
-        if (selectedExpenses.length === allIds.length) setSelectedExpenses([])
-        else setSelectedExpenses(allIds)
+    const toggleSelectAll = (filteredIds) => {
+        if (filteredIds) {
+            const allSelected = filteredIds.every(id => selectedExpenses.includes(id))
+            if (allSelected) setSelectedExpenses(prev => prev.filter(id => !filteredIds.includes(id)))
+            else setSelectedExpenses(prev => [...new Set([...prev, ...filteredIds])])
+        } else {
+            const allIds = expenses.map(e => e._id)
+            if (selectedExpenses.length === allIds.length) setSelectedExpenses([])
+            else setSelectedExpenses(allIds)
+        }
     }
 
     const handleCategorySubmit = async () => {
         if (!categoryForm.name) return
-        const data = { ...categoryForm, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover }
+        const data = { ...categoryForm, ...ownerParam, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover }
         try {
             if (editingCategory) {
                 await dispatch(updateBudgetCategory({ ...data, id: editingCategory })).unwrap()
@@ -323,8 +449,11 @@ const Budget = ({ user, theme }) => {
             setCategoryForm(emptyCategory)
             setEditingCategory(null)
             setShowCategoryForm(false)
-            dispatch(getBudgetDashboard({ month, year }))
-        } catch (err) { /* form kept open so user can retry */ }
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        } catch (err) {
+            setNotification({ msg: err?.message || 'Failed to save category. Please try again.', variant: 'danger' })
+            setShowNotif(true)
+        }
     }
 
     const handleEditCategory = (c) => {
@@ -335,8 +464,8 @@ const Budget = ({ user, theme }) => {
 
     const handleDeleteCategory = async (id) => {
         if (deleteConfirm === id) {
-            await dispatch(deleteBudgetCategory(id))
-            dispatch(getBudgetDashboard({ month, year }))
+            await dispatch(deleteBudgetCategory({ id, ...ownerParam }))
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
             setDeleteConfirm(null)
         } else {
             setDeleteConfirm(id)
@@ -399,7 +528,7 @@ const Budget = ({ user, theme }) => {
     const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
     const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
 
-    const tabs = [
+    const allTabs = [
         { id: 'dashboard', label: 'Dashboard', icon: faChartPie },
         { id: 'daily', label: 'Daily Expenses', icon: faCalendarDay },
         { id: 'monthly', label: 'Monthly Budget', icon: faCalendarAlt },
@@ -411,6 +540,7 @@ const Budget = ({ user, theme }) => {
         { id: 'summary', label: 'Summary', icon: faFilePdf },
         { id: 'settings', label: 'Settings', icon: faCogs },
     ]
+    const tabs = isViewer ? allTabs.filter(t => t.id !== 'settings') : allTabs
 
     const paymentIcon = (m) => {
         switch(m) {
@@ -535,9 +665,10 @@ const Budget = ({ user, theme }) => {
     }, [ytdExpenses, activeViewCurrency, exchangeRates, month])
 
     const statusColor = (pct) => {
-        if (pct >= 100) return { bg: isLight ? 'bg-red-50' : 'bg-red-900/20', text: 'text-red-500', bar: 'bg-red-500', border: isLight ? 'border-red-200' : 'border-red-800/50' }
-        if (pct >= 80) return { bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20', text: 'text-amber-500', bar: 'bg-amber-500', border: isLight ? 'border-amber-200' : 'border-amber-800/50' }
-        return { bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', text: 'text-emerald-500', bar: 'bg-emerald-500', border: isLight ? 'border-emerald-200' : 'border-emerald-800/50' }
+        if (pct > 100) return { bg: isLight ? 'bg-red-50' : 'bg-red-900/20', text: 'text-red-500', bar: 'bg-red-500', border: isLight ? 'border-red-200' : 'border-red-800/50', label: 'Over budget', icon: faExclamationTriangle }
+        if (pct === 100) return { bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', text: 'text-emerald-500', bar: 'bg-emerald-500', border: isLight ? 'border-emerald-200' : 'border-emerald-800/50', label: 'Exactly on budget', icon: faCheckCircle }
+        if (pct >= 80) return { bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20', text: 'text-amber-500', bar: 'bg-amber-500', border: isLight ? 'border-amber-200' : 'border-amber-800/50', label: 'Near limit', icon: faExclamationTriangle }
+        return { bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', text: 'text-emerald-500', bar: 'bg-emerald-500', border: isLight ? 'border-emerald-200' : 'border-emerald-800/50', label: 'On track', icon: faCheckCircle }
     }
 
     if (!user) {
@@ -558,8 +689,18 @@ const Budget = ({ user, theme }) => {
         )
     }
 
+    const budgetContextValue = useMemo(() => ({
+        isLight, card, inputCls, selectCls, btnPrimary, btnSecondary,
+        formatCurrency, formatCurrencyRaw, activeViewCurrency, toTargetCurrency,
+        dispatch, month, year, categories, expenses, isLoading,
+        PAYMENT_METHODS, paymentIcon, statusColor,
+        setReceiptViewer, setNotification, setShowNotif,
+    }), [isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, dispatch, month, year, categories, expenses, isLoading, PAYMENT_METHODS, paymentIcon, statusColor])
+
     return (
+        <BudgetContext.Provider value={budgetContextValue}>
         <div className={`relative overflow-hidden ${main.font} ${isLight ? light.body : dark.body}`}>
+            <a href="#budget-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[10000] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium">Skip to content</a>
             <style>{`
                 @keyframes barGrow { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); transform-origin: left; } }
                 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -571,6 +712,31 @@ const Budget = ({ user, theme }) => {
 
                         <Notification theme={theme} data={notification} show={showNotif} setShow={setShowNotif} />
 
+                        {/* Shared Budget Banner */}
+                        {isViewingShared && (
+                            <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl mb-3 border border-solid ${
+                                isViewer
+                                    ? (isLight ? 'bg-amber-50 border-amber-200' : 'bg-[#111] border-amber-900')
+                                    : (isLight ? 'bg-blue-50 border-blue-200' : 'bg-[#111] border-blue-900')
+                            }`}>
+                                <FontAwesomeIcon icon={isViewer ? faEye : faPen} className={`text-xs ${isViewer ? 'text-amber-500' : 'text-blue-500'}`} />
+                                <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                    Viewing <strong>{viewingBudgetOwner?.username}</strong>'s budget
+                                    <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                        isViewer
+                                            ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400')
+                                            : (isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400')
+                                    }`}>{viewingRole}</span>
+                                </span>
+                                <button
+                                    onClick={() => dispatch(setViewingBudgetOwner(null))}
+                                    className={`ml-auto text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all ${isLight ? 'bg-white hover:bg-slate-50 text-slate-600 border border-solid border-slate-200' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300 border border-solid border-[#333]'}`}
+                                >
+                                    Back to My Budget
+                                </button>
+                            </div>
+                        )}
+
                         {/* Header */}
                         <div className={`${card} p-4 sm:p-6 mb-4`}>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
@@ -579,23 +745,33 @@ const Budget = ({ user, theme }) => {
                                         <FontAwesomeIcon icon={faWallet} className={`text-base sm:text-lg ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
                                     </div>
                                     <div>
-                                        <h1 className={`text-base sm:text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Budget Manager</h1>
-                                        <p className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Track your income and expenses</p>
+                                        <h1 className={`text-base sm:text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                            {isViewingShared ? `${viewingBudgetOwner?.username}'s Budget` : 'Budget Manager'}
+                                        </h1>
+                                        <p className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                            {isViewingShared ? `${viewingRole === 'viewer' ? 'View only' : 'Editor'} access` : 'Track your income and expenses'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={prevMonth} disabled={isLoading} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                    <button onClick={prevMonth} disabled={isLoading} aria-label="Previous month" className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
                                         <FontAwesomeIcon icon={faArrowRight} className="text-xs rotate-180" />
                                     </button>
                                     <span className={`text-xs sm:text-sm font-semibold min-w-[120px] sm:min-w-[140px] text-center ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                                         {MONTHS[month - 1]} {year}
                                     </span>
-                                    <button onClick={nextMonth} disabled={isLoading} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                    <button onClick={nextMonth} disabled={isLoading} aria-label="Next month" className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
                                         <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
                                     </button>
-                                    <button onClick={refreshData} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`} title="Refresh">
+                                    <button onClick={refreshData} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`} title="Refresh" aria-label="Refresh data">
                                         <FontAwesomeIcon icon={faSyncAlt} className={`text-xs ${isLoading ? 'animate-spin' : ''}`} />
                                     </button>
+                                    {(month !== now.getMonth() + 1 || year !== now.getFullYear()) && (
+                                        <button onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }} className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`} title="Jump to current month">
+                                            <FontAwesomeIcon icon={faCalendarDay} className="text-[9px]" />
+                                            <span className="hidden sm:inline">Today</span>
+                                        </button>
+                                    )}
                                     {expenses.length > 0 && (
                                         <button onClick={handleExportCSV} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} title="Export to CSV">
                                             <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
@@ -617,14 +793,79 @@ const Budget = ({ user, theme }) => {
                                             })}
                                         </select>
                                     </div>
+                                    {isOwner && (
+                                        <button
+                                            onClick={() => { setShowShareBudgetModal(true); dispatch(getSharedUsers()) }}
+                                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`}
+                                            title="Share budget"
+                                        >
+                                            <FontAwesomeIcon icon={faShare} className="text-[10px]" />
+                                            <span className="hidden sm:inline">Share</span>
+                                        </button>
+                                    )}
+                                    {sharedBudgets.length > 0 && (
+                                        <div className="relative group">
+                                            <button className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300'}`} title="Shared budgets">
+                                                <FontAwesomeIcon icon={faUsers} className="text-[10px]" />
+                                                <span className="hidden sm:inline">Budgets</span>
+                                                <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>{sharedBudgets.length}</span>
+                                            </button>
+                                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl border border-solid shadow-xl z-50 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                                {!isViewingShared && (
+                                                    <div className={`px-3 py-2 text-[11px] font-bold ${isLight ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-900/10'}`}>
+                                                        <FontAwesomeIcon icon={faCheckCircle} className="mr-1.5 text-[9px]" />My Budget
+                                                    </div>
+                                                )}
+                                                {isViewingShared && (
+                                                    <button
+                                                        onClick={() => dispatch(setViewingBudgetOwner(null))}
+                                                        className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#111] text-gray-300'}`}
+                                                    >
+                                                        <FontAwesomeIcon icon={faWallet} className="mr-1.5 text-[9px]" />My Budget
+                                                    </button>
+                                                )}
+                                                <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`} />
+                                                {sharedBudgets.map(s => (
+                                                    <button
+                                                        key={s._id}
+                                                        onClick={() => dispatch(setViewingBudgetOwner({ id: s.owner?._id, username: s.owner?.username }))}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium transition-colors ${
+                                                            viewingBudgetOwner?.id === s.owner?._id
+                                                                ? (isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/10 text-blue-400')
+                                                                : (isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#111] text-gray-300')
+                                                        }`}
+                                                    >
+                                                        <span className="truncate">{s.owner?.username}</span>
+                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                            s.role === 'editor'
+                                                                ? (isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400')
+                                                                : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-500')
+                                                        }`}>{s.role}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Tabs */}
-                            <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+                            <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Budget sections"
+                                onKeyDown={(e) => {
+                                    const idx = tabs.findIndex(t => t.id === activeTab)
+                                    if (e.key === 'ArrowRight') { e.preventDefault(); setActiveTab(tabs[(idx + 1) % tabs.length].id) }
+                                    if (e.key === 'ArrowLeft') { e.preventDefault(); setActiveTab(tabs[(idx - 1 + tabs.length) % tabs.length].id) }
+                                    if (e.key === 'Home') { e.preventDefault(); setActiveTab(tabs[0].id) }
+                                    if (e.key === 'End') { e.preventDefault(); setActiveTab(tabs[tabs.length - 1].id) }
+                                }}
+                            >
                                 {tabs.map(tab => (
                                     <button
                                         key={tab.id}
+                                        role="tab"
+                                        aria-selected={activeTab === tab.id}
+                                        aria-controls={`tabpanel-${tab.id}`}
+                                        tabIndex={activeTab === tab.id ? 0 : -1}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${
                                             activeTab === tab.id
@@ -641,7 +882,8 @@ const Budget = ({ user, theme }) => {
                         </div>
 
                         {/* Tab Content */}
-                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} />}
+                        <div id="budget-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`} />
+                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} />}
                         {activeTab === 'daily' && (
                             <DailyExpensesTab
                                 groupedByDate={groupedByDate} categories={categories} expenses={expenses}
@@ -649,6 +891,7 @@ const Budget = ({ user, theme }) => {
                                 expenseItems={expenseItems} setExpenseItems={setExpenseItems} emptyItem={emptyItem}
                                 showExpenseForm={showExpenseForm} setShowExpenseForm={setShowExpenseForm}
                                 handleExpenseSubmit={handleExpenseSubmit} handleEditExpense={handleEditExpense}
+                                handleDuplicateExpense={handleDuplicateExpense}
                                 handleDeleteExpense={handleDeleteExpense} setEditingExpense={setEditingExpense}
                                 deleteConfirm={deleteConfirm} isLight={isLight} card={card} inputCls={inputCls}
                                 selectCls={selectCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
@@ -669,6 +912,8 @@ const Budget = ({ user, theme }) => {
                                 exchangeRates={exchangeRates} activeViewCurrency={activeViewCurrency}
                                 toTargetCurrency={toTargetCurrency} formatCurrencyRaw={formatCurrencyRaw}
                                 PAYMENT_METHODS={PAYMENT_METHODS}
+                                isViewer={isViewer}
+                                ownerParam={ownerParam}
                             />
                         )}
                         {activeTab === 'monthly' && (
@@ -692,11 +937,12 @@ const Budget = ({ user, theme }) => {
                                 isLight={isLight} card={card} inputCls={inputCls} selectCls={selectCls}
                                 btnPrimary={btnPrimary} btnSecondary={btnSecondary} formatCurrency={formatCurrency}
                                 emptyCategory={emptyCategory} isLoading={isLoading}
-                                dispatch={dispatch}
+                                dispatch={dispatch} currentUserId={user?._id}
+                                isViewer={isViewer} ownerParam={ownerParam}
                             />
                         )}
                         {activeTab === 'savings' && (
-                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isSavingsLoading} />
+                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isSavingsLoading} isViewer={isViewer} ownerParam={ownerParam} />
                         )}
                         {activeTab === 'debts' && (
                             <DebtTab
@@ -704,6 +950,7 @@ const Budget = ({ user, theme }) => {
                                 inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
                                 btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isDebtsLoading}
                                 PAYMENT_METHODS={PAYMENT_METHODS}
+                                isViewer={isViewer} ownerParam={ownerParam}
                             />
                         )}
                         {activeTab === 'lists' && (
@@ -711,6 +958,7 @@ const Budget = ({ user, theme }) => {
                                 budgetLists={budgetLists} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
                                 isLoading={isListsLoading}
+                                isViewer={isViewer} ownerParam={ownerParam}
                             />
                         )}
                         {activeTab === 'goals' && (
@@ -718,6 +966,7 @@ const Budget = ({ user, theme }) => {
                                 goals={goals} categories={categories} dispatch={dispatch} isLight={isLight} card={card}
                                 inputCls={inputCls} selectCls={selectCls} btnPrimary={btnPrimary}
                                 btnSecondary={btnSecondary} formatCurrency={formatCurrency} isLoading={isGoalsLoading}
+                                isViewer={isViewer} ownerParam={ownerParam}
                             />
                         )}
                         {activeTab === 'summary' && (
@@ -750,8 +999,7 @@ const Budget = ({ user, theme }) => {
 
             {/* Receipt Viewer Lightbox */}
             {receiptViewer && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setReceiptViewer(null)}>
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setReceiptViewer(null)}>
                     <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2 mb-3">
                             <a href={receiptViewer} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white hover:bg-white/20 transition-colors backdrop-blur-sm">
@@ -765,9 +1013,115 @@ const Budget = ({ user, theme }) => {
                         </div>
                         <img src={receiptViewer} alt="Receipt" className="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain" />
                     </div>
-                </div>
+                </ModalOverlay>
+            )}
+
+            {/* Share Budget Modal */}
+            {showShareBudgetModal && (
+                <ModalOverlay onClose={() => { setShowShareBudgetModal(false); setShareBudgetUsername(''); setShareBudgetRole('viewer') }}>
+                    <div className={`relative w-full max-w-md rounded-2xl border border-solid shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
+                        <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                <FontAwesomeIcon icon={faShare} className="mr-2 text-xs" />Share Budget
+                            </h3>
+                            <button onClick={() => { setShowShareBudgetModal(false); setShareBudgetUsername(''); setShareBudgetRole('viewer') }} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                            </button>
+                        </div>
+                        <div className="px-5 py-4 space-y-4">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={shareBudgetUsername}
+                                    onChange={e => setShareBudgetUsername(e.target.value)}
+                                    placeholder="Enter username"
+                                    className={inputCls + ' flex-1'}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && shareBudgetUsername.trim()) {
+                                            dispatch(shareBudget({ username: shareBudgetUsername.trim(), role: shareBudgetRole }))
+                                            setShareBudgetUsername('')
+                                        }
+                                    }}
+                                />
+                                <select
+                                    value={shareBudgetRole}
+                                    onChange={e => setShareBudgetRole(e.target.value)}
+                                    className={selectCls}
+                                >
+                                    <option value="viewer">Viewer</option>
+                                    <option value="editor">Editor</option>
+                                </select>
+                                <button
+                                    onClick={() => {
+                                        if (shareBudgetUsername.trim()) {
+                                            dispatch(shareBudget({ username: shareBudgetUsername.trim(), role: shareBudgetRole }))
+                                            setShareBudgetUsername('')
+                                        }
+                                    }}
+                                    disabled={!shareBudgetUsername.trim()}
+                                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all disabled:opacity-40 ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                                >
+                                    <FontAwesomeIcon icon={faPlus} />
+                                </button>
+                            </div>
+                            {sharedUsers.length > 0 ? (
+                                <div>
+                                    <p className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        Shared with ({sharedUsers.length})
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {sharedUsers.map(s => {
+                                            const su = s.sharedWith
+                                            return (
+                                                <div key={s._id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        {su?.avatar ? (
+                                                            <img src={su.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                                        ) : (
+                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
+                                                                {su?.username?.[0]?.toUpperCase() || '?'}
+                                                            </div>
+                                                        )}
+                                                        <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{su?.username}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={s.role}
+                                                            onChange={e => dispatch(updateBudgetShareAction({ targetUserId: su?._id, role: e.target.value }))}
+                                                            className={`text-[10px] font-semibold px-2 py-1 rounded-md border border-solid cursor-pointer ${
+                                                                s.role === 'editor'
+                                                                    ? (isLight ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-blue-900/20 border-blue-800 text-blue-400')
+                                                                    : (isLight ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-[#1a1a1a] border-[#333] text-gray-400')
+                                                            }`}
+                                                        >
+                                                            <option value="viewer">Viewer</option>
+                                                            <option value="editor">Editor</option>
+                                                        </select>
+                                                        <button
+                                                            onClick={() => dispatch(unshareBudget({ targetUserId: su?._id }))}
+                                                            className={`text-[10px] w-6 h-6 rounded flex items-center justify-center ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}
+                                                            title="Remove access"
+                                                        >
+                                                            <FontAwesomeIcon icon={faTimes} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={`flex flex-col items-center justify-center py-6 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    <FontAwesomeIcon icon={faLock} className="text-lg mb-2" />
+                                    <p className="text-xs">Your budget is private. Share it with others to collaborate.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </ModalOverlay>
             )}
         </div>
+        </BudgetContext.Provider>
     )
 }
 
@@ -919,6 +1273,24 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
     }, [savings])
 
     const activeDebts = debts?.filter(d => d.amount_paid < d.total_amount) || []
+
+    const budgetAlerts = useMemo(() => {
+        const alerts = []
+        monthlyBudgetData.filter(c => c.budget > 0).forEach(cat => {
+            const pct = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0
+            if (pct > 100) alerts.push({ type: 'exceeded', severity: 'danger', icon: faExclamationTriangle, name: cat.name, color: cat.color, pct: Math.round(pct), spent: cat.spent, budget: cat.budget, msg: `Over budget by ${formatCurrency(cat.spent - cat.budget)}` })
+            else if (pct >= 80 && pct < 100) alerts.push({ type: 'warning', severity: 'warning', icon: faExclamationTriangle, name: cat.name, color: cat.color, pct: Math.round(pct), spent: cat.spent, budget: cat.budget, msg: `${formatCurrency(cat.budget - cat.spent)} remaining` })
+        })
+        if (activeDebts.some(d => d.due_date && new Date(d.due_date) < new Date())) {
+            const overdueCount = activeDebts.filter(d => d.due_date && new Date(d.due_date) < new Date()).length
+            alerts.push({ type: 'overdue', severity: 'danger', icon: faHandHoldingUsd, msg: `${overdueCount} overdue debt${overdueCount > 1 ? 's' : ''} need attention` })
+        }
+        if (goals?.some(g => g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && g.current < g.target)) {
+            const approachingGoals = goals.filter(g => g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && g.currentAmount < g.targetAmount)
+            alerts.push({ type: 'goal', severity: 'warning', icon: faCalendarCheck, msg: `${approachingGoals.length} goal${approachingGoals.length > 1 ? 's' : ''} deadline${approachingGoals.length > 1 ? 's' : ''} approaching` })
+        }
+        return alerts
+    }, [monthlyBudgetData, activeDebts, goals])
     const totalOwed = activeDebts.filter(d => d.type === 'owe').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0)
     const totalOwedToYou = activeDebts.filter(d => d.type === 'owed').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0)
     const activeGoals = goals?.filter(g => g.currentAmount < g.targetAmount) || []
@@ -943,6 +1315,43 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
 
     return (
         <div className="space-y-4">
+            {/* Budget Alerts */}
+            {budgetAlerts.length > 0 && (
+                <AnimateIn>
+                    <div className="flex flex-wrap gap-2">
+                        {budgetAlerts.map((alert, i) => {
+                            const isDanger = alert.severity === 'danger'
+                            return (
+                                <div key={i} className={`inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-md border border-solid ${
+                                    isDanger
+                                        ? (isLight ? 'bg-red-50 border-red-200' : 'bg-[#111] border-[#1f1f1f]')
+                                        : (isLight ? 'bg-amber-50 border-amber-200' : 'bg-[#111] border-[#1f1f1f]')
+                                }`}>
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                                        isDanger
+                                            ? (isLight ? 'bg-red-500' : 'bg-red-600')
+                                            : (isLight ? 'bg-amber-500' : 'bg-amber-600')
+                                    }`}>
+                                        <FontAwesomeIcon icon={alert.icon} className="text-[9px] text-white" />
+                                    </div>
+                                    <span className={`text-[11px] font-semibold ${
+                                        isDanger
+                                            ? (isLight ? 'text-red-700' : 'text-red-300')
+                                            : (isLight ? 'text-amber-700' : 'text-amber-300')
+                                    }`}>
+                                        {alert.name || (alert.type === 'overdue' ? 'Overdue Debts' : 'Goal Deadline')}
+                                    </span>
+                                    {alert.pct != null && (
+                                        <span className={`text-[10px] font-extrabold ${isDanger ? 'text-red-500' : 'text-amber-500'}`}>{alert.pct}%</span>
+                                    )}
+                                    <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{alert.msg}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </AnimateIn>
+            )}
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {summaryCards.map((s, i) => {
@@ -1097,10 +1506,12 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(cat.spent, activeViewCurrency)} / {formatCurrencyRaw(cat.budget, activeViewCurrency)}</span>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sc.text} ${sc.bg}`}>{cat.percentage}%</span>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sc.text} ${sc.bg}`} title={sc.label}>
+                                                    <FontAwesomeIcon icon={sc.icon} className="mr-0.5 text-[8px]" />{cat.percentage}%
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                        <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`} role="progressbar" aria-valuenow={Math.min(cat.percentage, 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${cat.name} budget: ${cat.percentage}% used, ${sc.label}`}>
                                             <div className={`h-full rounded-full ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%`, animation: `barGrow 0.8s ease-out 0.6s both` }} />
                                         </div>
                                     </div>
@@ -1131,7 +1542,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Recent Transactions</h3>
                     </div>
                     {recentTransactions.length > 0 ? (
-                        <div className="divide-y divide-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                        <div className={`divide-y divide-solid ${isLight ? 'divide-[#f1f5f9]' : 'divide-[#1a1a1a]'}`}>
                             {recentTransactions.map(e => {
                                 const converted = (e.currency || 'PHP') !== activeViewCurrency ? toTargetCurrency(e.amount, e.currency || 'PHP', activeViewCurrency) : null
                                 return (
@@ -1173,7 +1584,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Largest Expenses</h3>
                     </div>
                     {topExpenses.length > 0 ? (
-                        <div className="divide-y divide-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                        <div className={`divide-y divide-solid ${isLight ? 'divide-[#f1f5f9]' : 'divide-[#1a1a1a]'}`}>
                             {topExpenses.map((e, i) => {
                                 const pct = totalExpenses > 0 ? Math.round((e.converted / totalExpenses) * 100) : 0
                                 return (
@@ -1421,8 +1832,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
 
             {/* Drilldown Modal */}
             {drilldown && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setDrilldown(null)}>
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setDrilldown(null)}>
                     <div className={`relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className={`flex items-center justify-between px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex-shrink-0`}>
@@ -1588,13 +1998,12 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                             )}
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}
 
             {/* Debt Drilldown Modal */}
             {debtDrilldown && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setDebtDrilldown(null)}>
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setDebtDrilldown(null)}>
                     <div className={`relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className={`flex items-center justify-between px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex-shrink-0`}>
@@ -1698,13 +2107,12 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                             )}
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}
 
             {/* Savings Drilldown Modal */}
             {savingsDrilldown && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setSavingsDrilldown(null)}>
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setSavingsDrilldown(null)}>
                     <div className={`relative w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         <div className={`flex items-center justify-between px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex-shrink-0`}>
                             <div className="flex items-center gap-3">
@@ -1775,13 +2183,12 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                             })()}
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}
 
             {/* Goals Drilldown Modal */}
             {goalsDrilldown && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setGoalsDrilldown(null)}>
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setGoalsDrilldown(null)}>
                     <div className={`relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         <div className={`flex items-center justify-between px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex-shrink-0`}>
                             <div className="flex items-center gap-3">
@@ -1879,7 +2286,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                             )}
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}
         </div>
     )
@@ -1951,6 +2358,18 @@ const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
         }
     }
 
+    const chartSummary = useMemo(() => {
+        let totalExp = 0, totalInc = 0, daysActive = 0
+        for (let d = 1; d <= daysInMonth; d++) {
+            if (dailyTotals[d]) {
+                totalExp += dailyTotals[d].expense || 0
+                totalInc += dailyTotals[d].income || 0
+                daysActive++
+            }
+        }
+        return `Daily spending chart for ${daysInMonth} days. ${daysActive} days with activity. Total expenses: ${formatCurrency(totalExp)}, Total income: ${formatCurrency(totalInc)}`
+    }, [dailyTotals, daysInMonth, formatCurrency])
+
     return (
         <div className="relative">
             <canvas
@@ -1959,6 +2378,8 @@ const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
                 style={{ height: 140 }}
                 onMouseMove={handleMouse}
                 onMouseLeave={() => setTooltip(null)}
+                role="img"
+                aria-label={chartSummary}
             />
             {tooltip && (
                 <div className={`absolute z-10 px-2.5 py-1.5 rounded-lg text-xs shadow-lg pointer-events-none ${isLight ? 'bg-white border border-slate-200 text-slate-700' : 'bg-[#1a1a1a] border border-[#333] text-gray-200'}`} style={{ left: Math.min(tooltip.x, canvasRef.current.clientWidth - 120), top: tooltip.y - 50 }}>
@@ -1980,7 +2401,7 @@ const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
 const DailyExpensesTab = ({
     groupedByDate, categories, expenses, expenseForm, setExpenseForm, editingExpense,
     expenseItems, setExpenseItems, emptyItem,
-    showExpenseForm, setShowExpenseForm, handleExpenseSubmit, handleEditExpense,
+    showExpenseForm, setShowExpenseForm, handleExpenseSubmit, handleEditExpense, handleDuplicateExpense,
     handleDeleteExpense, setEditingExpense, deleteConfirm, isLight, card, inputCls,
     selectCls, btnPrimary, btnSecondary, formatCurrency, paymentIcon, emptyExpense, isLoading,
     selectedExpenses, toggleSelectExpense, toggleSelectAll, handleBulkDelete,
@@ -1991,19 +2412,33 @@ const DailyExpensesTab = ({
     savedRates, liveRates, savedBaseCurrency,
     viewCurrency, setViewCurrency, exchangeRates, activeViewCurrency,
     toTargetCurrency, formatCurrencyRaw,
-    PAYMENT_METHODS
+    PAYMENT_METHODS, isViewer, ownerParam = {}
 }) => {
-    const [filterDate, setFilterDate] = useState('')
+    const [filterDateFrom, setFilterDateFrom] = useState('')
+    const [filterDateTo, setFilterDateTo] = useState('')
     const [filterMethod, setFilterMethod] = useState('')
     const [filterCategory, setFilterCategory] = useState('')
     const [showFilters, setShowFilters] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [isSearching, setIsSearching] = useState(false)
     const [showCSVImport, setShowCSVImport] = useState(false)
+    const [sortField, setSortField] = useState('date')
+    const [sortDir, setSortDir] = useState('desc')
+    const [currentPage, setCurrentPage] = useState(1)
+    const PAGE_SIZE = 50
     const [csvData, setCsvData] = useState([])
     const [showRecurring, setShowRecurring] = useState(false)
     const searchTimeout = useRef(null)
     const searchIdRef = useRef(0)
+    const isMountedRef = useRef(true)
+
+    useEffect(() => {
+        isMountedRef.current = true
+        return () => {
+            isMountedRef.current = false
+            if (searchTimeout.current) clearTimeout(searchTimeout.current)
+        }
+    }, [])
 
     const recurringTemplates = useMemo(() => expenses.filter(e => e.isRecurring && e.recurrenceRule), [expenses])
 
@@ -2051,7 +2486,7 @@ const DailyExpensesTab = ({
             const id = ++searchIdRef.current
             searchTimeout.current = setTimeout(() => {
                 dispatch(searchBudgetExpenses({ q })).finally(() => {
-                    if (searchIdRef.current === id) setIsSearching(false)
+                    if (isMountedRef.current && searchIdRef.current === id) setIsSearching(false)
                 })
             }, 400)
         } else {
@@ -2111,28 +2546,57 @@ const DailyExpensesTab = ({
 
     const handleCSVImport = async () => {
         if (csvData.length === 0) return
-        await dispatch(importBudgetCSV({ rows: csvData, month, year }))
+        await dispatch(importBudgetCSV({ rows: csvData, month, year, ...ownerParam }))
         setCsvData([])
         setShowCSVImport(false)
-        dispatch(getBudgetDashboard({ month, year }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
     }
 
-    const hasFilters = filterDate || filterMethod || filterCategory
+    const hasFilters = filterDateFrom || filterDateTo || filterMethod || filterCategory
 
     const filtered = useMemo(() => {
         let list = expenses
-        if (filterDate) list = list.filter(e => new Date(e.date).toISOString().split('T')[0] === filterDate)
+        if (filterDateFrom) list = list.filter(e => toLocalDateString(e.date) >= filterDateFrom)
+        if (filterDateTo) list = list.filter(e => toLocalDateString(e.date) <= filterDateTo)
         if (filterMethod) list = list.filter(e => e.paymentMethod === filterMethod)
         if (filterCategory) {
             if (filterCategory === 'uncategorized') list = list.filter(e => !e.category)
             else list = list.filter(e => e.category?._id === filterCategory)
         }
         return list
-    }, [expenses, filterDate, filterMethod, filterCategory])
+    }, [expenses, filterDateFrom, filterDateTo, filterMethod, filterCategory])
+
+    const sorted = useMemo(() => {
+        const list = [...filtered]
+        list.sort((a, b) => {
+            let cmp = 0
+            switch (sortField) {
+                case 'date': cmp = new Date(a.date) - new Date(b.date); break
+                case 'amount': cmp = a.amount - b.amount; break
+                case 'description': cmp = (a.description || '').localeCompare(b.description || ''); break
+                case 'category': cmp = (a.category?.name || '').localeCompare(b.category?.name || ''); break
+                default: cmp = new Date(a.date) - new Date(b.date)
+            }
+            return sortDir === 'asc' ? cmp : -cmp
+        })
+        return list
+    }, [filtered, sortField, sortDir])
+
+    const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
+    const paginatedExpenses = useMemo(() => sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [sorted, currentPage])
+
+    useEffect(() => { setCurrentPage(1) }, [filterDateFrom, filterDateTo, filterMethod, filterCategory, sortField, sortDir, month, year])
+
+    const handleSort = (field) => {
+        if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+        else { setSortField(field); setSortDir('desc') }
+    }
+
+    const sortIcon = (field) => sortField === field ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''
 
     const filteredGrouped = useMemo(() => {
         const groups = {}
-        filtered.forEach(e => {
+        paginatedExpenses.forEach(e => {
             const d = new Date(e.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
             if (!groups[d]) groups[d] = { items: [], totalIncome: 0, totalExpense: 0 }
             groups[d].items.push(e)
@@ -2142,9 +2606,10 @@ const DailyExpensesTab = ({
             }
         })
         return Object.entries(groups)
-    }, [filtered])
+    }, [paginatedExpenses])
 
-    const allSelected = filtered.length > 0 && selectedExpenses.length === filtered.length
+    const filteredIds = useMemo(() => filtered.map(e => e._id), [filtered])
+    const allSelected = filtered.length > 0 && filteredIds.every(id => selectedExpenses.includes(id))
     const someSelected = selectedExpenses.length > 0
 
     const totalIncome = filtered.filter(e => e.type === 'income' && !e.listOnly).reduce((s, e) => s + e.amount, 0)
@@ -2197,7 +2662,7 @@ const DailyExpensesTab = ({
 
     const overallBreakdown = useMemo(() => getCurrencyBreakdown(filtered), [filtered, activeViewCurrency])
 
-    const clearFilters = () => { setFilterDate(''); setFilterMethod(''); setFilterCategory('') }
+    const clearFilters = () => { setFilterDateFrom(''); setFilterDateTo(''); setFilterMethod(''); setFilterCategory('') }
 
     const usedMethods = [...new Set(expenses.map(e => e.paymentMethod))].sort()
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
@@ -2365,9 +2830,8 @@ const DailyExpensesTab = ({
 
             {/* Rate Editor Modal */}
             {showRateEditor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setShowRateEditor(false)}>
-                    <div className="absolute inset-0 bg-black/50" />
-                    <div className={`relative w-full max-w-md rounded-xl border border-solid shadow-xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
+                <ModalOverlay onClose={() => setShowRateEditor(false)}>
+                    <div className={`relative w-full max-w-md rounded-2xl border border-solid shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                             <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Exchange Rates (1 PHP = ?)</h3>
                             <button onClick={() => setShowRateEditor(false)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
@@ -2420,7 +2884,7 @@ const DailyExpensesTab = ({
                             </div>
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}</AnimateIn>
 
             {/* Search + CSV Import */}
@@ -2460,7 +2924,12 @@ const DailyExpensesTab = ({
                                             <span className={isLight ? 'text-slate-400' : 'text-gray-500'}>{new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                             <span className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</span>
                                         </div>
-                                        <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}</span>
+                                        <div className="text-right flex-shrink-0">
+                                            <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount, e.currency || 'PHP')}</span>
+                                            {(e.currency || 'PHP') !== activeViewCurrency && (
+                                                <span className={`block text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency || 'PHP')}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -2516,7 +2985,7 @@ const DailyExpensesTab = ({
                         </span>
                         {hasFilters && (
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
-                                {[filterDate, filterMethod, filterCategory].filter(Boolean).length}
+                                {[filterDateFrom, filterDateTo, filterMethod, filterCategory].filter(Boolean).length}
                             </span>
                         )}
                     </div>
@@ -2531,10 +3000,14 @@ const DailyExpensesTab = ({
                 </button>
                 {showFilters && (
                     <div className={`px-4 py-3 border-t border-solid ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#0a0a0a]'}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                             <div>
-                                <label className={`block text-[11px] font-medium mb-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Date</label>
-                                <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className={inputCls} />
+                                <label className={`block text-[11px] font-medium mb-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>From</label>
+                                <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className={`block text-[11px] font-medium mb-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>To</label>
+                                <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className={inputCls} />
                             </div>
                             <div>
                                 <label className={`block text-[11px] font-medium mb-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Payment Method</label>
@@ -2557,11 +3030,11 @@ const DailyExpensesTab = ({
             </div>
 
             {/* Bulk Action Bar */}
-            {someSelected && (
+            {someSelected && !isViewer && (
                 <div className={`rounded-xl p-3 border border-solid ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#111] border-[#2B2B2B]'}`}>
                     <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-3">
-                            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="w-4 h-4 rounded cursor-pointer accent-blue-500" />
+                            <input type="checkbox" checked={allSelected} onChange={() => toggleSelectAll(filteredIds)} className="w-4 h-4 rounded cursor-pointer accent-blue-500" />
                             <span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{selectedExpenses.length} selected</span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2605,7 +3078,7 @@ const DailyExpensesTab = ({
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {editingExpense ? 'Edit Transaction' : 'Transactions'}
                     </h3>
-                    <button
+                    {!isViewer && <button
                         onClick={() => { setShowExpenseForm(!showExpenseForm); setEditingExpense(null); setExpenseForm(emptyExpense); setExpenseItems([{ ...emptyItem }]) }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
                             showExpenseForm
@@ -2615,10 +3088,10 @@ const DailyExpensesTab = ({
                     >
                         <FontAwesomeIcon icon={showExpenseForm ? faTimes : faPlus} className="text-[10px]" />
                         {showExpenseForm ? 'Cancel' : 'Add New'}
-                    </button>
+                    </button>}
                 </div>
 
-                {showExpenseForm && (
+                {showExpenseForm && !isViewer && (
                     <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
                         {/* Shared fields */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2786,22 +3259,19 @@ const DailyExpensesTab = ({
 
                 {/* Table */}
                 {filtered.length > 0 ? (
+                <>
                     <div className="overflow-x-auto -mx-px">
                         <table className="w-full min-w-[640px]">
                             <thead>
                                 <tr className={`text-[11px] uppercase tracking-wider ${isLight ? 'text-slate-400 bg-slate-50/80' : 'text-gray-500 bg-[#111]'}`}>
                                     <th className="w-10 px-4 py-2.5 text-center">
-                                        <input type="checkbox" checked={allSelected} onChange={() => {
-                                            const filteredIds = filtered.map(e => e._id)
-                                            if (allSelected) setSelectedExpenses(prev => prev.filter(id => !filteredIds.includes(id)))
-                                            else setSelectedExpenses(prev => [...new Set([...prev, ...filteredIds])])
-                                        }} className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500" />
+                                        <input type="checkbox" checked={allSelected} onChange={() => toggleSelectAll(filteredIds)} className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500" />
                                     </th>
-                                    <th className="px-3 py-2.5 text-left font-semibold">Date</th>
-                                    <th className="px-3 py-2.5 text-left font-semibold">Description</th>
-                                    <th className="px-3 py-2.5 text-left font-semibold">Category</th>
+                                    <th className="px-3 py-2.5 text-left font-semibold cursor-pointer select-none hover:text-blue-400 transition-colors" onClick={() => handleSort('date')}>Date{sortIcon('date')}</th>
+                                    <th className="px-3 py-2.5 text-left font-semibold cursor-pointer select-none hover:text-blue-400 transition-colors" onClick={() => handleSort('description')}>Description{sortIcon('description')}</th>
+                                    <th className="px-3 py-2.5 text-left font-semibold cursor-pointer select-none hover:text-blue-400 transition-colors" onClick={() => handleSort('category')}>Category{sortIcon('category')}</th>
                                     <th className="px-3 py-2.5 text-left font-semibold">Method</th>
-                                    <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
+                                    <th className="px-3 py-2.5 text-right font-semibold cursor-pointer select-none hover:text-blue-400 transition-colors" onClick={() => handleSort('amount')}>Amount{sortIcon('amount')}</th>
                                     <th className="w-20 px-3 py-2.5 text-right font-semibold">Actions</th>
                                 </tr>
                             </thead>
@@ -2924,22 +3394,28 @@ const DailyExpensesTab = ({
                                                         </td>
                                                         <td className="px-3 py-2.5 text-right">
                                                             <div className="flex items-center justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                                {!isViewer && <>
                                                                 <button
                                                                     onClick={async () => {
-                                                                        await dispatch(updateBudgetExpense({ id: e._id, date: e.date, description: e.description, category: e.category?._id || '', amount: e.amount, type: e.type, paymentMethod: e.paymentMethod, notes: e.notes || '', currency: e.currency || 'PHP', listOnly: !e.listOnly, attachments: e.attachments || [], isRecurring: !!e.isRecurring, recurrenceRule: e.recurrenceRule || '', recurrenceEnd: e.recurrenceEnd || '', month, year }))
-                                                                        dispatch(getBudgetDashboard({ month, year }))
+                                                                        await dispatch(updateBudgetExpense({ id: e._id, date: e.date, description: e.description, category: e.category?._id || '', amount: e.amount, type: e.type, paymentMethod: e.paymentMethod, notes: e.notes || '', currency: e.currency || 'PHP', listOnly: !e.listOnly, attachments: e.attachments || [], isRecurring: !!e.isRecurring, recurrenceRule: e.recurrenceRule || '', recurrenceEnd: e.recurrenceEnd || '', month, year, ...ownerParam }))
+                                                                        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
                                                                     }}
                                                                     title={e.listOnly ? 'Include in totals' : 'Exclude from totals (list only)'}
+                                                                    aria-label={e.listOnly ? `Include ${e.description} in totals` : `Exclude ${e.description} from totals`}
                                                                     className={`w-7 h-7 rounded-md flex items-center justify-center ${e.listOnly ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400') : (isLight ? 'hover:bg-amber-50 text-slate-400' : 'hover:bg-amber-900/20 text-gray-500')}`}
                                                                 >
                                                                     <FontAwesomeIcon icon={e.listOnly ? faEyeSlash : faEye} className="text-[10px]" />
                                                                 </button>
-                                                                <button onClick={() => handleEditExpense(e)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
+                                                                <button onClick={() => handleEditExpense(e)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`} title="Edit" aria-label={`Edit ${e.description}`}>
                                                                     <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                                 </button>
-                                                                <button onClick={() => handleDeleteExpense(e._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === e._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`}>
+                                                                <button onClick={() => handleDuplicateExpense(e)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-violet-100 text-violet-500' : 'hover:bg-violet-900/30 text-violet-400'}`} title="Duplicate" aria-label={`Duplicate ${e.description}`}>
+                                                                    <FontAwesomeIcon icon={faClone} className="text-[10px]" />
+                                                                </button>
+                                                                <button onClick={() => handleDeleteExpense(e._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === e._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`} title="Delete" aria-label={`Delete ${e.description}`}>
                                                                     <FontAwesomeIcon icon={deleteConfirm === e._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                                                 </button>
+                                                                </>}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -2951,11 +3427,61 @@ const DailyExpensesTab = ({
                             </tbody>
                         </table>
                     </div>
+                    {totalPages > 1 && (() => {
+                        const pages = []
+                        const maxVisible = 5
+                        let start = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+                        let end = Math.min(totalPages, start + maxVisible - 1)
+                        if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1)
+                        for (let i = start; i <= end; i++) pages.push(i)
+
+                        const btnBase = `w-8 h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed`
+                        const btnIdle = isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-400 hover:bg-[#1f1f1f]'
+                        const btnActive = isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white'
+
+                        return (
+                        <div className={`flex items-center justify-between px-4 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1a1a1a]'}`}>
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, sorted.length)} of {sorted.length}
+                            </span>
+                            <div className="flex items-center gap-0.5">
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={`${btnBase} ${btnIdle}`} aria-label="First page">
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180" /><FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180 -ml-1" />
+                                </button>
+                                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className={`${btnBase} ${btnIdle}`} aria-label="Previous page">
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180" />
+                                </button>
+                                {start > 1 && <span className={`w-6 text-center text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>…</span>}
+                                {pages.map(p => (
+                                    <button key={p} onClick={() => setCurrentPage(p)} className={`${btnBase} ${currentPage === p ? btnActive : btnIdle}`}>
+                                        {p}
+                                    </button>
+                                ))}
+                                {end < totalPages && <span className={`w-6 text-center text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>…</span>}
+                                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className={`${btnBase} ${btnIdle}`} aria-label="Next page">
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px]" />
+                                </button>
+                                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className={`${btnBase} ${btnIdle}`} aria-label="Last page">
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px]" /><FontAwesomeIcon icon={faArrowRight} className="text-[9px] -ml-1" />
+                                </button>
+                            </div>
+                        </div>
+                        )
+                    })()}
+                </>
                 ) : (
                     <div className="text-center py-16 px-5">
                         <FontAwesomeIcon icon={hasFilters ? faFilter : faCalendarDay} className={`text-3xl mb-3 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
                         <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{hasFilters ? 'No transactions match your filters.' : 'No transactions this month.'}</p>
-                        <p className={`text-xs mt-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{hasFilters ? <span className="cursor-pointer hover:underline" onClick={clearFilters}>Clear filters</span> : 'Click "Add New" to get started.'}</p>
+                        {hasFilters ? (
+                            <button onClick={clearFilters} className={`mt-3 text-xs font-medium px-4 py-2 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`}>
+                                <FontAwesomeIcon icon={faFilter} className="mr-1.5 text-[10px]" />Clear Filters
+                            </button>
+                        ) : (
+                            <button onClick={() => setShowExpenseForm(true)} className={`mt-3 text-xs font-medium px-4 py-2 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`}>
+                                <FontAwesomeIcon icon={faPlus} className="mr-1.5 text-[10px]" />Add Your First Transaction
+                            </button>
+                        )}
                     </div>
                 )}
             </div></AnimateIn>
@@ -3033,6 +3559,14 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [drilldown, setDrilldown] = useState(null)
 
+    const drilldownItems = useMemo(() => {
+        if (!drilldown) return []
+        const active = expenses.filter(e => !e.listOnly && e.type === 'expense')
+        return active
+            .filter(e => (e.category?._id || 'uncategorized') === drilldown._id)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+    }, [drilldown, expenses])
+
     if (isLoading || !dashboard) {
         return (
             <div className="space-y-4">
@@ -3067,14 +3601,6 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
     const totalSpent = monthlyBudgetData.reduce((s, c) => s + (c.spent || 0), 0)
     const overallPct = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0
     const overallStatus = statusColor(overallPct)
-
-    const drilldownItems = useMemo(() => {
-        if (!drilldown) return []
-        const active = expenses.filter(e => !e.listOnly && e.type === 'expense')
-        return active
-            .filter(e => (e.category?._id || 'uncategorized') === drilldown._id)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-    }, [drilldown, expenses])
 
     return (
         <div className="space-y-4">
@@ -3127,10 +3653,16 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                                         {cat.budget > 0 ? `Remaining: ${formatCurrency(cat.remaining)}` : `Budget: ${formatCurrency(0)}`}
                                     </span>
                                 </div>
-                                {cat.percentage >= 100 && (
+                                {cat.percentage > 100 && (
                                     <div className={`flex items-center gap-1.5 mt-2 text-xs font-medium text-red-500`}>
                                         <FontAwesomeIcon icon={faExclamationTriangle} className="text-[10px]" />
                                         Over budget by {formatCurrency(Math.abs(cat.remaining))}
+                                    </div>
+                                )}
+                                {cat.percentage === 100 && (
+                                    <div className={`flex items-center gap-1.5 mt-2 text-xs font-medium text-emerald-500`}>
+                                        <FontAwesomeIcon icon={faCheckCircle} className="text-[10px]" />
+                                        Exactly on budget
                                     </div>
                                 )}
                                 {cat.percentage >= 80 && cat.percentage < 100 && (
@@ -3154,8 +3686,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
 
             {/* Monthly Budget Drilldown Modal */}
             {drilldown && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setDrilldown(null)}>
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <ModalOverlay onClose={() => setDrilldown(null)}>
                     <div className={`relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`} onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className={`flex items-center justify-between px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex-shrink-0`}>
@@ -3258,7 +3789,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                             )}
                         </div>
                     </div>
-                </div>
+                </ModalOverlay>
             )}
         </div>
     )
@@ -3270,11 +3801,32 @@ const CategoriesTab = ({
     categories, categoryForm, setCategoryForm, editingCategory, showCategoryForm,
     setShowCategoryForm, handleCategorySubmit, handleEditCategory, handleDeleteCategory,
     setEditingCategory, deleteConfirm, isLight, card, inputCls, selectCls, btnPrimary,
-    btnSecondary, formatCurrency, emptyCategory, isLoading, dispatch
+    btnSecondary, formatCurrency, emptyCategory, isLoading, dispatch, currentUserId,
+    isViewer, ownerParam = {}
 }) => {
     const [showIconPicker, setShowIconPicker] = useState(false)
     const [iconSearch, setIconSearch] = useState('')
+    const [shareTarget, setShareTarget] = useState(null)
+    const [shareUsername, setShareUsername] = useState('')
+    const [shareLoading, setShareLoading] = useState(false)
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+
+    const handleShareCategory = async () => {
+        if (!shareUsername || !shareTarget) return
+        setShareLoading(true)
+        try {
+            await dispatch(shareBudgetCategory({ id: shareTarget._id, username: shareUsername })).unwrap()
+            setShareUsername('')
+            setShareTarget(null)
+        } catch (err) { console.error('Share failed:', err) }
+        setShareLoading(false)
+    }
+
+    const handleUnshareCategory = async (categoryId, targetUserId) => {
+        try {
+            await dispatch(unshareBudgetCategory({ id: categoryId, targetUserId })).unwrap()
+        } catch (err) { console.error('Unshare failed:', err) }
+    }
 
     if (isLoading) {
         return (
@@ -3311,7 +3863,7 @@ const CategoriesTab = ({
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {editingCategory ? 'Edit Category' : 'Manage Categories'}
                     </h3>
-                    <button
+                    {!isViewer && <button
                         onClick={() => { setShowCategoryForm(!showCategoryForm); setEditingCategory(null); setCategoryForm(emptyCategory) }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
                             showCategoryForm
@@ -3321,10 +3873,10 @@ const CategoriesTab = ({
                     >
                         <FontAwesomeIcon icon={showCategoryForm ? faTimes : faPlus} className="text-[10px]" />
                         {showCategoryForm ? 'Cancel' : 'New Category'}
-                    </button>
+                    </button>}
                 </div>
 
-                {showCategoryForm && (
+                {showCategoryForm && !isViewer && (
                     <div className={`p-4 rounded-lg mb-4 border border-solid ${isLight ? 'bg-slate-50/50 border-slate-200/60' : 'bg-[#141414] border-[#2B2B2B]'}`}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
@@ -3417,7 +3969,9 @@ const CategoriesTab = ({
                 </h4>
                 {expenseCats.length > 0 ? (
                     <div className="space-y-2">
-                        {expenseCats.map(cat => (
+                        {expenseCats.map(cat => {
+                            const isOwner = cat.user === currentUserId || cat.user?._id === currentUserId
+                            return (
                             <div key={cat._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
                                 <div className="flex items-center gap-3 min-w-0">
                                     {cat.icon ? (
@@ -3428,7 +3982,14 @@ const CategoriesTab = ({
                                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                                     )}
                                     <div className="min-w-0">
-                                        <span className={`text-sm font-medium block truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`text-sm font-medium block truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
+                                            {!isOwner && (
+                                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
+                                                    <FontAwesomeIcon icon={faUserFriends} className="mr-0.5 text-[7px]" />Shared
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {cat.budget > 0 && (
                                                 <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget: {formatCurrency(cat.budget)}/mo</span>
@@ -3439,16 +4000,22 @@ const CategoriesTab = ({
                                         </div>
                                     </div>
                                 </div>
+                                {isOwner && !isViewer ? (
                                 <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
+                                    <button onClick={() => setShareTarget(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-emerald-100 text-emerald-500' : 'hover:bg-emerald-900/30 text-emerald-400'}`} title="Share">
+                                        <FontAwesomeIcon icon={faUserFriends} className="text-[10px]" />
+                                    </button>
+                                    <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`} title="Edit">
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
-                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === cat._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`}>
+                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === cat._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`} title="Delete">
                                         <FontAwesomeIcon icon={deleteConfirm === cat._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                     </button>
                                 </div>
+                                ) : null}
                             </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 ) : (
                     <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No expense categories yet.</p>
@@ -3462,7 +4029,9 @@ const CategoriesTab = ({
                 </h4>
                 {incomeCats.length > 0 ? (
                     <div className="space-y-2">
-                        {incomeCats.map(cat => (
+                        {incomeCats.map(cat => {
+                            const isOwner = cat.user === currentUserId || cat.user?._id === currentUserId
+                            return (
                             <div key={cat._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#141414]'}`}>
                                 <div className="flex items-center gap-3 min-w-0">
                                     {cat.icon ? (
@@ -3472,8 +4041,16 @@ const CategoriesTab = ({
                                     ) : (
                                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                                     )}
-                                    <span className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
+                                        {!isOwner && (
+                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
+                                                <FontAwesomeIcon icon={faUserFriends} className="mr-0.5 text-[7px]" />Shared
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                {isOwner && !isViewer ? (
                                 <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
@@ -3482,13 +4059,69 @@ const CategoriesTab = ({
                                         <FontAwesomeIcon icon={deleteConfirm === cat._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                     </button>
                                 </div>
+                                ) : null}
                             </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 ) : (
                     <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No income categories yet.</p>
                 )}
             </div></AnimateIn>
+
+            {/* Share Category Modal */}
+            {shareTarget && (
+                <ModalOverlay onClose={() => { setShareTarget(null); setShareUsername('') }}>
+                    <div className={`relative w-full max-w-sm rounded-2xl shadow-2xl ${isLight ? 'bg-white' : 'bg-[#141414]'} border border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'} p-5`} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: shareTarget.color + '20' }}>
+                                    {shareTarget.icon ? <SafeIcon name={shareTarget.icon} cls="text-sm" style={{ color: shareTarget.color }} /> : <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: shareTarget.color }} />}
+                                </div>
+                                <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Share "{shareTarget.name}"</h3>
+                            </div>
+                            <button onClick={() => { setShareTarget(null); setShareUsername('') }} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                            </button>
+                        </div>
+                        <div className="flex gap-2 mb-3">
+                            <input type="text" placeholder="Enter username" value={shareUsername} onChange={e => setShareUsername(e.target.value)} className={`${inputCls} flex-1`} onKeyDown={e => e.key === 'Enter' && handleShareCategory()} />
+                            <button onClick={handleShareCategory} disabled={!shareUsername || shareLoading} className={`${btnPrimary} !text-xs !px-3 disabled:opacity-40`}>
+                                {shareLoading ? <FontAwesomeIcon icon={faSpinner} className="animate-spin" /> : 'Share'}
+                            </button>
+                        </div>
+                        {shareTarget.sharedWith?.length > 0 && (
+                            <div>
+                                <p className={`text-[11px] font-medium mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Shared with:</p>
+                                <div className="space-y-1.5">
+                                    {shareTarget.sharedWith.map((user, i) => {
+                                        const uid = typeof user === 'object' ? user._id : user
+                                        const name = typeof user === 'object' ? user.username : user
+                                        const avatar = typeof user === 'object' ? user.avatar : null
+                                        return (
+                                            <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#0a0a0a]'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {avatar ? (
+                                                        <img src={avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                                    ) : (
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
+                                                            {(name || '?')[0].toUpperCase()}
+                                                        </div>
+                                                    )}
+                                                    <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{name}</span>
+                                                </div>
+                                                <button onClick={() => handleUnshareCategory(shareTarget._id, uid)} className={`text-[10px] ${isLight ? 'text-red-500 hover:text-red-600' : 'text-red-400 hover:text-red-300'}`}>
+                                                    <FontAwesomeIcon icon={faTimes} />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ModalOverlay>
+            )}
         </div>
     )
 }
@@ -3507,7 +4140,7 @@ const DENOMINATIONS = [
     { label: '₱ 1', value: 1, type: 'coin' },
 ]
 
-const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading }) => {
+const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer, ownerParam = {} }) => {
     const [counts, setCounts] = useState(() => {
         const init = {}
         DENOMINATIONS.forEach(d => { init[d.value] = '' })
@@ -3555,8 +4188,8 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
     const handleSave = async () => {
         const denominations = {}
         DENOMINATIONS.forEach(d => { denominations[d.value] = counts[d.value] === '' ? 0 : counts[d.value] })
-        await dispatch(saveBudgetSavings({ denominations }))
-        dispatch(getBudgetSavingsHistory())
+        await dispatch(saveBudgetSavings({ denominations, ...ownerParam }))
+        dispatch(getBudgetSavingsHistory(ownerParam))
         setHasChanges(false)
     }
 
@@ -3569,7 +4202,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
 
     const handleDeleteHistory = (id) => {
         if (deleteConfirmId === id) {
-            dispatch(deleteBudgetSavingsHistory(id))
+            dispatch(deleteBudgetSavingsHistory({ id, ...ownerParam }))
             setDeleteConfirmId(null)
         } else {
             setDeleteConfirmId(id)
@@ -3626,10 +4259,10 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                 </div>
                 {subTab === 'counter' && (
                     <div className="flex items-center gap-2">
-                        <button onClick={handleClear} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-400'}`}>
+                        {!isViewer && <button onClick={handleClear} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-400'}`}>
                             Clear All
-                        </button>
-                        {hasChanges && (
+                        </button>}
+                        {hasChanges && !isViewer && (
                             <button onClick={handleSave} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                                 <FontAwesomeIcon icon={faCheck} className="mr-1" /> Save
                             </button>
@@ -3781,7 +4414,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
 
 // ==================== DEBT TAB ====================
 
-const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, PAYMENT_METHODS }) => {
+const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, PAYMENT_METHODS, isViewer, ownerParam = {} }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [showForm, setShowForm] = useState(false)
     const [editing, setEditing] = useState(null)
@@ -3799,7 +4432,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
 
     const handleSubmit = async () => {
         if (!form.name || !form.total_amount) return
-        const data = { ...form, total_amount: parseFloat(form.total_amount) }
+        const data = { ...form, ...ownerParam, total_amount: parseFloat(form.total_amount) }
         try {
             if (editing) await dispatch(updateDebt({ ...data, id: editing })).unwrap()
             else await dispatch(createDebt(data)).unwrap()
@@ -3820,7 +4453,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
 
     const handleDelete = async (id) => {
         if (deleteConfirm === id) {
-            await dispatch(deleteDebt(id))
+            await dispatch(deleteDebt({ id, ...ownerParam }))
             setDeleteConfirm(null)
         } else {
             setDeleteConfirm(id)
@@ -3830,16 +4463,16 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
 
     const handlePayment = async () => {
         if (!paymentForm.amount || !paymentForm.debtId) return
-        await dispatch(addDebtPayment({ id: paymentForm.debtId, amount: parseFloat(paymentForm.amount), notes: paymentForm.notes, category: paymentForm.category || null, paymentMethod: paymentForm.paymentMethod }))
+        await dispatch(addDebtPayment({ id: paymentForm.debtId, amount: parseFloat(paymentForm.amount), notes: paymentForm.notes, category: paymentForm.category || null, paymentMethod: paymentForm.paymentMethod, ...ownerParam }))
         setPaymentForm({ debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' })
     }
 
     const handleRemovePayment = async (debtId, paymentId) => {
-        await dispatch(removeDebtPayment({ id: debtId, paymentId }))
+        await dispatch(removeDebtPayment({ id: debtId, paymentId, ...ownerParam }))
     }
 
     const handleToggle = async (id) => {
-        await dispatch(toggleDebtStatus(id))
+        await dispatch(toggleDebtStatus({ id, ...ownerParam }))
     }
 
     const filtered = useMemo(() => {
@@ -3921,10 +4554,10 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                             <option value="active">Active</option>
                             <option value="paid">Paid</option>
                         </select>
-                        <button onClick={() => { resetForm(); setShowForm(true) }}
+                        {!isViewer && <button onClick={() => { resetForm(); setShowForm(true) }}
                             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                             <FontAwesomeIcon icon={faPlus} className="text-[10px]" /> Add Debt
-                        </button>
+                        </button>}
                     </div>
                 </div>
 
@@ -4042,7 +4675,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
 
                                             {/* Actions */}
                                             <div className="flex items-center gap-1 flex-shrink-0">
-                                                {!isPaid && (
+                                                {!isPaid && !isViewer && (
                                                     <button onClick={() => setPaymentForm(prev => prev.debtId === debt._id ? { debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' } : { debtId: debt._id, amount: '', notes: '', category: '', paymentMethod: 'Cash' })}
                                                         className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isPaymentOpen
                                                             ? (isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400')
@@ -4056,6 +4689,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                                                     title="Payment history">
                                                     <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[10px]" />
                                                 </button>
+                                                {!isViewer && <>
                                                 <button onClick={() => handleEdit(debt)}
                                                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-amber-400 hover:text-amber-300 hover:bg-amber-900/20'}`}
                                                     title="Edit">
@@ -4068,6 +4702,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                                                     }`} title="Delete">
                                                     <FontAwesomeIcon icon={deleteConfirm === debt._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                                 </button>
+                                                </>}
                                             </div>
                                         </div>
 
@@ -4277,7 +4912,7 @@ const ListIconPicker = ({ value, onChange, isLight }) => {
     )
 }
 
-const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, btnSecondary, isLoading }) => {
+const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, btnSecondary, isLoading, isViewer, ownerParam = {} }) => {
     const [showForm, setShowForm] = useState(false)
     const [editingList, setEditingList] = useState(null)
     const [form, setForm] = useState({ name: '', description: '', color: '#3b82f6', icon: 'peso-sign', currency: '₱', showCurrency: true, items: [] })
@@ -4290,8 +4925,6 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
     const [editItemForm, setEditItemForm] = useState({ name: '', amount: '', type: 'subtract', notes: '' })
 
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
-
-    useEffect(() => { dispatch(getBudgetLists()) }, [])
 
     const resetForm = () => {
         setForm({ name: '', description: '', color: '#3b82f6', icon: 'peso-sign', currency: '₱', showCurrency: true, items: [] })
@@ -4333,15 +4966,15 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
     const handleSubmit = async () => {
         if (!form.name.trim()) return
         try {
-            if (editingList) await dispatch(updateBudgetList({ id: editingList, ...form })).unwrap()
-            else await dispatch(createBudgetList(form)).unwrap()
+            if (editingList) await dispatch(updateBudgetList({ id: editingList, ...form, ...ownerParam })).unwrap()
+            else await dispatch(createBudgetList({ ...form, ...ownerParam })).unwrap()
             resetForm()
         } catch (err) { /* form kept open */ }
     }
 
     const handleDelete = async (id) => {
         if (deleteConfirm === id) {
-            await dispatch(deleteBudgetList(id))
+            await dispatch(deleteBudgetList({ id, ...ownerParam }))
             setDeleteConfirm(null)
             if (expandedList === id) setExpandedList(null)
         } else {
@@ -4350,7 +4983,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
         }
     }
 
-    const listPayload = (list, items) => ({ id: list._id, name: list.name, description: list.description, color: list.color, icon: list.icon, currency: list.currency, showCurrency: list.showCurrency, items })
+    const listPayload = (list, items) => ({ id: list._id, name: list.name, description: list.description, color: list.color, icon: list.icon, currency: list.currency, showCurrency: list.showCurrency, items, ...ownerParam })
 
     const toggleItemCheck = async (list, itemIdx) => {
         const updatedItems = list.items.map((it, i) => i === itemIdx ? { ...it, checked: !it.checked } : { ...it })
@@ -4447,13 +5080,13 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                             })()}
                         </p>
                     </div>
-                    <button
+                    {!isViewer && <button
                         onClick={() => { resetForm(); setShowForm(true) }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                     >
                         <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
                         New List
-                    </button>
+                    </button>}
                 </div>
             </div>
 
@@ -4593,14 +5226,14 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                                     {list.description && <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{list.description}</p>}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                            {!isViewer && <div className="flex items-center gap-1 flex-shrink-0">
                                                 <button onClick={() => openEdit(list)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
                                                     <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                 </button>
                                                 <button onClick={() => handleDelete(list._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${deleteConfirm === list._id ? 'bg-red-500 text-white' : (isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-500 hover:text-red-400')}`}>
                                                     <FontAwesomeIcon icon={deleteConfirm === list._id ? faCheck : faTrash} className="text-[10px]" />
                                                 </button>
-                                            </div>
+                                            </div>}
                                         </div>
 
                                         <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -5438,7 +6071,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
 
 // ==================== GOALS TAB ====================
 
-const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading }) => {
+const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, isViewer, ownerParam = {} }) => {
     const [showForm, setShowForm] = useState(false)
     const [editing, setEditing] = useState(null)
     const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
@@ -5453,7 +6086,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
 
     const handleSubmit = async () => {
         if (!form.name || !form.targetAmount) return
-        const data = { ...form, targetAmount: parseFloat(form.targetAmount) }
+        const data = { ...form, ...ownerParam, targetAmount: parseFloat(form.targetAmount) }
         try {
             if (editing) await dispatch(updateFinancialGoal({ ...data, id: editing })).unwrap()
             else await dispatch(createFinancialGoal(data)).unwrap()
@@ -5468,13 +6101,13 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
     }
 
     const handleDelete = async (id) => {
-        if (deleteConfirm === id) { await dispatch(deleteFinancialGoal(id)); setDeleteConfirm(null) }
+        if (deleteConfirm === id) { await dispatch(deleteFinancialGoal({ id, ...ownerParam })); setDeleteConfirm(null) }
         else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000) }
     }
 
     const handleContribute = async () => {
         if (!contribForm.goalId || !contribForm.amount) return
-        await dispatch(addGoalContribution({ id: contribForm.goalId, amount: parseFloat(contribForm.amount), notes: contribForm.notes }))
+        await dispatch(addGoalContribution({ id: contribForm.goalId, amount: parseFloat(contribForm.amount), notes: contribForm.notes, ...ownerParam }))
         setContribForm({ goalId: null, amount: '', notes: '' })
     }
 
@@ -5509,14 +6142,14 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                     <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Financial Goals</h3>
                     <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{activeGoals.length} active · {completedGoals.length} completed · {totalContributions} contributions</p>
                 </div>
-                <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${
+                {!isViewer && <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${
                     showForm
                         ? (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#252525]')
                         : (isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500')
                 }`}>
                     <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
                     {showForm ? 'Close' : 'New Goal'}
-                </button>
+                </button>}
             </div></AnimateIn>
 
             {/* Stat Row */}
@@ -5641,14 +6274,14 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-0.5 flex-shrink-0">
+                                {!isViewer && <div className="flex items-center gap-0.5 flex-shrink-0">
                                     <button onClick={() => handleEdit(g)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
                                     <button onClick={() => handleDelete(g._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500')}`}>
                                         <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                     </button>
-                                </div>
+                                </div>}
                             </div>
 
                             {/* Row 2: Amount + Progress */}
@@ -5666,7 +6299,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
 
                             {/* Row 3: Add Funds + Info */}
                             <div className="flex items-center justify-between">
-                                {contribForm.goalId === g._id ? (
+                                {!isViewer && contribForm.goalId === g._id ? (
                                     <div className="flex items-center gap-2 flex-1">
                                         <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs`} min="0" step="0.01" autoFocus />
                                         <input type="text" placeholder="Note" value={contribForm.notes} onChange={e => setContribForm({...contribForm, notes: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs hidden sm:block`} />
@@ -5679,10 +6312,10 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/15 text-emerald-400 hover:bg-emerald-900/25'}`}>
+                                        {!isViewer && <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/15 text-emerald-400 hover:bg-emerald-900/25'}`}>
                                             <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
                                             Add Funds
-                                        </button>
+                                        </button>}
                                         {monthlyNeeded && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(monthlyNeeded)}/mo to reach target</span>}
                                     </div>
                                 )}

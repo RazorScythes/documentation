@@ -15,6 +15,9 @@ const initialState = {
     liveRates       : null,
     baseCurrency    : 'PHP',
     budgetSettings  : null,
+    sharedUsers     : [],
+    sharedBudgets   : [],
+    viewingBudgetOwner: null,
     alert           : {},
     isLoading       : false,
     isSavingsLoading: false,
@@ -37,9 +40,9 @@ export const getBudgetDashboard = createAsyncThunk('budget/getDashboard', async 
 
 // ==================== CATEGORIES ====================
 
-export const getBudgetCategories = createAsyncThunk('budget/getCategories', async (_, thunkAPI) => {
+export const getBudgetCategories = createAsyncThunk('budget/getCategories', async (params, thunkAPI) => {
     try {
-        const response = await api.getBudgetCategories()
+        const response = await api.getBudgetCategories(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -67,9 +70,10 @@ export const updateBudgetCategory = createAsyncThunk('budget/updateCategory', as
     }
 })
 
-export const deleteBudgetCategory = createAsyncThunk('budget/deleteCategory', async (id, thunkAPI) => {
+export const deleteBudgetCategory = createAsyncThunk('budget/deleteCategory', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteBudgetCategory(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.deleteBudgetCategory(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -129,9 +133,11 @@ export const updateBudgetExpense = createAsyncThunk('budget/updateExpense', asyn
     }
 })
 
-export const deleteBudgetExpense = createAsyncThunk('budget/deleteExpense', async ({ id, month, year }, thunkAPI) => {
+export const deleteBudgetExpense = createAsyncThunk('budget/deleteExpense', async ({ id, month, year, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteBudgetExpense(id, { month, year })
+        const params = { month, year }
+        if (budgetOwnerId) params.budgetOwnerId = budgetOwnerId
+        const response = await api.deleteBudgetExpense(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -171,9 +177,9 @@ export const bulkUpdateBudgetCurrency = createAsyncThunk('budget/bulkUpdateCurre
 
 // ==================== EXCHANGE RATES ====================
 
-export const getExchangeRates = createAsyncThunk('budget/getExchangeRates', async (_, thunkAPI) => {
+export const getExchangeRates = createAsyncThunk('budget/getExchangeRates', async (params, thunkAPI) => {
     try {
-        const response = await api.getExchangeRates()
+        const response = await api.getExchangeRates(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -251,9 +257,9 @@ export const processRecurring = createAsyncThunk('budget/processRecurring', asyn
 
 // ==================== SAVINGS ====================
 
-export const getBudgetSavings = createAsyncThunk('budget/getSavings', async (_, thunkAPI) => {
+export const getBudgetSavings = createAsyncThunk('budget/getSavings', async (params, thunkAPI) => {
     try {
-        const response = await api.getSavings()
+        const response = await api.getSavings(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -271,9 +277,9 @@ export const saveBudgetSavings = createAsyncThunk('budget/saveSavings', async (d
     }
 })
 
-export const getBudgetSavingsHistory = createAsyncThunk('budget/getSavingsHistory', async (_, thunkAPI) => {
+export const getBudgetSavingsHistory = createAsyncThunk('budget/getSavingsHistory', async (params, thunkAPI) => {
     try {
-        const response = await api.getSavingsHistory()
+        const response = await api.getSavingsHistory(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -281,9 +287,10 @@ export const getBudgetSavingsHistory = createAsyncThunk('budget/getSavingsHistor
     }
 })
 
-export const deleteBudgetSavingsHistory = createAsyncThunk('budget/deleteSavingsHistory', async (id, thunkAPI) => {
+export const deleteBudgetSavingsHistory = createAsyncThunk('budget/deleteSavingsHistory', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteSavingsHistory(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.deleteSavingsHistory(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -293,9 +300,9 @@ export const deleteBudgetSavingsHistory = createAsyncThunk('budget/deleteSavings
 
 // ==================== DEBTS ====================
 
-export const getDebts = createAsyncThunk('budget/getDebts', async (_, thunkAPI) => {
+export const getDebts = createAsyncThunk('budget/getDebts', async (params, thunkAPI) => {
     try {
-        const response = await api.getDebts()
+        const response = await api.getDebts(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -323,9 +330,10 @@ export const updateDebt = createAsyncThunk('budget/updateDebt', async (formData,
     }
 })
 
-export const deleteDebt = createAsyncThunk('budget/deleteDebt', async (id, thunkAPI) => {
+export const deleteDebt = createAsyncThunk('budget/deleteDebt', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteDebt(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.deleteDebt(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -333,9 +341,9 @@ export const deleteDebt = createAsyncThunk('budget/deleteDebt', async (id, thunk
     }
 })
 
-export const addDebtPayment = createAsyncThunk('budget/addDebtPayment', async ({ id, amount, notes, category, paymentMethod }, thunkAPI) => {
+export const addDebtPayment = createAsyncThunk('budget/addDebtPayment', async ({ id, amount, notes, category, paymentMethod, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.addDebtPayment(id, { amount, notes, category, paymentMethod })
+        const response = await api.addDebtPayment(id, { amount, notes, category, paymentMethod, budgetOwnerId })
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -343,9 +351,10 @@ export const addDebtPayment = createAsyncThunk('budget/addDebtPayment', async ({
     }
 })
 
-export const removeDebtPayment = createAsyncThunk('budget/removeDebtPayment', async ({ id, paymentId }, thunkAPI) => {
+export const removeDebtPayment = createAsyncThunk('budget/removeDebtPayment', async ({ id, paymentId, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.removeDebtPayment(id, paymentId)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.removeDebtPayment(id, paymentId, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -353,9 +362,10 @@ export const removeDebtPayment = createAsyncThunk('budget/removeDebtPayment', as
     }
 })
 
-export const toggleDebtStatus = createAsyncThunk('budget/toggleDebtStatus', async (id, thunkAPI) => {
+export const toggleDebtStatus = createAsyncThunk('budget/toggleDebtStatus', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.toggleDebtStatus(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.toggleDebtStatus(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -365,9 +375,9 @@ export const toggleDebtStatus = createAsyncThunk('budget/toggleDebtStatus', asyn
 
 // ==================== BUDGET LISTS ====================
 
-export const getBudgetLists = createAsyncThunk('budget/getBudgetLists', async (_, thunkAPI) => {
+export const getBudgetLists = createAsyncThunk('budget/getBudgetLists', async (params, thunkAPI) => {
     try {
-        const response = await api.getBudgetLists()
+        const response = await api.getBudgetLists(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -395,9 +405,10 @@ export const updateBudgetList = createAsyncThunk('budget/updateBudgetList', asyn
     }
 })
 
-export const deleteBudgetList = createAsyncThunk('budget/deleteBudgetList', async (id, thunkAPI) => {
+export const deleteBudgetList = createAsyncThunk('budget/deleteBudgetList', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteBudgetList(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.deleteBudgetList(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -407,9 +418,9 @@ export const deleteBudgetList = createAsyncThunk('budget/deleteBudgetList', asyn
 
 // ==================== FINANCIAL GOALS ====================
 
-export const getFinancialGoals = createAsyncThunk('budget/getGoals', async (_, thunkAPI) => {
+export const getFinancialGoals = createAsyncThunk('budget/getGoals', async (params, thunkAPI) => {
     try {
-        const response = await api.getFinancialGoals()
+        const response = await api.getFinancialGoals(params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -437,9 +448,10 @@ export const updateFinancialGoal = createAsyncThunk('budget/updateGoal', async (
     }
 })
 
-export const deleteFinancialGoal = createAsyncThunk('budget/deleteGoal', async (id, thunkAPI) => {
+export const deleteFinancialGoal = createAsyncThunk('budget/deleteGoal', async ({ id, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.deleteFinancialGoal(id)
+        const params = budgetOwnerId ? { budgetOwnerId } : undefined
+        const response = await api.deleteFinancialGoal(id, params)
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
@@ -447,13 +459,65 @@ export const deleteFinancialGoal = createAsyncThunk('budget/deleteGoal', async (
     }
 })
 
-export const addGoalContribution = createAsyncThunk('budget/addGoalContribution', async ({ id, amount, notes }, thunkAPI) => {
+export const addGoalContribution = createAsyncThunk('budget/addGoalContribution', async ({ id, amount, notes, budgetOwnerId }, thunkAPI) => {
     try {
-        const response = await api.addGoalContribution(id, { amount, notes })
+        const response = await api.addGoalContribution(id, { amount, notes, budgetOwnerId })
         return response
     } catch (err) {
         if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
         return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to add contribution' } })
+    }
+})
+
+// ==================== BUDGET SHARING ====================
+
+export const shareBudget = createAsyncThunk('budget/shareBudget', async (formData, thunkAPI) => {
+    try {
+        const response = await api.shareBudget(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to share budget' } })
+    }
+})
+
+export const unshareBudget = createAsyncThunk('budget/unshareBudget', async (formData, thunkAPI) => {
+    try {
+        const response = await api.unshareBudget(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to unshare budget' } })
+    }
+})
+
+export const updateBudgetShareAction = createAsyncThunk('budget/updateBudgetShare', async (formData, thunkAPI) => {
+    try {
+        const response = await api.updateBudgetShare(formData)
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to update share role' } })
+    }
+})
+
+export const getSharedBudgets = createAsyncThunk('budget/getSharedBudgets', async (_, thunkAPI) => {
+    try {
+        const response = await api.getSharedBudgets()
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to load shared budgets' } })
+    }
+})
+
+export const getSharedUsers = createAsyncThunk('budget/getSharedUsers', async (_, thunkAPI) => {
+    try {
+        const response = await api.getSharedUsers()
+        return response
+    } catch (err) {
+        if (err.response?.data) return thunkAPI.rejectWithValue(err.response.data)
+        return thunkAPI.rejectWithValue({ alert: { variant: 'danger', message: 'Failed to load shared users' } })
     }
 })
 
@@ -720,13 +784,39 @@ export const budgetSlice = createSlice({
             state.alert = action.payload.data.alert
         })
         builder.addCase(addGoalContribution.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        // Budget Sharing
+        builder.addCase(shareBudget.fulfilled, (state, action) => {
+            state.sharedUsers = action.payload.data.result
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(shareBudget.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(unshareBudget.fulfilled, (state, action) => {
+            state.sharedUsers = action.payload.data.result
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(unshareBudget.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(updateBudgetShareAction.fulfilled, (state, action) => {
+            state.sharedUsers = action.payload.data.result
+            state.alert = action.payload.data.alert
+        })
+        builder.addCase(updateBudgetShareAction.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(getSharedBudgets.fulfilled, (state, action) => { state.sharedBudgets = action.payload.data.result })
+        builder.addCase(getSharedBudgets.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
+
+        builder.addCase(getSharedUsers.fulfilled, (state, action) => { state.sharedUsers = action.payload.data.result })
+        builder.addCase(getSharedUsers.rejected, (state, action) => { state.alert = action.payload?.alert || {} })
     },
     reducers: {
         clearAlert: (state) => { state.alert = {} },
         clearSearchResults: (state) => { state.searchResults = [] },
+        setViewingBudgetOwner: (state, action) => { state.viewingBudgetOwner = action.payload },
     },
 })
 
-export const { clearAlert, clearSearchResults } = budgetSlice.actions
+export const { clearAlert, clearSearchResults, setViewingBudgetOwner } = budgetSlice.actions
 
 export default budgetSlice.reducer

@@ -662,7 +662,7 @@ const ClassicLayout = ({ portfolio, isLight, username }) => {
         { key: 'linkedin', icon: faLinkedinIn, data: hero?.social_links?.linkedin, label: 'LinkedIn' },
     ].filter(s => s.data?.link && s.data?.show)
 
-    const inputCls = `w-full py-2.5 px-3 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800 placeholder-slate-300' : 'bg-[#1f1f1f] border-[#333] focus:border-blue-500 text-gray-200 placeholder-gray-600'}`
+    const inputCls = `w-full py-2.5 px-3 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800 placeholder-slate-300' : 'bg-[#0e0e0e] border-[#333] focus:border-blue-500 text-gray-200 placeholder-gray-600'}`
 
     const CvHeading = ({ title }) => (
         <div className="mb-3.5">

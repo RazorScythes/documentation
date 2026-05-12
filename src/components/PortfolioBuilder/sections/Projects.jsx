@@ -131,7 +131,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
         <div className="space-y-4">
             {/* Project List Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
                             <FontAwesomeIcon icon={faProjectDiagram} className={`text-sm ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
@@ -156,7 +156,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                                 editingIndex === i
                                     ? (isLight ? 'bg-amber-50' : 'bg-amber-900/10')
                                     : (isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]')
-                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                            } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                 {p.image ? (
                                     <img src={p.image} alt="" className={`w-9 h-9 rounded-lg object-cover flex-shrink-0 ${isLight ? 'border border-slate-200' : 'border border-[#333]'}`} />
                                 ) : (
@@ -202,7 +202,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
 
             {/* Add / Edit Project Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {isEditing ? (
                             <><span className={isLight ? 'text-amber-600' : 'text-amber-400'}>Edit:</span> {projectData[editingIndex]?.project_name}</>
@@ -213,7 +213,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                         else { setShowForm(!showForm); if (showForm) resetForm() }
                     }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showForm
-                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                             : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                         }`}>
                         <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
@@ -270,8 +270,8 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                         </div>
 
                         {/* Additional Text Section */}
-                        <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                            <div className={`flex items-center justify-between px-5 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
+                            <div className={`flex items-center justify-between px-5 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                 <div className="flex items-center gap-2">
                                     <FontAwesomeIcon icon={faFileAlt} className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                                     <span className={`text-xs font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Additional Text ({project.text.length})</span>
@@ -284,7 +284,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                             </div>
 
                             {showTextForm && (
-                                <div className={`px-4 sm:px-5 py-3 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                                <div className={`px-4 sm:px-5 py-3 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]'}`}>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                                         <div><label className={labelCls}>Heading</label><input type="text" className={inputCls} value={input.text_heading} onChange={(e) => setInput({ ...input, text_heading: e.target.value })} /></div>
                                         <div><label className={labelCls}>Image URL (optional)</label><input type="text" className={inputCls} value={input.text_imageURL} onChange={(e) => setInput({ ...input, text_imageURL: e.target.value })} /></div>
@@ -312,8 +312,8 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                         </div>
 
                         {/* Gallery Section */}
-                        <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                            <div className={`flex items-center justify-between px-5 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
+                            <div className={`flex items-center justify-between px-5 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                 <div className="flex items-center gap-2">
                                     <FontAwesomeIcon icon={faImage} className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                                     <span className={`text-xs font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Gallery ({project.gallery.length})</span>
@@ -337,7 +337,7 @@ const Projects = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                         </div>
 
                         {/* Submit */}
-                        <div className={`px-5 py-3 border-t border-solid flex justify-end gap-2 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className={`px-5 py-3 border-t border-solid flex justify-end gap-2 ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                             {isEditing ? (
                                 <>
                                     <button onClick={cancelEdit} className={btnSecondary}>Cancel</button>

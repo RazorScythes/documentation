@@ -77,7 +77,7 @@ const IconPicker = ({ value, onChange, isLight, inputCls }) => {
             {open && (
                 <div className={`absolute z-50 mt-1.5 left-0 right-0 rounded-xl border border-solid shadow-xl overflow-hidden ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}
                     style={{ width: 'min(360px, calc(100vw - 2rem))' }}>
-                    <div className={`px-3 py-2.5 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#111]'}`}>
+                    <div className={`px-3 py-2.5 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#0e0e0e] bg-[#111]'}`}>
                         <div className="relative">
                             <FontAwesomeIcon icon={faSearch} className={`absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
@@ -105,7 +105,7 @@ const IconPicker = ({ value, onChange, isLight, inputCls }) => {
                         )}
                     </div>
                     {value && (
-                        <div className={`px-3 py-2 border-t border-solid flex items-center justify-between ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#111]'}`}>
+                        <div className={`px-3 py-2 border-t border-solid flex items-center justify-between ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#0e0e0e] bg-[#111]'}`}>
                             <div className="flex items-center gap-2">
                                 <SafeIcon name={value} cls={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
                                 <span className={`text-[11px] font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{value}</span>
@@ -262,7 +262,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                     </div>
                 </div>
                 {services.length > 1 && (
-                    <div className={`px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className={`px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                         <p className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Breakdown</p>
                         <div className="flex flex-wrap gap-x-4 gap-y-1">
                             {services.map((s, i) => (
@@ -279,7 +279,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
 
             {/* Service Categories Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
                             <FontAwesomeIcon icon={faLayerGroup} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
@@ -288,7 +288,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                     </div>
                     <button onClick={() => setShowCategoryForm(!showCategoryForm)}
                         className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showCategoryForm
-                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                            ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                             : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                         }`}>
                         <FontAwesomeIcon icon={showCategoryForm ? faTimes : faPlus} className="text-[10px]" />
@@ -297,7 +297,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                 </div>
 
                 {showCategoryForm && (
-                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]'}`}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className={labelCls}>Category Name <span className="text-red-400">*</span></label>
@@ -329,7 +329,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                                             <button onClick={saveEditCategory} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'}`}>
                                                 <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
                                             </button>
-                                            <button onClick={() => setEditingCategory(null)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#2a2a2a]'}`}>
+                                            <button onClick={() => setEditingCategory(null)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#0e0e0e] text-gray-400 hover:bg-[#2a2a2a]'}`}>
                                                 <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
                                             </button>
                                         </div>
@@ -337,7 +337,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                                         <button onClick={() => setActiveService(i)}
                                             className={`flex items-center gap-2 pl-4 pr-2 py-2 rounded-xl text-xs font-medium transition-all border border-solid ${activeService === i
                                                 ? (isLight ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-blue-600 text-white border-blue-600')
-                                                : (isLight ? 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50' : 'bg-[#1a1a1a] text-gray-400 border-[#2B2B2B] hover:border-blue-500/50 hover:bg-[#1f1f1f]')
+                                                : (isLight ? 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50' : 'bg-[#1a1a1a] text-gray-400 border-[#2B2B2B] hover:border-blue-500/50 hover:bg-[#0e0e0e]')
                                             }`}>
                                             <span>{s.service_name}</span>
                                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeService === i ? 'bg-white/20 text-white' : (isLight ? 'bg-slate-200/80 text-slate-500' : 'bg-[#2B2B2B] text-gray-500')}`}>{s.type_of_service.length}</span>
@@ -369,7 +369,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
             {/* Service Types Card */}
             {services.length > 0 && (
                 <div className={`${card} overflow-hidden`}>
-                    <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                         <div className="flex items-center gap-2.5">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
                                 <FontAwesomeIcon icon={faChevronRight} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
@@ -385,7 +385,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                         </div>
                         <button onClick={() => { setShowTypeForm(!showTypeForm); setEditingType(null) }}
                             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${showTypeForm
-                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
+                                ? (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#0e0e0e] text-gray-400')
                                 : (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                             }`}>
                             <FontAwesomeIcon icon={showTypeForm ? faTimes : faPlus} className="text-[10px]" />
@@ -395,7 +395,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
 
                     {/* Add Type Form */}
                     {showTypeForm && (
-                        <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                        <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'bg-slate-50/50 border-slate-100' : 'bg-[#111] border-[#0e0e0e]'}`}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                 <div>
                                     <label className={labelCls}>Service Name <span className="text-red-400">*</span></label>
@@ -455,7 +455,7 @@ const Services = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSec
                                     editingType?.sIdx === activeService && editingType?.tIdx === i
                                         ? (isLight ? 'bg-amber-50' : 'bg-amber-900/10')
                                         : (isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]')
-                                } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
+                                } ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
                                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400'}`}>
                                         <SafeIcon name={t.featured_icon} cls="text-base" />
                                     </div>

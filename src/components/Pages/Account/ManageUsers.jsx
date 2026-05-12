@@ -356,7 +356,7 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                                         const fullName = [row.profile_id?.first_name, row.profile_id?.last_name].filter(Boolean).join(' ')
 
                                         return (
-                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-cyan-50/50' : 'bg-cyan-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-cyan-50/30' : 'hover:bg-[#1F1F1F]'}`}>
+                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-cyan-50/50' : 'bg-cyan-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-cyan-50/30' : 'hover:bg-[#0e0e0e]'}`}>
                                                 {isAdmin && <td className={`${tdClass} w-10`}><input type="checkbox" checked={selected.includes(row._id)} onChange={() => toggleOne(row._id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-cyan-500" /></td>}
                                                 {/* User Cell */}
                                                 <td className={tdClass}>

@@ -130,7 +130,7 @@ const Hero = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeconda
 
             {/* Profile Info Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
                             <FontAwesomeIcon icon={faUser} className={`text-sm ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
@@ -180,7 +180,7 @@ const Hero = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeconda
                 </div>
 
                 {hero.profession.length > 0 && (
-                    <div className={`px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                    <div className={`px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                         <p className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Professions ({hero.profession.length})</p>
                         <div className="flex flex-wrap gap-2">
                             {hero.profession.map((item, i) => (
@@ -196,7 +196,7 @@ const Hero = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeconda
 
             {/* Social Links Card */}
             <div className={`${card} overflow-hidden`}>
-                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
                             <FontAwesomeIcon icon={faShareNodes} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
@@ -228,7 +228,7 @@ const Hero = ({ user, portfolio, isLight, card, inputCls, btnPrimary, btnSeconda
                                 <label className={`flex items-center gap-1.5 cursor-pointer flex-shrink-0 px-2 py-1 rounded-lg transition-all ${
                                     input[social].show
                                         ? (isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400')
-                                        : (isLight ? 'text-slate-400 hover:bg-slate-50' : 'text-gray-500 hover:bg-[#1f1f1f]')
+                                        : (isLight ? 'text-slate-400 hover:bg-slate-50' : 'text-gray-500 hover:bg-[#0e0e0e]')
                                 }`}>
                                     <input type="checkbox" checked={input[social].show} onChange={() => setInput({ ...input, [social]: { ...input[social], show: !input[social].show } })}
                                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />

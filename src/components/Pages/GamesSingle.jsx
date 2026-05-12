@@ -279,7 +279,7 @@ const GamesSingle = ({ user, theme }) => {
     const hasFetched = !isLoading && (Object.keys(gameData).length > 0 || notFound || forbidden)
 
     if (isLoading || !hasFetched) {
-        const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+        const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#0e0e0e]'}`
         return (
             <div className={`relative overflow-hidden min-h-screen ${main.font} ${isLight ? light.body : dark.body}`}>
                 <div className={`${styles.paddingX} ${styles.flexCenter}`}>
@@ -920,7 +920,7 @@ const GamesSingle = ({ user, theme }) => {
                                                                     <a key={li} href={link} target="_blank" rel="noopener noreferrer" onClick={addDownloadCount}
                                                                         className={`flex items-center justify-between p-2.5 rounded-lg transition-all group ${isLight
                                                                             ? 'bg-slate-50 hover:bg-blue-50 border border-solid border-slate-100 hover:border-blue-200'
-                                                                            : 'bg-[#111] hover:bg-[#1a1a1a] border border-solid border-[#1f1f1f] hover:border-[#333]'
+                                                                            : 'bg-[#111] hover:bg-[#1a1a1a] border border-solid border-[#0e0e0e] hover:border-[#333]'
                                                                         }`}>
                                                                         <div className="flex items-center gap-2">
                                                                             <FontAwesomeIcon icon={faLink} className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
@@ -952,7 +952,7 @@ const GamesSingle = ({ user, theme }) => {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className={`flex items-center justify-between mt-4 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex items-center justify-between mt-4 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                                 {convertTimezone(game.createdAt)} ({moment(game.createdAt).fromNow()})
                                             </p>
@@ -1004,7 +1004,7 @@ const GamesSingle = ({ user, theme }) => {
                                             </h2>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 {game.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ei) => (
-                                                    <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                    <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
                                                             <FontAwesomeIcon icon={faFlag} className={`text-xs ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
                                                         </div>
@@ -1030,7 +1030,7 @@ const GamesSingle = ({ user, theme }) => {
                                             </span>
                                         </h2>
                                         {userId && (
-                                            <div className={`rounded-xl p-4 mb-4 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                            <div className={`rounded-xl p-4 mb-4 ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>Your rating:</span>
                                                     <StarRating rating={reviewRating} fixedRating={reviewRating} hoverRating={0} isLight={isLight} interactive
@@ -1115,7 +1115,7 @@ const GamesSingle = ({ user, theme }) => {
                                     {/* Categories */}
                                     {categoriesList?.length > 0 && (
                                         <div className={`${card} overflow-hidden`}>
-                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                                 <h3 className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Categories</h3>
                                             </div>
                                             <div className="p-2">
@@ -1136,7 +1136,7 @@ const GamesSingle = ({ user, theme }) => {
                                     {/* Tags */}
                                     {tagsList?.length > 0 && (
                                         <div className={`${card} overflow-hidden`}>
-                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                                 <h3 className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Tags</h3>
                                             </div>
                                             <div className="p-3">
@@ -1158,7 +1158,7 @@ const GamesSingle = ({ user, theme }) => {
                                     {/* Recent Games */}
                                     {recentBlogs?.filter(g => g._id !== id && !g.strict).length > 0 && (
                                         <div className={`${card} overflow-hidden`}>
-                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                            <div className={`flex items-center gap-2 px-4 py-3 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                                 <h3 className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Latest Games</h3>
                                             </div>
                                             <div className="p-3 space-y-2">

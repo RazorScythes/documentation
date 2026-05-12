@@ -232,7 +232,7 @@ function timelineProgress(d1, d2) {
 }
 
 const SkeletonBlock = ({ className, isLight }) => (
-    <div className={`animate-pulse rounded-lg ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'} ${className}`} />
+    <div className={`animate-pulse rounded-lg ${isLight ? 'bg-slate-200/70' : 'bg-[#0e0e0e]'} ${className}`} />
 )
 
 const FullSkeleton = ({ isLight }) => {
@@ -398,7 +398,7 @@ const ProjectsSingle = ({ user, theme }) => {
     const card = `rounded-xl border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`
     const subText = isLight ? 'text-slate-400' : 'text-gray-500'
     const mutedText = isLight ? 'text-slate-300' : 'text-gray-600'
-    const sectionBorder = isLight ? 'border-slate-100' : 'border-[#1f1f1f]'
+    const sectionBorder = isLight ? 'border-slate-100' : 'border-[#0e0e0e]'
     const headingClass = isLight ? 'text-slate-800' : 'text-white'
     const accentClass = isLight ? 'text-blue-600' : 'text-blue-400'
     const proseClass = isLight ? 'text-slate-700' : 'text-gray-300'
@@ -717,9 +717,9 @@ const ProjectsSingle = ({ user, theme }) => {
         const blocks = project_data?.content
         if (!Array.isArray(blocks)) return null
         return blocks.map((blockData, index) => (
-            <div key={index} className={`rounded-xl border border-solid p-5 sm:p-6 mb-6 ${isLight ? 'border-slate-200/60 bg-white/50' : 'border-[#1f1f1f] bg-[#0a0a0a]/50'}`}>
+            <div key={index} className={`rounded-xl border border-solid p-5 sm:p-6 mb-6 ${isLight ? 'border-slate-200/60 bg-white/50' : 'border-[#0e0e0e] bg-[#0a0a0a]/50'}`}>
                 {blockData.header && blockData.header !== 'Container Box' && (
-                    <h2 className={`text-lg font-bold mb-4 pb-2 border-b border-solid ${isLight ? 'text-slate-800 border-slate-100' : 'text-white border-[#1f1f1f]'}`}>
+                    <h2 className={`text-lg font-bold mb-4 pb-2 border-b border-solid ${isLight ? 'text-slate-800 border-slate-100' : 'text-white border-[#0e0e0e]'}`}>
                         {blockData.header}
                     </h2>
                 )}
@@ -1123,7 +1123,7 @@ const ProjectsSingle = ({ user, theme }) => {
                                         </h2>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {p.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ei) => (
-                                                <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#1f1f1f]'}`}>
+                                                <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
                                                         <FontAwesomeIcon icon={faFlag} className={`text-xs ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
                                                     </div>
@@ -1166,7 +1166,7 @@ const ProjectsSingle = ({ user, theme }) => {
                         <aside className="space-y-6">
                             <AnimatedSidebar delay={100}>
                                 <div className={`overflow-hidden ${card}`}>
-                                    <div className={`px-5 pt-5 pb-4 sm:px-6 sm:pt-6 flex items-center gap-2 ${isLight ? 'border-b border-slate-100' : 'border-b border-[#1f1f1f]'}`}>
+                                    <div className={`px-5 pt-5 pb-4 sm:px-6 sm:pt-6 flex items-center gap-2 ${isLight ? 'border-b border-slate-100' : 'border-b border-[#0e0e0e]'}`}>
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-100' : 'bg-blue-900/20'}`}>
                                             <FontAwesomeIcon icon={faInfoCircle} className={`text-sm ${accentClass}`} />
                                         </div>

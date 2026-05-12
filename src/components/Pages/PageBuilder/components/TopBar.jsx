@@ -134,7 +134,7 @@ const TopBar = ({ isLight }) => {
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                         currentPage?.status === 'published'
                             ? (isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30')
-                            : (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#2a2a2a]')
+                            : (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#0e0e0e] text-gray-400 hover:bg-[#2a2a2a]')
                     }`}
                 >
                     <FontAwesomeIcon icon={currentPage?.status === 'published' ? faCheck : faCloud} className="text-[9px]" />

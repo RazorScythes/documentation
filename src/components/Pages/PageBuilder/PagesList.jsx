@@ -244,7 +244,7 @@ const PagesList = ({ user, theme }) => {
     const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
-    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
+    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300'}`
 
     if (!user) {
         return (
@@ -301,7 +301,7 @@ const PagesList = ({ user, theme }) => {
                                         <button onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
                                             className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border border-solid ${isLight
                                                 ? 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
-                                                : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300 border-[#333]'
+                                                : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300 border-[#333]'
                                             }`}>Cancel</button>
                                         <button onClick={confirmModal.onConfirm}
                                             className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border border-solid ${
@@ -336,7 +336,7 @@ const PagesList = ({ user, theme }) => {
                             </div>
 
                             {/* Tabs */}
-                            <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                            <div className={`flex items-center gap-1 mt-3 pt-3 border-t border-solid overflow-x-auto scrollbar-hide ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                 <button onClick={() => setActiveTab('pages')}
                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${activeTab === 'pages'
                                         ? (isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400')
@@ -371,7 +371,7 @@ const PagesList = ({ user, theme }) => {
                         {activeTab === 'pages' && (
                             <div className={`${card} overflow-hidden`}>
                                 {/* Toolbar */}
-                                <div className={`flex flex-col gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setShowFilters(!showFilters)}
@@ -399,7 +399,7 @@ const PagesList = ({ user, theme }) => {
                                     </div>
 
                                     {showFilters && (
-                                        <div className={`flex flex-wrap items-center gap-2 pt-2 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                        <div className={`flex flex-wrap items-center gap-2 pt-2 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                             <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(0) }}
                                                 className={`${selectCls} text-xs py-1.5`}>
                                                 <option value="">All Status</option>
@@ -465,7 +465,7 @@ const PagesList = ({ user, theme }) => {
                                             </thead>
                                             <tbody>
                                                 {pageData.map(p => (
-                                                    <tr key={p._id} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                                    <tr key={p._id} className={`group transition-colors ${isLight ? 'hover:bg-slate-50/80' : 'hover:bg-[#141414]'} border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                                         <td className="px-4 py-3">
                                                             <input type="checkbox" checked={selectedIds.includes(p._id)} onChange={() => toggleSelect(p._id)}
                                                                 className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 cursor-pointer" />
@@ -496,7 +496,7 @@ const PagesList = ({ user, theme }) => {
                                                             <button onClick={() => dispatch(togglePrivacyThunk(p._id))}
                                                                 className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all ${p.privacy
                                                                     ? (isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400')
-                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#1f1f1f] text-gray-600')
+                                                                    : (isLight ? 'bg-slate-100 text-slate-300' : 'bg-[#0e0e0e] text-gray-600')
                                                                 }`}>
                                                                 <FontAwesomeIcon icon={p.privacy ? faLock : faLockOpen} className="text-xs" />
                                                             </button>
@@ -546,7 +546,7 @@ const PagesList = ({ user, theme }) => {
 
                                 {/* Footer: Pagination + Page size */}
                                 {processed.length > 0 && (
-                                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                         <div className="flex items-center gap-2 sm:gap-3">
                                             <p className={`text-[11px] whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                                 {page * pageSize + 1}–{Math.min((page + 1) * pageSize, processed.length)} of {processed.length}
@@ -563,11 +563,11 @@ const PagesList = ({ user, theme }) => {
                                         {totalPages > 1 && (
                                             <div className="flex items-center gap-1">
                                                 <button disabled={page === 0} onClick={() => setPage(0)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                     <FontAwesomeIcon icon={faAngleDoubleLeft} className="text-[10px]" />
                                                 </button>
                                                 <button disabled={page === 0} onClick={() => setPage(page - 1)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                     <FontAwesomeIcon icon={faChevronLeft} className="text-[10px]" />
                                                 </button>
                                                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -580,16 +580,16 @@ const PagesList = ({ user, theme }) => {
                                                         <button key={pn} onClick={() => setPage(pn)}
                                                             className={`w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-medium transition-all ${page === pn
                                                                 ? (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
-                                                                : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400')
+                                                                : (isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400')
                                                             }`}>{pn + 1}</button>
                                                     )
                                                 })}
                                                 <button disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                     <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
                                                 </button>
                                                 <button disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors disabled:opacity-30 ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#0e0e0e] text-gray-400'}`}>
                                                     <FontAwesomeIcon icon={faAngleDoubleRight} className="text-[10px]" />
                                                 </button>
                                             </div>
@@ -602,7 +602,7 @@ const PagesList = ({ user, theme }) => {
                         {/* ========== IMAGES TAB ========== */}
                         {activeTab === 'images' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex items-center gap-2.5">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                             <FontAwesomeIcon icon={faImage} className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
@@ -699,7 +699,7 @@ const PagesList = ({ user, theme }) => {
                         {/* ========== TRASH TAB ========== */}
                         {activeTab === 'trash' && (
                             <div className={`${card} overflow-hidden`}>
-                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
                                     <div className="flex items-center gap-2.5">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-orange-100' : 'bg-orange-900/30'}`}>
                                             <FontAwesomeIcon icon={faTrash} className={`text-sm ${isLight ? 'text-orange-500' : 'text-orange-400'}`} />
@@ -728,7 +728,7 @@ const PagesList = ({ user, theme }) => {
                                         <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                     </div>
                                 ) : trash?.length > 0 ? (
-                                    <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#1f1f1f]'}`}>
+                                    <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#0e0e0e]'}`}>
                                         {trash.map(p => {
                                             const daysLeft = getDaysRemaining(p.deletedAt)
                                             return (

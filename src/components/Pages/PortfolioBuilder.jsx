@@ -90,7 +90,7 @@ const PortfolioBuilder = ({ user, theme }) => {
     const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
     const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
-    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
+    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#0e0e0e] hover:bg-[#2a2a2a] text-gray-300'}`
     const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
 
     const sectionProps = { user, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, labelCls }
@@ -144,7 +144,7 @@ const PortfolioBuilder = ({ user, theme }) => {
                                         className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all disabled:opacity-50 ${
                                             isPublished
                                                 ? (isLight ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-600 text-white hover:bg-emerald-700')
-                                                : (isLight ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#2a2a2a]')
+                                                : (isLight ? 'bg-slate-200 text-slate-600 hover:bg-slate-300' : 'bg-[#0e0e0e] text-gray-400 hover:bg-[#2a2a2a]')
                                         }`}>
                                         {publishing ? (
                                             <span className="flex items-center gap-1.5">

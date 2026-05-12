@@ -5,7 +5,7 @@ import { faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons
 const StyleGroup = ({ label, isLight, children, defaultOpen = false }) => {
     const [open, setOpen] = useState(defaultOpen)
     return (
-        <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+        <div className={`border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}`}>
             <button
                 onClick={() => setOpen(!open)}
                 className={`w-full flex items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-wider ${

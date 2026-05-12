@@ -93,7 +93,7 @@ const formatDate = (date) => {
 }
 
 const SkeletonCard = ({ isLight }) => {
-    const pulse = `animate-pulse rounded-lg ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
+    const pulse = `animate-pulse rounded-lg ${isLight ? 'bg-slate-200/70' : 'bg-[#0e0e0e]'}`
     return (
         <div className={`rounded-xl overflow-hidden border border-solid ${isLight ? 'bg-white/90 border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
             <div className={`aspect-[16/10] ${pulse}`} />
@@ -487,7 +487,7 @@ const Projects = ({ user, theme }) => {
                             {category_loading ? (
                                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
                                     {[...Array(8)].map((_, i) => (
-                                        <div key={i} className={`flex-shrink-0 w-20 h-[4.5rem] rounded-xl animate-pulse ${isLight ? 'bg-slate-200/60' : 'bg-[#1f1f1f]'}`} />
+                                        <div key={i} className={`flex-shrink-0 w-20 h-[4.5rem] rounded-xl animate-pulse ${isLight ? 'bg-slate-200/60' : 'bg-[#0e0e0e]'}`} />
                                     ))}
                                 </div>
                             ) : (

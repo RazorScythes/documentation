@@ -124,7 +124,7 @@ const MiniTable = ({ theme, icon, iconColor, title, subtitle, badge, columns, da
                                     striped && i % 2 === 1
                                         ? (isLight ? 'bg-blue-50/20' : 'bg-[#1A1A1A]')
                                         : ''
-                                } ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#1F1F1F]'}`}
+                                } ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#0e0e0e]'}`}
                                 onClick={() => onRowClick?.(row)}
                             >
                                 {columns.map((col, ci) => (
