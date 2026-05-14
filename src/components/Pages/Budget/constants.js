@@ -43,13 +43,13 @@ export const ICON_GRID = [
 ]
 
 export const DENOMINATIONS = [
-    { label: '₱ 1000', value: 1000, type: 'bill' },
-    { label: '₱ 500', value: 500, type: 'bill' },
-    { label: '₱ 200', value: 200, type: 'bill' },
-    { label: '₱ 100', value: 100, type: 'bill' },
-    { label: '₱ 50', value: 50, type: 'bill' },
-    { label: '₱ 20', value: 20, type: 'coin' },
-    { label: '₱ 10', value: 10, type: 'coin' },
-    { label: '₱ 5', value: 5, type: 'coin' },
-    { label: '₱ 1', value: 1, type: 'coin' },
+    { label: '₱1,000', value: 1000, type: 'bill' },
+    { label: '₱500', value: 500, type: 'bill' },
+    { label: '₱200', value: 200, type: 'bill' },
+    { label: '₱100', value: 100, type: 'bill' },
+    { label: '₱50', value: 50, type: 'bill' },
+    { label: '₱20', value: 20, type: 'coin' },
+    { label: '₱10', value: 10, type: 'coin' },
+    { label: '₱5', value: 5, type: 'coin' },
+    { label: '₱1', value: 1, type: 'coin' },
 ]

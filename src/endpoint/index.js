@@ -245,6 +245,7 @@ export const checkBlocked                      = (targetUserId) => endpoint.get(
 /*
     BUDGET
 */
+export const getBudgetInitialLoad              = (params) => endpoint.get('/budget/initial-load', { params })
 export const getBudgetDashboard                = (params) => endpoint.get('/budget/dashboard', { params })
 export const getBudgetCategories               = (params) => endpoint.get('/budget/categories', { params })
 export const createBudgetCategory              = (formData) => endpoint.post('/budget/category', formData)
@@ -287,6 +288,7 @@ export const createFinancialGoal               = (formData) => endpoint.post('/b
 export const updateFinancialGoal               = (formData) => endpoint.patch('/budget/goal', formData)
 export const deleteFinancialGoal               = (id, params) => endpoint.delete(`/budget/goal/${id}`, { params })
 export const addGoalContribution               = (id, formData) => endpoint.post(`/budget/goal/${id}/contribution`, formData)
+export const removeGoalContribution            = (id, contributionId, params) => endpoint.delete(`/budget/goal/${id}/contribution/${contributionId}`, { params })
 export const shareBudget                       = (formData) => endpoint.post('/budget/share', formData)
 export const unshareBudget                     = (formData) => endpoint.post('/budget/unshare', formData)
 export const updateBudgetShare                 = (formData) => endpoint.patch('/budget/share', formData)

@@ -19,9 +19,11 @@ import {
 library.add(fas)
 import { put } from '@vercel/blob'
 import { deleteReceipt as deleteReceiptApi } from '../../endpoint'
+import { io as socketIO } from 'socket.io-client'
 import html2canvas from 'html2canvas-pro'
 import { jsPDF } from 'jspdf'
 import { 
+    getBudgetInitialLoad,
     getBudgetDashboard, getBudgetCategories, createBudgetCategory, updateBudgetCategory, 
     deleteBudgetCategory, shareBudgetCategory, unshareBudgetCategory,
     getBudgetExpenses, createBudgetExpense, updateBudgetExpense, 
@@ -31,71 +33,19 @@ import {
     getBudgetSavings, saveBudgetSavings, getBudgetSavingsHistory, deleteBudgetSavingsHistory,
     getDebts, createDebt, updateDebt, deleteDebt, addDebtPayment, removeDebtPayment, toggleDebtStatus,
     getBudgetLists, createBudgetList, updateBudgetList, deleteBudgetList,
-    getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal, addGoalContribution,
+    getFinancialGoals, createFinancialGoal, updateFinancialGoal, deleteFinancialGoal, addGoalContribution, removeGoalContribution,
     shareBudget, unshareBudget, updateBudgetShareAction, getSharedBudgets, getSharedUsers, setViewingBudgetOwner,
-    clearAlert, clearSearchResults
+    clearAlert, clearSearchResults,
+    setExpenses, setCategories, setDashboard, setSavings, setSavingsHistory, setDebts, setBudgetLists, setGoals, setExchangeRatesData, setSharedUsers,
 } from '../../actions/budget'
 import Notification from '../Custom/Notification'
 import BudgetContext from './Budget/BudgetContext'
 import { ModalOverlay as ModalOverlayShared, AnimateIn as AnimateInShared, SafeIcon as SafeIconShared } from './Budget/SharedComponents'
-import { toLocalDateString as toLocalDateStringUtil } from './Budget/utils'
+import { toLocalDateString } from './Budget/utils'
 import {
-    DEFAULT_PAYMENT_METHODS as DPM, CATEGORY_COLORS as CC, MONTHS as M, VALID_TABS as VT,
-    CURRENCIES as CUR, DEFAULT_EXCHANGE_RATES as DER, ICON_GRID as IG, DENOMINATIONS as DEN
+    DEFAULT_PAYMENT_METHODS, CATEGORY_COLORS, MONTHS, VALID_TABS,
+    CURRENCIES, DEFAULT_EXCHANGE_RATES, ICON_GRID, DENOMINATIONS as DENOMINATIONS_CONST
 } from './Budget/constants'
-
-const DEFAULT_PAYMENT_METHODS = ['Cash', 'GCash', 'Bank', 'BPI', 'Credit Card', 'Debit Card', 'PayPal', 'Other']
-const CATEGORY_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
-const VALID_TABS = ['dashboard', 'daily', 'monthly', 'categories', 'savings', 'debts', 'lists', 'goals', 'summary', 'settings']
-
-const CURRENCIES = [
-    { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
-    { code: 'USD', symbol: '$', name: 'US Dollar' },
-    { code: 'EUR', symbol: '€', name: 'Euro' },
-    { code: 'GBP', symbol: '£', name: 'British Pound' },
-    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-    { code: 'KRW', symbol: '₩', name: 'Korean Won' },
-    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-    { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-]
-
-const DEFAULT_EXCHANGE_RATES = {
-    USD: 0.0177,
-    EUR: 0.0163,
-    GBP: 0.0140,
-    JPY: 2.6500,
-    KRW: 24.5000,
-    CNY: 0.1280,
-    AUD: 0.0275,
-    CAD: 0.0243,
-    INR: 1.4900,
-    THB: 0.6100,
-}
-
-const ICON_GRID = [
-    'wallet', 'cart-shopping', 'utensils', 'house', 'car', 'bolt', 'droplet', 'wifi',
-    'phone', 'tv', 'gamepad', 'shirt', 'graduation-cap', 'briefcase-medical', 'plane',
-    'bus', 'gas-pump', 'basket-shopping', 'gift', 'heart', 'dumbbell', 'book',
-    'music', 'film', 'coffee', 'pizza-slice', 'dog', 'cat', 'baby', 'pills',
-    'tooth', 'scissors', 'paint-roller', 'hammer', 'wrench', 'laptop', 'mobile',
-    'credit-card', 'piggy-bank', 'coins', 'money-bill-wave', 'chart-line', 'chart-pie',
-    'building', 'church', 'school', 'store', 'hotel', 'tree', 'seedling', 'sun',
-    'umbrella', 'snowflake', 'fire', 'cloud', 'star', 'gem', 'crown', 'trophy',
-    'flag', 'bell', 'envelope', 'calendar', 'clock', 'tag', 'tags', 'bookmark',
-]
-
-const toLocalDateString = (dateVal) => {
-    const d = new Date(dateVal)
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
-}
 
 const ModalOverlay = ({ children, onClose, className = '' }) => {
     const overlayRef = useRef(null)
@@ -140,7 +90,7 @@ const AnimateIn = ({ children, delay = 0, className = '' }) => {
 
 const Budget = ({ user, theme }) => {
     const dispatch = useDispatch()
-    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, budgetSettings, sharedUsers, sharedBudgets, viewingBudgetOwner, alert: budgetAlert, isLoading, isSavingsLoading, isDebtsLoading, isGoalsLoading, isListsLoading } = useSelector(state => state.budget)
+    const { dashboard, categories, expenses, savings, savingsHistory, debts, budgetLists, goals, searchResults, exchangeRates: savedRates, liveRates, baseCurrency: savedBaseCurrency, budgetSettings, sharedUsers, sharedBudgets, viewingBudgetOwner, alert: budgetAlert, isLoading, isCategoriesLoading, isExpensesLoading, isSavingsLoading, isDebtsLoading, isGoalsLoading, isListsLoading } = useSelector(state => state.budget)
     const [searchParams, setSearchParams] = useSearchParams()
 
     const isLight = theme === 'light'
@@ -156,6 +106,7 @@ const Budget = ({ user, theme }) => {
     const [showShareBudgetModal, setShowShareBudgetModal] = useState(false)
     const [shareBudgetUsername, setShareBudgetUsername] = useState('')
     const [shareBudgetRole, setShareBudgetRole] = useState('viewer')
+    const [showBudgetDropdown, setShowBudgetDropdown] = useState(false)
 
     const tabParam = searchParams.get('tab')
     const [activeTab, setActiveTabState] = useState(VALID_TABS.includes(tabParam) ? tabParam : 'dashboard')
@@ -163,6 +114,17 @@ const Budget = ({ user, theme }) => {
         setActiveTabState(tab)
         setSearchParams({ tab }, { replace: true })
     }
+    useEffect(() => {
+        const current = searchParams.get('tab')
+        if (current && VALID_TABS.includes(current) && current !== activeTab) setActiveTabState(current)
+    }, [searchParams])
+
+    useEffect(() => {
+        if (!showBudgetDropdown) return
+        const close = (e) => { if (!e.target.closest('[aria-haspopup]')?.parentElement?.contains(e.target)) setShowBudgetDropdown(false) }
+        document.addEventListener('click', close)
+        return () => document.removeEventListener('click', close)
+    }, [showBudgetDropdown])
     const [month, setMonth] = useState(now.getMonth() + 1)
     const [year, setYear] = useState(now.getFullYear())
     const [notification, setNotification] = useState({})
@@ -201,59 +163,116 @@ const Budget = ({ user, theme }) => {
     const [ytdExpenses, setYtdExpenses] = useState([])
     const [ytdLoading, setYtdLoading] = useState(false)
 
-    const fetchYtdExpenses = async (y) => {
+    const fetchYtdExpenses = async (y, ownerOverride) => {
         setYtdLoading(true)
         try {
-            const res = await import('../../endpoint').then(m => m.getBudgetExpenses({ year: y }))
+            const params = { year: y, ...(ownerOverride || ownerParam) }
+            const res = await import('../../endpoint').then(m => m.getBudgetExpenses(params))
             setYtdExpenses(res.data.result || [])
         } catch (err) {
             console.error('Failed to fetch YTD expenses:', err)
             setYtdExpenses([])
-            setNotification({ msg: 'Failed to load year-to-date data.', variant: 'danger' })
+            setNotification({ message: 'Failed to load year-to-date data.', variant: 'danger' })
             setShowNotif(true)
         }
         setYtdLoading(false)
     }
 
+    const initialLoadRef = useRef(false)
+
     useEffect(() => {
-        if (user) {
-            dispatch(getBudgetCategories(ownerParam))
-            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            dispatch(getBudgetExpenses({ month, year, ...ownerParam }))
-            if (!isViewingShared) {
+        if (!user) return
+
+        const currentOwnerParam = budgetOwnerId ? { budgetOwnerId } : {}
+        const isShared = !!budgetOwnerId
+
+        dispatch(getBudgetInitialLoad({ month, year, ...currentOwnerParam }))
+        fetchYtdExpenses(year, currentOwnerParam)
+
+        setSelectedExpenses([])
+        setBulkDeleteConfirm(false)
+
+        if (!initialLoadRef.current) {
+            initialLoadRef.current = true
+            dispatch(getSharedBudgets())
+            dispatch(getSharedUsers())
+            if (!isShared) {
                 dispatch(processRecurring()).then((action) => {
                     if (action?.payload?.data?.created > 0) {
-                        dispatch(getBudgetExpenses({ month, year }))
-                        dispatch(getBudgetDashboard({ month, year }))
+                        dispatch(getBudgetExpenses({ month, year, ...currentOwnerParam }))
+                        dispatch(getBudgetDashboard({ month, year, ...currentOwnerParam }))
                     }
                 })
             }
-            dispatch(getExchangeRates(ownerParam))
-            dispatch(getBudgetSavings(ownerParam))
-            dispatch(getDebts(ownerParam))
-            dispatch(getFinancialGoals(ownerParam))
-            dispatch(getBudgetLists(ownerParam))
-            dispatch(getSharedBudgets())
-            dispatch(getSharedUsers())
-            fetchYtdExpenses(year)
         }
-    }, [user])
+    }, [user, month, year, budgetOwnerId])
+
+    // ==================== SOCKET.IO REAL-TIME ====================
+
+    const socketUrl = import.meta.env.VITE_DEVELOPMENT == "true"
+        ? `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`
+        : import.meta.env.VITE_APP_BASE_URL
 
     useEffect(() => {
-        if (user) {
-            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            dispatch(getBudgetExpenses({ month, year, ...ownerParam }))
-            dispatch(getBudgetCategories(ownerParam))
-            dispatch(getExchangeRates(ownerParam))
-            dispatch(getBudgetSavings(ownerParam))
-            dispatch(getDebts(ownerParam))
-            dispatch(getFinancialGoals(ownerParam))
-            dispatch(getBudgetLists(ownerParam))
-            setSelectedExpenses([])
-            setBulkDeleteConfirm(false)
-            fetchYtdExpenses(year)
+        if (!user) return
+
+        const socket = socketIO(socketUrl, { transports: ['websocket', 'polling'] })
+        const roomId = budgetOwnerId || user._id
+        const myId = user._id
+
+        socket.emit('join_budget', roomId)
+
+        socket.on('budget_expenses_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) {
+                dispatch(setExpenses(data.result))
+                dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+            }
+        })
+
+        socket.on('budget_categories_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) {
+                dispatch(setCategories(data.result))
+                dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+            }
+        })
+
+        socket.on('budget_savings_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setSavings(data.result))
+        })
+
+        socket.on('budget_savings_history_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setSavingsHistory(data.result))
+        })
+
+        socket.on('budget_debts_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setDebts(data.result))
+        })
+
+        socket.on('budget_lists_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setBudgetLists(data.result))
+        })
+
+        socket.on('budget_goals_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setGoals(data.result))
+        })
+
+        socket.on('budget_settings_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setExchangeRatesData(data.result))
+        })
+
+        socket.on('budget_sharing_updated', (data) => {
+            if (data.userId === roomId && data.actorId !== myId) dispatch(setSharedUsers(data.result))
+        })
+
+        socket.on('budget_access_changed', () => {
+            dispatch(getSharedBudgets())
+        })
+
+        return () => {
+            socket.emit('leave_budget', roomId)
+            socket.disconnect()
         }
-    }, [month, year, budgetOwnerId])
+    }, [user, budgetOwnerId, month, year, dispatch, ownerParam])
 
     useEffect(() => {
         if (budgetAlert && Object.keys(budgetAlert).length > 0) {
@@ -280,23 +299,6 @@ const Budget = ({ user, theme }) => {
     const [uploadingReceipt, setUploadingReceipt] = useState(false)
     const [receiptViewer, setReceiptViewer] = useState(null)
 
-    // ==================== KEYBOARD SHORTCUTS ====================
-
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
-            if (e.key === 'Escape') {
-                if (receiptViewer) { setReceiptViewer(null); return }
-                if (showExpenseForm) { setShowExpenseForm(false); setEditingExpense(null); return }
-                if (showCategoryForm) { setShowCategoryForm(false); setEditingCategory(null); return }
-            }
-            if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) prevMonth()
-            if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) nextMonth()
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [receiptViewer, showExpenseForm, showCategoryForm])
-
     const handleExpenseSubmit = useCallback(async () => {
         try {
             if (editingExpense) {
@@ -315,7 +317,7 @@ const Budget = ({ user, theme }) => {
             setAttachmentPreview(null)
             dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
         } catch (err) {
-            setNotification({ msg: err?.message || 'Failed to save transaction. Please try again.', variant: 'danger' })
+            setNotification({ message: err?.message || 'Failed to save transaction. Please try again.', variant: 'danger' })
             setShowNotif(true)
         }
     }, [editingExpense, expenseForm, expenseItems, emptyExpense, emptyItem, month, year, dispatch, ownerParam])
@@ -451,7 +453,7 @@ const Budget = ({ user, theme }) => {
             setShowCategoryForm(false)
             dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
         } catch (err) {
-            setNotification({ msg: err?.message || 'Failed to save category. Please try again.', variant: 'danger' })
+            setNotification({ message: err?.message || 'Failed to save category. Please try again.', variant: 'danger' })
             setShowNotif(true)
         }
     }
@@ -503,6 +505,23 @@ const Budget = ({ user, theme }) => {
         if (month === 12) { setMonth(1); setYear(y => y + 1) }
         else setMonth(m => m + 1)
     }
+
+    // ==================== KEYBOARD SHORTCUTS ====================
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+            if (e.key === 'Escape') {
+                if (receiptViewer) { setReceiptViewer(null); return }
+                if (showExpenseForm) { setShowExpenseForm(false); setEditingExpense(null); return }
+                if (showCategoryForm) { setShowCategoryForm(false); setEditingCategory(null); return }
+            }
+            if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) prevMonth()
+            if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) nextMonth()
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [receiptViewer, showExpenseForm, showCategoryForm, prevMonth, nextMonth])
 
     // ==================== GROUPED EXPENSES ====================
 
@@ -753,67 +772,79 @@ const Budget = ({ user, theme }) => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={prevMonth} disabled={isLoading} aria-label="Previous month" className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
-                                        <FontAwesomeIcon icon={faArrowRight} className="text-xs rotate-180" />
-                                    </button>
-                                    <span className={`text-xs sm:text-sm font-semibold min-w-[120px] sm:min-w-[140px] text-center ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
-                                        {MONTHS[month - 1]} {year}
-                                    </span>
-                                    <button onClick={nextMonth} disabled={isLoading} aria-label="Next month" className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
-                                        <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
-                                    </button>
-                                    <button onClick={refreshData} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`} title="Refresh" aria-label="Refresh data">
-                                        <FontAwesomeIcon icon={faSyncAlt} className={`text-xs ${isLoading ? 'animate-spin' : ''}`} />
-                                    </button>
-                                    {(month !== now.getMonth() + 1 || year !== now.getFullYear()) && (
-                                        <button onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }} className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`} title="Jump to current month">
-                                            <FontAwesomeIcon icon={faCalendarDay} className="text-[9px]" />
-                                            <span className="hidden sm:inline">Today</span>
+                                <div className="flex flex-col sm:flex-row items-center gap-2">
+                                    {/* Month navigation */}
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button onClick={prevMonth} disabled={isLoading} aria-label="Previous month" className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                            <FontAwesomeIcon icon={faArrowRight} className="text-xs rotate-180" />
                                         </button>
-                                    )}
-                                    {expenses.length > 0 && (
-                                        <button onClick={handleExportCSV} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} title="Export to CSV">
-                                            <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
-                                            <span className="hidden sm:inline">Export</span>
+                                        <span className={`text-xs sm:text-sm font-semibold min-w-[100px] sm:min-w-[140px] text-center flex-shrink-0 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                            {MONTHS[month - 1]} {year}
+                                        </span>
+                                        <button onClick={nextMonth} disabled={isLoading} aria-label="Next month" className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`}>
+                                            <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
                                         </button>
-                                    )}
-                                    <div className={`flex items-center gap-1 ml-1 pl-2 border-l border-solid ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`}>
-                                        <FontAwesomeIcon icon={faExchangeAlt} className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
-                                        <select
-                                            value={viewCurrency}
-                                            onChange={e => setViewCurrency(e.target.value)}
-                                            className={`text-[11px] font-semibold py-1 pl-1 pr-5 rounded-md border-0 cursor-pointer appearance-none bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500/30 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}
-                                            title="View currency"
-                                        >
-                                            {CURRENCIES.map(c => {
-                                                const val = c.code === 'PHP' ? '' : c.code
-                                                const isDefault = c.code === (savedBaseCurrency || 'PHP')
-                                                return <option key={c.code} value={val} className={isLight ? 'bg-white text-slate-700' : 'bg-[#1a1a1a] text-gray-200'}>{c.symbol} {c.code}{isDefault ? ' ★' : ''}</option>
-                                            })}
-                                        </select>
-                                    </div>
-                                    {isOwner && (
-                                        <button
-                                            onClick={() => { setShowShareBudgetModal(true); dispatch(getSharedUsers()) }}
-                                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`}
-                                            title="Share budget"
-                                        >
-                                            <FontAwesomeIcon icon={faShare} className="text-[10px]" />
-                                            <span className="hidden sm:inline">Share</span>
+                                        <button onClick={refreshData} className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isLight ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-[#1f1f1f] text-gray-400'}`} title="Refresh" aria-label="Refresh data">
+                                            <FontAwesomeIcon icon={faSyncAlt} className={`text-xs ${isLoading ? 'animate-spin' : ''}`} />
                                         </button>
-                                    )}
-                                    {sharedBudgets.length > 0 && (
-                                        <div className="relative group">
-                                            <button className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300'}`} title="Shared budgets">
-                                                <FontAwesomeIcon icon={faUsers} className="text-[10px]" />
-                                                <span className="hidden sm:inline">Budgets</span>
-                                                <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>{sharedBudgets.length}</span>
+                                        {(month !== now.getMonth() + 1 || year !== now.getFullYear()) && (
+                                            <button onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }} className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg flex-shrink-0 transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`} title="Jump to current month">
+                                                <FontAwesomeIcon icon={faCalendarDay} className="text-[10px]" />
+                                                <span className="hidden sm:inline">Today</span>
                                             </button>
-                                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl border border-solid shadow-xl z-50 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                        )}
+                                    </div>
+                                    {/* Action icons */}
+                                    <div className="flex items-center justify-center gap-2">
+                                        {expenses.length > 0 && (
+                                            <button onClick={handleExportCSV} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} title="Export to CSV">
+                                                <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
+                                                <span className="hidden sm:inline">Export</span>
+                                            </button>
+                                        )}
+                                        <div className={`flex items-center gap-1 pl-2 border-l border-solid flex-shrink-0 ${isLight ? 'border-slate-200' : 'border-[#2B2B2B]'}`}>
+                                            <FontAwesomeIcon icon={faExchangeAlt} className={`text-[10px] hidden sm:inline ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                                            <select
+                                                value={viewCurrency}
+                                                onChange={e => setViewCurrency(e.target.value)}
+                                                className={`text-[11px] font-semibold py-1 pl-1 pr-5 rounded-md border-0 cursor-pointer appearance-none bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500/30 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}
+                                                title="View currency"
+                                            >
+                                                {CURRENCIES.map(c => {
+                                                    const val = c.code === 'PHP' ? '' : c.code
+                                                    const isDefault = c.code === (savedBaseCurrency || 'PHP')
+                                                    return <option key={c.code} value={val} className={isLight ? 'bg-white text-slate-700' : 'bg-[#1a1a1a] text-gray-200'}>{c.symbol} {c.code}{isDefault ? ' ★' : ''}</option>
+                                                })}
+                                            </select>
+                                        </div>
+                                        {isOwner && (
+                                            <button
+                                                onClick={() => { setShowShareBudgetModal(true); dispatch(getSharedUsers()) }}
+                                                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`}
+                                                title="Share budget"
+                                            >
+                                                <FontAwesomeIcon icon={faShare} className="text-[10px]" />
+                                                <span className="hidden sm:inline">Share</span>
+                                            </button>
+                                        )}
+                                        {sharedBudgets.length > 0 && (
+                                            <div className="relative flex-shrink-0">
+                                                <button
+                                                    onClick={() => setShowBudgetDropdown(prev => !prev)}
+                                                    aria-expanded={showBudgetDropdown}
+                                                    aria-haspopup="true"
+                                                    className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300'}`}
+                                                    title="Shared budgets"
+                                                >
+                                                    <FontAwesomeIcon icon={faUsers} className="text-[10px]" />
+                                                    <span className="hidden sm:inline">Budgets</span>
+                                                    <span className={`text-[10px] font-bold px-1 py-0.5 rounded-full ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>{sharedBudgets.length}</span>
+                                                </button>
+                                            {showBudgetDropdown && (
+                                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl border border-solid shadow-xl z-50 overflow-hidden ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
                                                 {!isViewingShared && (
                                                     <div className={`px-3 py-2 text-[11px] font-bold ${isLight ? 'text-blue-600 bg-blue-50' : 'text-blue-400 bg-blue-900/10'}`}>
-                                                        <FontAwesomeIcon icon={faCheckCircle} className="mr-1.5 text-[9px]" />My Budget
+                                                        <FontAwesomeIcon icon={faCheckCircle} className="mr-1.5 text-[10px]" />My Budget
                                                     </div>
                                                 )}
                                                 {isViewingShared && (
@@ -821,7 +852,7 @@ const Budget = ({ user, theme }) => {
                                                         onClick={() => dispatch(setViewingBudgetOwner(null))}
                                                         className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#111] text-gray-300'}`}
                                                     >
-                                                        <FontAwesomeIcon icon={faWallet} className="mr-1.5 text-[9px]" />My Budget
+                                                        <FontAwesomeIcon icon={faWallet} className="mr-1.5 text-[10px]" />My Budget
                                                     </button>
                                                 )}
                                                 <div className={`border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`} />
@@ -836,7 +867,7 @@ const Budget = ({ user, theme }) => {
                                                         }`}
                                                     >
                                                         <span className="truncate">{s.owner?.username}</span>
-                                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                                                             s.role === 'editor'
                                                                 ? (isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400')
                                                                 : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-500')
@@ -844,8 +875,10 @@ const Budget = ({ user, theme }) => {
                                                     </button>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
+                                            )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -862,6 +895,7 @@ const Budget = ({ user, theme }) => {
                                 {tabs.map(tab => (
                                     <button
                                         key={tab.id}
+                                        id={`tab-${tab.id}`}
                                         role="tab"
                                         aria-selected={activeTab === tab.id}
                                         aria-controls={`tabpanel-${tab.id}`}
@@ -882,7 +916,7 @@ const Budget = ({ user, theme }) => {
                         </div>
 
                         {/* Tab Content */}
-                        <div id="budget-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`} />
+                        <div id="budget-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
                         {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} />}
                         {activeTab === 'daily' && (
                             <DailyExpensesTab
@@ -896,7 +930,7 @@ const Budget = ({ user, theme }) => {
                                 deleteConfirm={deleteConfirm} isLight={isLight} card={card} inputCls={inputCls}
                                 selectCls={selectCls} btnPrimary={btnPrimary} btnSecondary={btnSecondary}
                                 formatCurrency={formatCurrency} paymentIcon={paymentIcon}
-                                emptyExpense={emptyExpense} isLoading={isLoading}
+                                emptyExpense={emptyExpense} isLoading={isLoading || isExpensesLoading}
                                 selectedExpenses={selectedExpenses} toggleSelectExpense={toggleSelectExpense}
                                 toggleSelectAll={toggleSelectAll} handleBulkDelete={handleBulkDelete}
                                 bulkDeleteConfirm={bulkDeleteConfirm} setSelectedExpenses={setSelectedExpenses}
@@ -936,7 +970,7 @@ const Budget = ({ user, theme }) => {
                                 setEditingCategory={setEditingCategory} deleteConfirm={deleteConfirm}
                                 isLight={isLight} card={card} inputCls={inputCls} selectCls={selectCls}
                                 btnPrimary={btnPrimary} btnSecondary={btnSecondary} formatCurrency={formatCurrency}
-                                emptyCategory={emptyCategory} isLoading={isLoading}
+                                emptyCategory={emptyCategory} isLoading={isLoading || isCategoriesLoading}
                                 dispatch={dispatch} currentUserId={user?._id}
                                 isViewer={isViewer} ownerParam={ownerParam}
                             />
@@ -993,6 +1027,7 @@ const Budget = ({ user, theme }) => {
                                 month={month} year={year}
                             />
                         )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1285,7 +1320,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             const overdueCount = activeDebts.filter(d => d.due_date && new Date(d.due_date) < new Date()).length
             alerts.push({ type: 'overdue', severity: 'danger', icon: faHandHoldingUsd, msg: `${overdueCount} overdue debt${overdueCount > 1 ? 's' : ''} need attention` })
         }
-        if (goals?.some(g => g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && g.current < g.target)) {
+        if (goals?.some(g => g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && g.currentAmount < g.targetAmount)) {
             const approachingGoals = goals.filter(g => g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && g.currentAmount < g.targetAmount)
             alerts.push({ type: 'goal', severity: 'warning', icon: faCalendarCheck, msg: `${approachingGoals.length} goal${approachingGoals.length > 1 ? 's' : ''} deadline${approachingGoals.length > 1 ? 's' : ''} approaching` })
         }
@@ -1322,17 +1357,17 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         {budgetAlerts.map((alert, i) => {
                             const isDanger = alert.severity === 'danger'
                             return (
-                                <div key={i} className={`inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-md border border-solid ${
+                                <div key={i} className={`inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-solid ${
                                     isDanger
                                         ? (isLight ? 'bg-red-50 border-red-200' : 'bg-[#111] border-[#1f1f1f]')
                                         : (isLight ? 'bg-amber-50 border-amber-200' : 'bg-[#111] border-[#1f1f1f]')
                                 }`}>
-                                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                                    <div className={`ml-1.5 flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
                                         isDanger
                                             ? (isLight ? 'bg-red-500' : 'bg-red-600')
                                             : (isLight ? 'bg-amber-500' : 'bg-amber-600')
                                     }`}>
-                                        <FontAwesomeIcon icon={alert.icon} className="text-[9px] text-white" />
+                                        <FontAwesomeIcon icon={alert.icon} className="text-[10px] text-white" />
                                     </div>
                                     <span className={`text-[11px] font-semibold ${
                                         isDanger
@@ -1564,7 +1599,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                 {e.type === 'income' ? '+' : '-'}{converted !== null ? formatCurrencyRaw(converted, activeViewCurrency) : formatCurrencyRaw(e.amount, e.currency || 'PHP')}
                                             </p>
                                             {converted !== null && (
-                                                <p className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency)}</p>
+                                                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency)}</p>
                                             )}
                                         </div>
                                     </div>
@@ -1602,7 +1637,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                         <div className="text-right flex-shrink-0">
                                             <p className="text-xs font-semibold text-red-500">{formatCurrencyRaw(e.converted, activeViewCurrency)}</p>
                                             {(e.currency || 'PHP') !== activeViewCurrency && (
-                                                <p className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency)}</p>
+                                                <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency)}</p>
                                             )}
                                         </div>
                                     </div>
@@ -1787,7 +1822,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                     style={{ height: `${Math.max(heightPct, 4)}%`, animation: `barGrow 0.6s ease-out ${0.3 + i * 0.05}s both`, transformOrigin: 'bottom' }}
                                                 />
                                             </div>
-                                            <span className={`text-[9px] ${isCurrent ? (isLight ? 'text-indigo-600 font-bold' : 'text-indigo-400 font-bold') : (isLight ? 'text-slate-400' : 'text-gray-600')}`}>
+                                            <span className={`text-[10px] ${isCurrent ? (isLight ? 'text-indigo-600 font-bold' : 'text-indigo-400 font-bold') : (isLight ? 'text-slate-400' : 'text-gray-600')}`}>
                                                 {MONTHS[i].slice(0, 1)}
                                             </span>
                                         </div>
@@ -1942,10 +1977,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                     <div className="flex items-center gap-1.5">
                                                         <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
                                                         {e.notes && (
-                                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
+                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
                                                         )}
                                                         {e.attachments?.length > 0 && (
-                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
+                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
                                                                 <FontAwesomeIcon icon={faFileExport} className="text-[7px] mr-0.5" />RECEIPT
                                                             </button>
                                                         )}
@@ -2050,11 +2085,11 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <p className={`text-sm font-semibold truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{debt.name}</p>
-                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isOwe ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isOwe ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                                                                 {isOwe ? 'YOU OWE' : 'OWES YOU'}
                                                             </span>
                                                             {isOverdue && (
-                                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">OVERDUE</span>
+                                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">OVERDUE</span>
                                                             )}
                                                         </div>
                                                         {debt.person && <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{debt.person}</p>}
@@ -2134,13 +2169,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                         </div>
                         <div className="overflow-y-auto flex-1 min-h-0">
                             {(() => {
-                                const DENOMS = [
-                                    { label: '₱1,000', value: 1000, type: 'bill' }, { label: '₱500', value: 500, type: 'bill' },
-                                    { label: '₱200', value: 200, type: 'bill' }, { label: '₱100', value: 100, type: 'bill' },
-                                    { label: '₱50', value: 50, type: 'bill' }, { label: '₱20', value: 20, type: 'coin' },
-                                    { label: '₱10', value: 10, type: 'coin' }, { label: '₱5', value: 5, type: 'coin' },
-                                    { label: '₱1', value: 1, type: 'coin' },
-                                ]
+                                const DENOMS = DENOMINATIONS
                                 const hasSavings = savings && Object.keys(savings).length > 0
                                 const bills = DENOMS.filter(d => d.type === 'bill')
                                 const coins = DENOMS.filter(d => d.type === 'coin')
@@ -2235,7 +2264,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-1.5">
                                                                 <p className={`text-sm font-semibold truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{goal.name}</p>
-                                                                {isOverdue && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">OVERDUE</span>}
+                                                                {isOverdue && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 flex-shrink-0">OVERDUE</span>}
                                                             </div>
                                                             {goal.notes && <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{goal.notes}</p>}
                                                         </div>
@@ -2428,6 +2457,7 @@ const DailyExpensesTab = ({
     const PAGE_SIZE = 50
     const [csvData, setCsvData] = useState([])
     const [showRecurring, setShowRecurring] = useState(false)
+    const expenseFormRef = useRef(null)
     const searchTimeout = useRef(null)
     const searchIdRef = useRef(0)
     const isMountedRef = useRef(true)
@@ -2439,6 +2469,12 @@ const DailyExpensesTab = ({
             if (searchTimeout.current) clearTimeout(searchTimeout.current)
         }
     }, [])
+
+    useEffect(() => {
+        if (editingExpense && showExpenseForm && expenseFormRef.current) {
+            expenseFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    }, [editingExpense, showExpenseForm])
 
     const recurringTemplates = useMemo(() => expenses.filter(e => e.isRecurring && e.recurrenceRule), [expenses])
 
@@ -2726,7 +2762,7 @@ const DailyExpensesTab = ({
                         {overallBreakdown.filter(([, v]) => v.income > 0).length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                                 {overallBreakdown.filter(([, v]) => v.income > 0).map(([code, v]) => (
-                                    <span key={code} className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>
+                                    <span key={code} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>
                                         {formatCurrencyRaw(v.income, code)}
                                     </span>
                                 ))}
@@ -2744,7 +2780,7 @@ const DailyExpensesTab = ({
                         {overallBreakdown.filter(([, v]) => v.expense > 0).length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                                 {overallBreakdown.filter(([, v]) => v.expense > 0).map(([code, v]) => (
-                                    <span key={code} className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-red-50 text-red-600' : 'bg-red-900/20 text-red-400'}`}>
+                                    <span key={code} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-red-50 text-red-600' : 'bg-red-900/20 text-red-400'}`}>
                                         {formatCurrencyRaw(v.expense, code)}
                                     </span>
                                 ))}
@@ -2860,7 +2896,7 @@ const DailyExpensesTab = ({
                                                 className={inputCls}
                                             />
                                             {isCustom && (
-                                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400'}`}>
+                                                <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400'}`}>
                                                     custom
                                                 </span>
                                             )}
@@ -2927,7 +2963,7 @@ const DailyExpensesTab = ({
                                         <div className="text-right flex-shrink-0">
                                             <span className={`font-semibold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>{e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount, e.currency || 'PHP')}</span>
                                             {(e.currency || 'PHP') !== activeViewCurrency && (
-                                                <span className={`block text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency || 'PHP')}</span>
+                                                <span className={`block text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(e.amount, e.currency || 'PHP')}</span>
                                             )}
                                         </div>
                                     </div>
@@ -3073,7 +3109,7 @@ const DailyExpensesTab = ({
             )}
 
             {/* Add Transaction Form */}
-            <AnimateIn delay={300}><div className={`${card} overflow-hidden`}>
+            <AnimateIn delay={300}><div ref={expenseFormRef} className={`${card} overflow-hidden`}>
                 <div className={`flex items-center justify-between px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                     <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                         {editingExpense ? 'Edit Transaction' : 'Transactions'}
@@ -3305,7 +3341,7 @@ const DailyExpensesTab = ({
                                                                     const net = v.income - v.expense
                                                                     if (v.income === 0 && v.expense === 0) return null
                                                                     return (
-                                                                        <span key={code} className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>
+                                                                        <span key={code} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>
                                                                             {v.expense > 0 && <span className="text-red-500">-{formatCurrencyRaw(v.expense, code)}</span>}
                                                                             {v.income > 0 && v.expense > 0 && ' '}
                                                                             {v.income > 0 && <span className="text-emerald-500">+{formatCurrencyRaw(v.income, code)}</span>}
@@ -3348,13 +3384,13 @@ const DailyExpensesTab = ({
                                                             <div className="flex items-center gap-1.5">
                                                                 <p className={`text-sm font-medium truncate max-w-[180px] ${e.listOnly ? 'line-through' : ''} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</p>
                                                                 {e.listOnly && (
-                                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400'}`}>
+                                                                    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-900/30 text-amber-400'}`}>
                                                                         <FontAwesomeIcon icon={faEye} className="text-[7px]" />
                                                                         LIST
                                                                     </span>
                                                                 )}
                                                                 {e.attachments?.length > 0 && (
-                                                                    <button onClick={() => setReceiptViewer(e.attachments[0])} className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
+                                                                    <button onClick={() => setReceiptViewer(e.attachments[0])} className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
                                                                         <FontAwesomeIcon icon={faFileExport} className="text-[7px]" />
                                                                         RECEIPT
                                                                     </button>
@@ -3365,14 +3401,14 @@ const DailyExpensesTab = ({
                                                         <td className="px-3 py-2.5">
                                                             <div className="flex items-center gap-1.5">
                                                                 <div className="w-4.5 h-4.5 rounded flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (e.category?.color || '#94a3b8') + '20' }}>
-                                                                    {e.category?.icon ? <SafeIcon name={e.category.icon} cls="text-[9px]" style={{ color: e.category.color }} /> : <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.category?.color || '#94a3b8' }} />}
+                                                                    {e.category?.icon ? <SafeIcon name={e.category.icon} cls="text-[10px]" style={{ color: e.category.color }} /> : <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.category?.color || '#94a3b8' }} />}
                                                                 </div>
                                                                 <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{e.category?.name || 'Uncategorized'}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-3 py-2.5">
                                                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>
-                                                                <FontAwesomeIcon icon={paymentIcon(e.paymentMethod)} className="text-[9px]" />
+                                                                <FontAwesomeIcon icon={paymentIcon(e.paymentMethod)} className="text-[10px]" />
                                                                 {e.paymentMethod}
                                                             </span>
                                                         </td>
@@ -3393,7 +3429,7 @@ const DailyExpensesTab = ({
                                                             )}
                                                         </td>
                                                         <td className="px-3 py-2.5 text-right">
-                                                            <div className="flex items-center justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex items-center justify-end gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                                                                 {!isViewer && <>
                                                                 <button
                                                                     onClick={async () => {
@@ -3446,10 +3482,10 @@ const DailyExpensesTab = ({
                             </span>
                             <div className="flex items-center gap-0.5">
                                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={`${btnBase} ${btnIdle}`} aria-label="First page">
-                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180" /><FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180 -ml-1" />
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[10px] rotate-180" /><FontAwesomeIcon icon={faArrowRight} className="text-[10px] rotate-180 -ml-1" />
                                 </button>
                                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className={`${btnBase} ${btnIdle}`} aria-label="Previous page">
-                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px] rotate-180" />
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[10px] rotate-180" />
                                 </button>
                                 {start > 1 && <span className={`w-6 text-center text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>…</span>}
                                 {pages.map(p => (
@@ -3459,10 +3495,10 @@ const DailyExpensesTab = ({
                                 ))}
                                 {end < totalPages && <span className={`w-6 text-center text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>…</span>}
                                 <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className={`${btnBase} ${btnIdle}`} aria-label="Next page">
-                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px]" />
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[10px]" />
                                 </button>
                                 <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className={`${btnBase} ${btnIdle}`} aria-label="Last page">
-                                    <FontAwesomeIcon icon={faArrowRight} className="text-[9px]" /><FontAwesomeIcon icon={faArrowRight} className="text-[9px] -ml-1" />
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-[10px]" /><FontAwesomeIcon icon={faArrowRight} className="text-[10px] -ml-1" />
                                 </button>
                             </div>
                         </div>
@@ -3614,7 +3650,7 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                         {overallPct}%
                     </span>
                 </div>
-                <div className={`h-3 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                <div className={`h-3 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`} role="progressbar" aria-valuenow={Math.min(overallPct, 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Overall budget ${overallPct}% used`}>
                     <div className={`h-full rounded-full ${overallStatus.bar}`} style={{ width: `${Math.min(overallPct, 100)}%`, animation: 'barGrow 0.8s ease-out 0.3s both' }} />
                 </div>
                 <div className="flex items-center justify-between mt-2">
@@ -3752,10 +3788,10 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
                                                     <div className="flex items-center gap-1.5">
                                                         <p className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description || 'No description'}</p>
                                                         {e.notes && (
-                                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
+                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-500' : 'bg-amber-900/20 text-amber-400'}`} title={e.notes}>NOTE</span>
                                                         )}
                                                         {e.attachments?.length > 0 && (
-                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
+                                                            <button onClick={() => setReceiptViewer(e.attachments[0])} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded transition-colors ${isLight ? 'bg-blue-50 text-blue-500 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`} title="View receipt">
                                                                 <FontAwesomeIcon icon={faFileExport} className="text-[7px] mr-0.5" />RECEIPT
                                                             </button>
                                                         )}
@@ -3937,6 +3973,8 @@ const CategoriesTab = ({
                                         <button
                                             key={c}
                                             onClick={() => setCategoryForm({...categoryForm, color: c})}
+                                            aria-label={`Select color ${c}`}
+                                            aria-pressed={categoryForm.color === c}
                                             className={`w-7 h-7 rounded-full transition-all ${categoryForm.color === c ? 'ring-2 ring-offset-2 scale-110' : 'hover:scale-105'}`}
                                             style={{ backgroundColor: c, ringColor: c }}
                                         />
@@ -3985,7 +4023,7 @@ const CategoriesTab = ({
                                         <div className="flex items-center gap-1.5">
                                             <span className={`text-sm font-medium block truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
                                             {!isOwner && (
-                                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
+                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
                                                     <FontAwesomeIcon icon={faUserFriends} className="mr-0.5 text-[7px]" />Shared
                                                 </span>
                                             )}
@@ -4001,7 +4039,7 @@ const CategoriesTab = ({
                                     </div>
                                 </div>
                                 {isOwner && !isViewer ? (
-                                <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                                     <button onClick={() => setShareTarget(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-emerald-100 text-emerald-500' : 'hover:bg-emerald-900/30 text-emerald-400'}`} title="Share">
                                         <FontAwesomeIcon icon={faUserFriends} className="text-[10px]" />
                                     </button>
@@ -4044,14 +4082,14 @@ const CategoriesTab = ({
                                     <div className="flex items-center gap-1.5">
                                         <span className={`text-sm font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</span>
                                         {!isOwner && (
-                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
+                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isLight ? 'bg-violet-50 text-violet-500' : 'bg-violet-900/20 text-violet-400'}`}>
                                                 <FontAwesomeIcon icon={faUserFriends} className="mr-0.5 text-[7px]" />Shared
                                             </span>
                                         )}
                                     </div>
                                 </div>
                                 {isOwner && !isViewer ? (
-                                <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                                     <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
@@ -4104,7 +4142,7 @@ const CategoriesTab = ({
                                                     {avatar ? (
                                                         <img src={avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
                                                     ) : (
-                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
                                                             {(name || '?')[0].toUpperCase()}
                                                         </div>
                                                     )}
@@ -4128,17 +4166,7 @@ const CategoriesTab = ({
 
 // ==================== SAVINGS TAB ====================
 
-const DENOMINATIONS = [
-    { label: '₱ 1000', value: 1000, type: 'bill' },
-    { label: '₱ 500', value: 500, type: 'bill' },
-    { label: '₱ 200', value: 200, type: 'bill' },
-    { label: '₱ 100', value: 100, type: 'bill' },
-    { label: '₱ 50', value: 50, type: 'bill' },
-    { label: '₱ 20', value: 20, type: 'coin' },
-    { label: '₱ 10', value: 10, type: 'coin' },
-    { label: '₱ 5', value: 5, type: 'coin' },
-    { label: '₱ 1', value: 1, type: 'coin' },
-]
+const DENOMINATIONS = DENOMINATIONS_CONST
 
 const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer, ownerParam = {} }) => {
     const [counts, setCounts] = useState(() => {
@@ -4152,8 +4180,8 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
     const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
     useEffect(() => {
-        dispatch(getBudgetSavingsHistory())
-    }, [dispatch])
+        dispatch(getBudgetSavingsHistory(ownerParam))
+    }, [dispatch, ownerParam.budgetOwnerId])
 
     useEffect(() => {
         if (savings && Object.keys(savings).length > 0 && !loaded) {
@@ -4384,7 +4412,7 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                                     <div className="flex flex-wrap gap-1 sm:gap-1.5">
                                         {entry.changes.map((c, ci) => (
                                             <span key={ci} className={`inline-flex items-center gap-1 text-[11px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md ${c.diff > 0 ? (isLight ? 'bg-green-50 text-green-600' : 'bg-green-500/10 text-green-400') : (isLight ? 'bg-red-50 text-red-600' : 'bg-red-500/10 text-red-400')}`}>
-                                                <FontAwesomeIcon icon={c.diff > 0 ? faArrowUp : faArrowDown} className="text-[8px] sm:text-[9px]" />
+                                                <FontAwesomeIcon icon={c.diff > 0 ? faArrowUp : faArrowDown} className="text-[8px] sm:text-[10px]" />
                                                 ₱{c.denomination}
                                                 <span className="font-semibold">{c.diff > 0 ? '+' : ''}{c.diff}</span>
                                                 <span className="opacity-50 hidden sm:inline">({c.previous}→{c.current})</span>
@@ -4635,23 +4663,23 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                                                     <h4 className={`text-sm font-semibold ${isPaid ? 'line-through opacity-50' : ''} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{debt.name}</h4>
                                                     <div className="flex flex-wrap items-center gap-1.5">
-                                                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${debt.type === 'owe'
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${debt.type === 'owe'
                                                             ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
                                                             : (isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400')
                                                         }`}>{debt.type === 'owe' ? 'Payable' : 'Receivable'}</span>
-                                                        {isPaid && <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Paid</span>}
-                                                        {isOverdue && <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>Overdue</span>}
+                                                        {isPaid && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Paid</span>}
+                                                        {isOverdue && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>Overdue</span>}
                                                     </div>
                                                 </div>
                                                 <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                                     {debt.person && (
                                                         <span className="flex items-center gap-1">
-                                                            <FontAwesomeIcon icon={faUserFriends} className="text-[9px]" /> {debt.person}
+                                                            <FontAwesomeIcon icon={faUserFriends} className="text-[10px]" /> {debt.person}
                                                         </span>
                                                     )}
                                                     {debt.due_date && (
                                                         <span className={`flex items-center gap-1 ${isOverdue ? 'text-amber-500' : ''}`}>
-                                                            <FontAwesomeIcon icon={faCalendarCheck} className="text-[9px]" />
+                                                            <FontAwesomeIcon icon={faCalendarCheck} className="text-[10px]" />
                                                             {new Date(debt.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                         </span>
                                                     )}
@@ -4798,19 +4826,10 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
 
 // ==================== LISTS TAB ====================
 
-const LIST_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6', '#84cc16', '#f43f5e']
+const LIST_COLORS = [...CATEGORY_COLORS, '#84cc16', '#f43f5e']
 
 const LIST_CURRENCIES = [
-    { symbol: '₱', label: 'PHP (₱)' },
-    { symbol: '$', label: 'USD ($)' },
-    { symbol: '€', label: 'EUR (€)' },
-    { symbol: '£', label: 'GBP (£)' },
-    { symbol: '¥', label: 'JPY (¥)' },
-    { symbol: '₩', label: 'KRW (₩)' },
-    { symbol: '₹', label: 'INR (₹)' },
-    { symbol: '฿', label: 'THB (฿)' },
-    { symbol: 'A$', label: 'AUD (A$)' },
-    { symbol: 'C$', label: 'CAD (C$)' },
+    ...CURRENCIES.map(c => ({ symbol: c.symbol, label: `${c.code} (${c.symbol})` })),
     { symbol: 'Fr', label: 'CHF (Fr)' },
     { symbol: 'R$', label: 'BRL (R$)' },
 ]
@@ -4840,11 +4859,7 @@ const LIST_ICONS = [
     'bell','flag','bookmark','trophy','medal','award','phone','envelope','paper-plane','comments',
 ]
 
-const SafeIcon = ({ name, cls, style }) => {
-    if (!name || name === 'peso-sign') return <span className={cls} style={style}>₱</span>
-    try { return <FontAwesomeIcon icon={['fas', name]} className={cls} style={style} /> }
-    catch { return <FontAwesomeIcon icon={faCogs} className={`${cls} opacity-20`} style={style} /> }
-}
+const SafeIcon = SafeIconShared
 
 const ListIconPicker = ({ value, onChange, isLight }) => {
     const [open, setOpen] = useState(false)
@@ -5239,21 +5254,21 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                         <div className="grid grid-cols-3 gap-2 sm:gap-3">
                                             <div className={`rounded-lg p-2.5 sm:p-3 ${isLight ? 'bg-emerald-50/70' : 'bg-emerald-900/10'}`}>
                                                 <div className="flex items-center gap-1.5 mb-1">
-                                                    <FontAwesomeIcon icon={faArrowUp} className="text-[9px] text-emerald-500" />
+                                                    <FontAwesomeIcon icon={faArrowUp} className="text-[10px] text-emerald-500" />
                                                     <span className={`text-[10px] font-medium ${isLight ? 'text-emerald-600/70' : 'text-emerald-400/70'}`}>Income</span>
                                                 </div>
                                                 <p className="text-xs sm:text-sm font-bold text-emerald-500">{formatListAmount(stats.addTotal, list)}</p>
                                             </div>
                                             <div className={`rounded-lg p-2.5 sm:p-3 ${isLight ? 'bg-red-50/70' : 'bg-red-900/10'}`}>
                                                 <div className="flex items-center gap-1.5 mb-1">
-                                                    <FontAwesomeIcon icon={faArrowDown} className="text-[9px] text-red-500" />
+                                                    <FontAwesomeIcon icon={faArrowDown} className="text-[10px] text-red-500" />
                                                     <span className={`text-[10px] font-medium ${isLight ? 'text-red-600/70' : 'text-red-400/70'}`}>Expense</span>
                                                 </div>
                                                 <p className="text-xs sm:text-sm font-bold text-red-500">{formatListAmount(stats.subtractTotal, list)}</p>
                                             </div>
                                             <div className={`rounded-lg p-2.5 sm:p-3 ${isLight ? 'bg-slate-50' : 'bg-[#151515]'}`}>
                                                 <div className="flex items-center gap-1.5 mb-1">
-                                                    <FontAwesomeIcon icon={faWallet} className={`text-[9px] ${stats.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                                                    <FontAwesomeIcon icon={faWallet} className={`text-[10px] ${stats.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
                                                     <span className={`text-[10px] font-medium ${isLight ? 'text-slate-500/70' : 'text-gray-400/70'}`}>Net</span>
                                                 </div>
                                                 <p className={`text-xs sm:text-sm font-bold ${stats.net >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -5306,7 +5321,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                                                                 : (isLight ? 'bg-red-50 border-red-200 text-red-600' : 'bg-red-900/20 border-red-800/40 text-red-400')
                                                                         }`}
                                                                     >
-                                                                        <FontAwesomeIcon icon={editItemForm.type === 'add' ? faPlus : faMinus} className="text-[9px]" />
+                                                                        <FontAwesomeIcon icon={editItemForm.type === 'add' ? faPlus : faMinus} className="text-[10px]" />
                                                                     </button>
                                                                     <button onClick={() => saveEditItem(list)} className="text-emerald-500 hover:text-emerald-600 p-0.5 flex-shrink-0">
                                                                         <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
@@ -5333,12 +5348,12 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                                                     <span className={`text-xs font-semibold tabular-nums w-28 text-right flex-shrink-0 ${item.checked ? 'opacity-40 line-through' : ''} ${itemType === 'add' ? 'text-emerald-500' : 'text-red-500'}`}>
                                                                         {itemType === 'add' ? '+' : '-'}{formatListAmount(item.amount || 0, list)}
                                                                     </span>
-                                                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
                                                                         <button onClick={() => startEditItem(list._id, idx, item)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
-                                                                            <FontAwesomeIcon icon={faPen} className="text-[9px]" />
+                                                                            <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                                         </button>
                                                                         <button onClick={() => deleteItemFromList(list, idx)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-500 hover:text-red-400'}`}>
-                                                                            <FontAwesomeIcon icon={faTrash} className="text-[9px]" />
+                                                                            <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                                         </button>
                                                                     </div>
                                                                 </>
@@ -5350,7 +5365,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
                                             {list.items.length > 5 && (
                                                 <button onClick={() => setExpandedList(isExpanded ? null : list._id)}
                                                     className={`w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-medium transition-all border-t border-solid ${isLight ? 'border-slate-50 text-slate-400 hover:bg-slate-50 hover:text-slate-600' : 'border-[#1a1a1a] text-gray-500 hover:bg-[#111] hover:text-gray-300'}`}>
-                                                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[9px]" />
+                                                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[10px]" />
                                                     {isExpanded ? 'Show less' : `Show ${list.items.length - 5} more`}
                                                 </button>
                                             )}
@@ -5396,7 +5411,7 @@ const QuickAddItem = ({ list, quickAddItem, isLight, inputCls }) => {
                 }`}
                 title={type === 'add' ? 'Income (+)' : 'Expense (-)'}
             >
-                <FontAwesomeIcon icon={type === 'add' ? faPlus : faMinus} className="text-[9px]" />
+                <FontAwesomeIcon icon={type === 'add' ? faPlus : faMinus} className="text-[10px]" />
             </button>
             <button onClick={handleAdd} className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                 <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
@@ -5983,7 +5998,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{date}</span>
                                                             {grpCurrencyEntries.map(([code, v]) => (
-                                                                <span key={code} className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>
+                                                                <span key={code} className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400'}`}>
                                                                     {v.expense > 0 && <span className="text-red-500">-{formatCurrencyRaw(v.expense, code)}</span>}
                                                                     {v.income > 0 && v.expense > 0 && ' '}
                                                                     {v.income > 0 && <span className="text-emerald-500">+{formatCurrencyRaw(v.income, code)}</span>}
@@ -6008,7 +6023,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                                                         </td>
                                                         <td className={`px-3 py-1.5 ${e.listOnly ? 'line-through' : ''} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
                                                             {e.description}
-                                                            {e.listOnly && <span className={`ml-1 text-[9px] font-bold px-1 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#1a1a1a] text-gray-500'}`}>LIST</span>}
+                                                            {e.listOnly && <span className={`ml-1 text-[10px] font-bold px-1 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#1a1a1a] text-gray-500'}`}>LIST</span>}
                                                         </td>
                                                         <td className={`px-3 py-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
                                                             <div className="flex items-center gap-1">
@@ -6025,7 +6040,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
                                                                     <span className={`text-xs font-semibold ${e.listOnly ? 'line-through' : ''} ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
                                                                         {e.type === 'income' ? '+' : '-'}{formatCurrencyRaw(converted, activeViewCurrency)}
                                                                     </span>
-                                                                    <span className={`block text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                                    <span className={`block text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                                                         {e.type === 'income' ? '+' : '-'}{formatCurrencyRaw(e.amount, fromCur)}
                                                                     </span>
                                                                 </>
@@ -6077,6 +6092,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
     const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
     const [contribForm, setContribForm] = useState({ goalId: null, amount: '', notes: '' })
     const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const [deleteContribConfirm, setDeleteContribConfirm] = useState(null)
     const [expandedGoal, setExpandedGoal] = useState(null)
     const [showCompleted, setShowCompleted] = useState(false)
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
@@ -6111,6 +6127,17 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
         setContribForm({ goalId: null, amount: '', notes: '' })
     }
 
+    const handleRemoveContribution = async (goalId, contributionId) => {
+        const key = `${goalId}-${contributionId}`
+        if (deleteContribConfirm === key) {
+            await dispatch(removeGoalContribution({ id: goalId, contributionId, ...ownerParam }))
+            setDeleteContribConfirm(null)
+        } else {
+            setDeleteContribConfirm(key)
+            setTimeout(() => setDeleteContribConfirm(null), 3000)
+        }
+    }
+
     const activeGoals = goals.filter(g => g.status === 'active')
     const completedGoals = goals.filter(g => g.status === 'completed')
     const totalTarget = activeGoals.reduce((s, g) => s + g.targetAmount, 0)
@@ -6139,7 +6166,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
             {/* Header Bar */}
             <AnimateIn delay={0}><div className="flex items-center justify-between">
                 <div>
-                    <h3 className={`text-base font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>Financial Goals</h3>
+                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Financial Goals</h3>
                     <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{activeGoals.length} active · {completedGoals.length} completed · {totalContributions} contributions</p>
                 </div>
                 {!isViewer && <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${
@@ -6162,7 +6189,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                 ].map((s, i) => (
                     <AnimateIn key={i} delay={40 + i * 50}><div className={`${card} p-4`}>
                         <div className="flex items-center gap-1.5 mb-1.5">
-                            <FontAwesomeIcon icon={s.icon} className={`text-[9px] ${s.iconColor}`} />
+                            <FontAwesomeIcon icon={s.icon} className={`text-[10px] ${s.iconColor}`} />
                             <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
                         </div>
                         <p className={`text-lg font-extrabold leading-tight ${s.color}`}>{s.value}</p>
@@ -6221,7 +6248,7 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                             <label className={labelCls}>Color</label>
                             <div className="flex gap-2 flex-wrap">
                                 {CATEGORY_COLORS.map(c => (
-                                    <button key={c} onClick={() => setForm({...form, color: c})} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
+                                    <button key={c} onClick={() => setForm({...form, color: c})} aria-label={`Select color ${c}`} aria-pressed={form.color === c} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
                                 ))}
                             </div>
                         </div>
@@ -6275,10 +6302,10 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                                     </div>
                                 </div>
                                 {!isViewer && <div className="flex items-center gap-0.5 flex-shrink-0">
-                                    <button onClick={() => handleEdit(g)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                    <button onClick={() => handleEdit(g)} aria-label={`Edit ${g.name}`} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
-                                    <button onClick={() => handleDelete(g._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500')}`}>
+                                    <button onClick={() => handleDelete(g._id)} aria-label={`Delete ${g.name}`} className={`w-7 h-7 rounded-lg flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500')}`}>
                                         <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                     </button>
                                 </div>}
@@ -6304,10 +6331,10 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                                         <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs`} min="0" step="0.01" autoFocus />
                                         <input type="text" placeholder="Note" value={contribForm.notes} onChange={e => setContribForm({...contribForm, notes: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs hidden sm:block`} />
                                         <button onClick={handleContribute} disabled={!contribForm.amount} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}>
-                                            <FontAwesomeIcon icon={faCheck} className="text-[9px]" />
+                                            <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
                                         </button>
                                         <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`text-xs px-1.5 py-1.5 rounded-lg ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1f1f1f]'}`}>
-                                            <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
                                         </button>
                                     </div>
                                 ) : (
@@ -6331,20 +6358,36 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
                                     {g.notes && <p className={`text-[11px] mb-3 px-2 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{g.notes}</p>}
                                     <div className="relative pl-4">
                                         <div className={`absolute left-[5px] top-1 bottom-1 w-px ${isLight ? 'bg-slate-200' : 'bg-[#222]'}`} />
-                                        {g.contributions.slice().reverse().slice(0, 10).map((c, i) => (
-                                            <div key={i} className="relative flex items-start gap-3 mb-2 last:mb-0">
+                                        {g.contributions.slice().reverse().slice(0, 10).map((c, i) => {
+                                            const contribKey = `${g._id}-${c._id}`
+                                            return (
+                                            <div key={c._id || i} className="relative flex items-start gap-3 mb-2 last:mb-0 group">
                                                 <div className="absolute left-[-13px] top-1.5 w-2 h-2 rounded-full border-2 flex-shrink-0" style={{ borderColor: g.color, backgroundColor: i === 0 ? g.color : 'transparent' }} />
                                                 <div className="flex items-center justify-between flex-1 min-w-0">
                                                     <div className="min-w-0">
                                                         <span className={`text-xs font-semibold text-emerald-500`}>+{formatCurrency(c.amount)}</span>
                                                         {c.notes && <span className={`text-[10px] ml-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.notes}</span>}
                                                     </div>
-                                                    <span className={`text-[10px] flex-shrink-0 ml-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                        {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                            {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </span>
+                                                        {!isViewer && (
+                                                            <button
+                                                                onClick={() => handleRemoveContribution(g._id, c._id)}
+                                                                className={`w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all ${
+                                                                    deleteContribConfirm === contribKey
+                                                                        ? (isLight ? 'bg-red-100 text-red-600 opacity-100' : 'bg-red-900/30 text-red-400 opacity-100')
+                                                                        : (isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-600 hover:text-red-400')
+                                                                }`}
+                                                            >
+                                                                <FontAwesomeIcon icon={deleteContribConfirm === contribKey ? faExclamationTriangle : faTimes} className="text-[8px]" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )})}
                                         {g.contributions.length > 10 && (
                                             <p className={`text-[10px] ml-2 mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>+{g.contributions.length - 10} earlier</p>
                                         )}
@@ -6652,7 +6695,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                         <div key={c.code} className={`px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
                             <div className="flex items-center justify-between mb-1">
                                 <span className={`text-xs font-bold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{c.symbol} {c.code}</span>
-                                {savedRates?.[c.code] && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400'}`}>Custom</span>}
+                                {savedRates?.[c.code] && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400'}`}>Custom</span>}
                             </div>
                             {rateEditorOpen ? (
                                 <input
@@ -6726,7 +6769,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                     m === 'PayPal' ? faMoneyBillWave : faCoins
                                 } className="text-[10px]" />
                                 <span className="text-xs font-medium">{m}</span>
-                                {used && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-violet-100 text-violet-600' : 'bg-violet-900/30 text-violet-300'}`}>In use</span>}
+                                {used && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-violet-100 text-violet-600' : 'bg-violet-900/30 text-violet-300'}`}>In use</span>}
                                 {isCustom && (
                                     <button onClick={() => handleRemovePaymentMethod(m)} disabled={savingSettings} className={`ml-1 w-4 h-4 rounded-full flex items-center justify-center transition-all ${isLight ? 'hover:bg-red-100 text-red-400 hover:text-red-600' : 'hover:bg-red-900/30 text-red-500 hover:text-red-400'}`}>
                                         <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
@@ -6803,10 +6846,10 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                                 autoFocus
                                             />
                                             <button onClick={() => handleSaveCatBudget(cat)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'}`}>
-                                                <FontAwesomeIcon icon={faCheck} className="text-[9px]" />
+                                                <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
                                             </button>
                                             <button onClick={() => { setEditingCatId(null); setCatBudgetEdit('') }} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-[#2a2a2a] text-gray-500'}`}>
-                                                <FontAwesomeIcon icon={faTimes} className="text-[9px]" />
+                                                <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
                                             </button>
                                         </div>
                                     ) : (
@@ -6838,7 +6881,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                         <div className="flex flex-wrap gap-1.5">
                             {categories.filter(c => c.type === 'income').map(c => (
                                 <span key={c._id} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md ${isLight ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-900/15 text-emerald-400'}`}>
-                                    {c.icon && <SafeIcon name={c.icon} cls="text-[9px]" style={{ color: c.color }} />}
+                                    {c.icon && <SafeIcon name={c.icon} cls="text-[10px]" style={{ color: c.color }} />}
                                     {c.name}
                                 </span>
                             ))}
@@ -6885,7 +6928,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                             : (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
                                     }`}>
                                         {cur?.symbol || ''} {code}
-                                        {code === activeViewCurrency && <FontAwesomeIcon icon={faEye} className="text-[9px] ml-0.5" />}
+                                        {code === activeViewCurrency && <FontAwesomeIcon icon={faEye} className="text-[10px] ml-0.5" />}
                                     </span>
                                 )
                             })}
@@ -7001,8 +7044,8 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                 <div className="flex items-center justify-between">
                                     <span className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{c.symbol} {c.code}</span>
                                     <div className="flex items-center gap-1">
-                                        {isDefault && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>★</span>}
-                                        {isActive && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-900/30 text-indigo-400'}`}>Viewing</span>}
+                                        {isDefault && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>★</span>}
+                                        {isActive && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLight ? 'bg-indigo-100 text-indigo-600' : 'bg-indigo-900/30 text-indigo-400'}`}>Viewing</span>}
                                     </div>
                                 </div>
                                 <p className={`text-[11px] truncate ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.name}</p>
