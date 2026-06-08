@@ -107,9 +107,11 @@ const Profile = ({ user, theme, setNotification }) => {
         }
 
         if (removedImages.length > 0) {
-            removedImages.forEach(async (img) => {
-                if (img.includes('vercel-storage')) await del(img, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN })
-            })
+            await Promise.all(
+                removedImages
+                    .filter(img => img.includes('vercel-storage'))
+                    .map(img => del(img, { token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN }).catch(() => {}))
+            )
         }
 
         dispatch(updateProfile(data))

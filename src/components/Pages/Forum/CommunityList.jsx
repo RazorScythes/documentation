@@ -2,9 +2,24 @@ import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUsers, faSearch, faPlus, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import {
+    faUsers, faSearch, faPlus, faChevronLeft, faChevronRight,
+    faFire, faClock, faArrowDownAZ, faGlobe, faUserGroup, faCompass
+} from '@fortawesome/free-solid-svg-icons'
 import { getCommunities, joinCommunity, leaveCommunity } from '../../../actions/community'
 import CommunityCard from '../../Forum/CommunityCard'
+import { SearchSkeleton } from '../../Forum/ForumSkeleton'
+
+const SORT_OPTIONS = [
+    { id: 'popular', label: 'Popular', icon: faFire },
+    { id: 'new', label: 'Newest', icon: faClock },
+    { id: 'name', label: 'A\u2013Z', icon: faArrowDownAZ },
+]
+
+const TAB_OPTIONS = [
+    { id: 'all', label: 'Discover', icon: faCompass },
+    { id: 'joined', label: 'My Communities', icon: faUserGroup },
+]
 
 const CommunityList = ({ user, theme }) => {
     const dispatch = useDispatch()
@@ -19,9 +34,6 @@ const CommunityList = ({ user, theme }) => {
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
     const muted = isLight ? 'text-slate-500' : 'text-gray-500'
     const textPrimary = isLight ? 'text-slate-900' : 'text-white'
-    const inputClass = isLight
-        ? 'w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
-        : 'w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-[#333] bg-[#1a1a1a] text-gray-200 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/40'
 
     useEffect(() => {
         const params = { page, limit: 12, sort }
@@ -31,7 +43,7 @@ const CommunityList = ({ user, theme }) => {
     }, [page, sort, tab, dispatch])
 
     const handleSearch = (e) => {
-        e.preventDefault()
+        e?.preventDefault()
         setPage(1)
         const params = { page: 1, limit: 12, sort }
         if (search.trim()) params.search = search.trim()
@@ -44,187 +56,258 @@ const CommunityList = ({ user, theme }) => {
     const pageNumbers = () => {
         if (!pagination?.pages) return []
         const { pages: totalPages } = pagination
-        if (totalPages <= 5) {
-            return Array.from({ length: totalPages }, (_, i) => i + 1)
-        }
+        if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1)
         const start = Math.min(Math.max(page - 2, 1), totalPages - 4)
         return Array.from({ length: 5 }, (_, i) => start + i)
     }
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
-            <header className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h1 className={`text-xl font-semibold tracking-tight sm:text-2xl ${textPrimary}`}>
-                        Communities
-                    </h1>
-                    <p className={`mt-0.5 text-sm ${muted}`}>
-                        {totalCount == null ? 'Loading…' : `${totalCount.toLocaleString()} total`}
-                    </p>
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 min-h-screen">
+            {/* Hero Header */}
+            <header className="mb-6 sm:mb-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3.5">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isLight ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-indigo-600 to-purple-700'}`}>
+                            <FontAwesomeIcon icon={faGlobe} className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="min-w-0">
+                            <h1 className={`text-xl font-bold tracking-tight sm:text-2xl ${textPrimary}`}>
+                                Communities
+                            </h1>
+                            <p className={`mt-0.5 text-sm ${muted}`}>
+                                {totalCount == null
+                                    ? 'Discovering communities...'
+                                    : `${totalCount.toLocaleString()} ${totalCount === 1 ? 'community' : 'communities'} to explore`}
+                            </p>
+                        </div>
+                    </div>
+                    {user && (
+                        <Link
+                            to="/forum/communities/new"
+                            className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all w-full sm:w-auto
+                                ${isLight
+                                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-sm shadow-indigo-200'
+                                    : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-sm shadow-indigo-900/30'}`}
+                        >
+                            <FontAwesomeIcon icon={faPlus} className="text-xs" />
+                            Create Community
+                        </Link>
+                    )}
                 </div>
-                {user && (
-                    <Link
-                        to="/forum/communities/new"
-                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 w-full sm:w-auto"
-                    >
-                        <FontAwesomeIcon icon={faPlus} className="text-xs" />
-                        Create
-                    </Link>
-                )}
             </header>
 
-            <div className={`${panelClass} mb-5 p-2.5 sm:p-3`}>
-                <form
-                    onSubmit={handleSearch}
-                    className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3"
-                >
-                    <div className="relative min-w-0 flex-1">
-                        <FontAwesomeIcon
-                            icon={faSearch}
-                            className={`absolute left-2.5 top-1/2 -translate-y-1/2 text-xs pointer-events-none ${isLight ? 'text-slate-400' : 'text-gray-500'}`}
-                        />
-                        <input
-                            type="search"
-                            name="search"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder="Search communities"
-                            autoComplete="off"
-                            className={inputClass}
-                        />
-                    </div>
-
-                    {user && (
-                        <div
-                            className={`flex shrink-0 rounded-lg p-0.5 ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`}
-                            role="tablist"
-                            aria-label="Communities list"
-                        >
+            {/* Tabs */}
+            {user && (
+                <div className="mb-5">
+                    <div className={`inline-flex rounded-xl p-1 ${isLight ? 'bg-slate-100' : 'bg-[#141414] border border-[#2a2a2a]'}`} role="tablist">
+                        {TAB_OPTIONS.map(t => (
                             <button
+                                key={t.id}
                                 type="button"
                                 role="tab"
-                                aria-selected={tab === 'all'}
-                                onClick={() => { setTab('all'); setPage(1) }}
-                                className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-                                    tab === 'all'
-                                        ? (isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#2a2a2a] text-white')
-                                        : (isLight ? 'text-slate-500' : 'text-gray-500')
+                                aria-selected={tab === t.id}
+                                onClick={() => { setTab(t.id); setPage(1) }}
+                                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                                    tab === t.id
+                                        ? isLight
+                                            ? 'bg-white text-slate-900 shadow-sm'
+                                            : 'bg-[#2a2a2a] text-white shadow-sm'
+                                        : isLight
+                                            ? 'text-slate-500 hover:text-slate-700'
+                                            : 'text-gray-500 hover:text-gray-300'
                                 }`}
                             >
-                                All
+                                <FontAwesomeIcon icon={t.icon} className="text-xs" />
+                                {t.label}
                             </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={tab === 'joined'}
-                                onClick={() => { setTab('joined'); setPage(1) }}
-                                className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium ${
-                                    tab === 'joined'
-                                        ? (isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#2a2a2a] text-white')
-                                        : (isLight ? 'text-slate-500' : 'text-gray-500')
-                                }`}
-                            >
-                                <FontAwesomeIcon icon={faUsers} className="text-[10px]" />
-                                Joined
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="flex shrink-0 items-center gap-2 lg:ml-0">
-                        <label htmlFor="community-sort" className="sr-only">Sort</label>
-                        <select
-                            id="community-sort"
-                            value={sort}
-                            onChange={e => { setSort(e.target.value); setPage(1) }}
-                            className={`h-9 min-h-9 w-full min-w-[8.5rem] rounded-lg border px-2.5 text-xs font-medium sm:w-auto ${
-                                isLight
-                                    ? 'border-slate-200 bg-white text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500'
-                                    : 'border-[#333] bg-[#1a1a1a] text-gray-200 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/40'
-                            }`}
-                        >
-                            <option value="popular">Popular</option>
-                            <option value="new">Newest</option>
-                            <option value="name">A–Z</option>
-                        </select>
-                        <button
-                            type="button"
-                            onClick={handleSearch}
-                            className={`h-9 shrink-0 rounded-lg px-3 text-xs font-medium ${
-                                isLight
-                                    ? 'border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100'
-                                    : 'border border-[#333] bg-[#222] text-gray-200 hover:bg-[#2a2a2a]'
-                            }`}
-                        >
-                            Search
-                        </button>
+                        ))}
                     </div>
-                </form>
-            </div>
-
-            {isLoading ? (
-                <div className="flex items-center justify-center py-20">
-                    <div className={`h-9 w-9 animate-spin rounded-full border-2 border-t-transparent ${isLight ? 'border-indigo-600' : 'border-indigo-500'}`} />
-                </div>
-            ) : communities?.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
-                    {communities.map(c => (
-                        <CommunityCard
-                            key={c._id}
-                            community={c}
-                            theme={theme}
-                            user={user}
-                            onJoin={(id, inviteCode) => dispatch(joinCommunity({ id, inviteCode }))}
-                            onLeave={id => dispatch(leaveCommunity(id))}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className={`${panelClass} px-4 py-12 text-center sm:py-14`}>
-                    <div
-                        className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg border ${isLight ? 'border-slate-200 bg-slate-50 text-indigo-600' : 'border-[#2a2a2a] bg-[#222] text-indigo-400'}`}
-                    >
-                        <FontAwesomeIcon icon={faUsers} className="h-5 w-5" />
-                    </div>
-                    <p className={`text-sm font-medium ${isLight ? 'text-slate-800' : 'text-gray-100'}`}>
-                        {search ? 'No communities match your search' : 'No communities yet'}
-                    </p>
-                    <p className={`mx-auto mt-1 max-w-sm text-sm ${muted}`}>
-                        {search
-                            ? 'Try other keywords or clear the search.'
-                            : (user
-                                ? 'Create one to get started.'
-                                : 'Check back later or sign in to create a community.')}
-                    </p>
                 </div>
             )}
 
-            {pagination?.pages > 1 && (
-                <div className="mt-6 flex items-center justify-center">
+            {/* Search & Sort Bar */}
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <form onSubmit={handleSearch} className="relative min-w-0 flex-1">
+                    <FontAwesomeIcon
+                        icon={faSearch}
+                        className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-sm pointer-events-none ${isLight ? 'text-slate-400' : 'text-gray-500'}`}
+                    />
+                    <input
+                        type="search"
+                        name="search"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search communities..."
+                        autoComplete="off"
+                        className={`w-full min-h-[2.75rem] rounded-xl border py-2.5 pl-10 pr-12 text-sm outline-none transition ${
+                            isLight
+                                ? 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 shadow-sm'
+                                : 'border-[#2a2a2a] bg-[#1a1a1a] text-gray-100 placeholder:text-gray-500 focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10'
+                        }`}
+                    />
+                    <button
+                        type="submit"
+                        className={`absolute right-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg transition ${
+                            isLight
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                        }`}
+                    >
+                        <FontAwesomeIcon icon={faSearch} className="text-xs" />
+                    </button>
+                </form>
+
+                <div className={`flex shrink-0 rounded-xl p-1 ${isLight ? 'bg-slate-100 border border-slate-200/60' : 'bg-[#141414] border border-[#2a2a2a]'}`}>
+                    {SORT_OPTIONS.map(s => (
+                        <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => { setSort(s.id); setPage(1) }}
+                            title={s.label}
+                            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition ${
+                                sort === s.id
+                                    ? isLight
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'bg-[#2a2a2a] text-white'
+                                    : isLight
+                                        ? 'text-slate-500 hover:text-slate-700'
+                                        : 'text-gray-500 hover:text-gray-300'
+                            }`}
+                        >
+                            <FontAwesomeIcon icon={s.icon} className="text-[10px]" />
+                            <span className="hidden sm:inline">{s.label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Results */}
+            {isLoading ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }, (_, i) => (
+                        <div key={i} className={`${panelClass} overflow-hidden animate-pulse`}>
+                            <div className={`h-20 w-full ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <div className={`h-10 w-10 rounded-lg ${isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]'}`} />
+                                    <div className="flex-1 space-y-1.5">
+                                        <div className={`h-4 w-3/4 rounded ${isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]'}`} />
+                                        <div className={`h-3 w-1/2 rounded ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                    </div>
+                                </div>
+                                <div className={`h-3 w-full rounded ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                <div className="flex gap-2">
+                                    <div className={`h-9 flex-1 rounded-md ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                    <div className={`h-9 flex-1 rounded-md ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : communities?.length > 0 ? (
+                <>
+                    <div className="mb-3 flex items-center justify-between">
+                        <p className={`text-xs font-medium uppercase tracking-wide ${muted}`}>
+                            {tab === 'joined' ? 'Your communities' : 'All communities'}
+                            {totalCount != null && <span className="ml-1.5">({totalCount})</span>}
+                        </p>
+                        {pagination?.pages > 1 && (
+                            <p className={`text-xs tabular-nums ${muted}`}>
+                                Page {page} of {pagination.pages}
+                            </p>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {communities.map(c => (
+                            <CommunityCard
+                                key={c._id}
+                                community={c}
+                                theme={theme}
+                                user={user}
+                                onJoin={(id, inviteCode) => dispatch(joinCommunity({ id, inviteCode }))}
+                                onLeave={id => dispatch(leaveCommunity(id))}
+                            />
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className={`${panelClass} px-6 py-16 text-center`}>
+                    <div
+                        className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${
+                            isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#222] text-gray-500'
+                        }`}
+                    >
+                        <FontAwesomeIcon icon={tab === 'joined' ? faUserGroup : faUsers} className="h-7 w-7" />
+                    </div>
+                    <p className={`text-base font-semibold ${textPrimary}`}>
+                        {search
+                            ? 'No communities found'
+                            : tab === 'joined'
+                                ? "You haven't joined any communities yet"
+                                : 'No communities yet'}
+                    </p>
+                    <p className={`mx-auto mt-2 max-w-sm text-sm leading-relaxed ${muted}`}>
+                        {search
+                            ? 'Try different keywords or clear your search to browse all communities.'
+                            : tab === 'joined'
+                                ? 'Explore and join communities that match your interests.'
+                                : user
+                                    ? 'Be the first to create a community and start building something amazing.'
+                                    : 'Check back later or sign in to create a community.'}
+                    </p>
+                    {!search && tab === 'joined' && (
+                        <button
+                            type="button"
+                            onClick={() => setTab('all')}
+                            className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+                                isLight
+                                    ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                    : 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
+                            }`}
+                        >
+                            <FontAwesomeIcon icon={faCompass} className="text-xs" />
+                            Discover communities
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Pagination */}
+            {!isLoading && pagination?.pages > 1 && (
+                <div className="mt-8 flex items-center justify-center">
                     <nav
-                        className={`inline-flex items-center gap-0.5 rounded-lg border p-0.5 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-[#2a2a2a] bg-[#1a1a1a]'}`}
+                        className={`inline-flex items-center gap-1 rounded-xl border p-1.5 ${
+                            isLight ? 'border-slate-200 bg-white shadow-sm' : 'border-[#2a2a2a] bg-[#1a1a1a]'
+                        }`}
                         aria-label="Pagination"
                     >
                         <button
                             type="button"
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page === 1}
-                            className={`flex h-8 w-8 items-center justify-center rounded-md text-xs ${
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition ${
                                 page === 1
-                                    ? 'cursor-not-allowed opacity-35'
-                                    : (isLight ? 'text-slate-600 hover:bg-white' : 'text-gray-400 hover:bg-[#2a2a2a]')
+                                    ? 'cursor-not-allowed opacity-30'
+                                    : isLight
+                                        ? 'text-slate-600 hover:bg-slate-100'
+                                        : 'text-gray-400 hover:bg-[#2a2a2a]'
                             }`}
                         >
-                            <FontAwesomeIcon icon={faChevronLeft} />
+                            <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
                         </button>
                         {pageNumbers().map(pn => (
                             <button
                                 key={pn}
                                 type="button"
                                 onClick={() => setPage(pn)}
-                                className={`flex h-8 min-w-[2rem] items-center justify-center rounded-md px-1.5 text-xs font-medium ${
+                                className={`flex h-9 min-w-[2.25rem] items-center justify-center rounded-lg px-2 text-sm font-medium transition ${
                                     page === pn
-                                        ? (isLight ? 'bg-indigo-600 text-white' : 'bg-indigo-500 text-white')
-                                        : (isLight ? 'text-slate-600 hover:bg-white' : 'text-gray-400 hover:bg-[#2a2a2a]')
+                                        ? isLight
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-indigo-600 text-white shadow-sm'
+                                        : isLight
+                                            ? 'text-slate-600 hover:bg-slate-100'
+                                            : 'text-gray-400 hover:bg-[#2a2a2a]'
                                 }`}
                             >
                                 {pn}
@@ -234,13 +317,15 @@ const CommunityList = ({ user, theme }) => {
                             type="button"
                             onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
                             disabled={page === pagination.pages}
-                            className={`flex h-8 w-8 items-center justify-center rounded-md text-xs ${
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm transition ${
                                 page === pagination.pages
-                                    ? 'cursor-not-allowed opacity-35'
-                                    : (isLight ? 'text-slate-600 hover:bg-white' : 'text-gray-400 hover:bg-[#2a2a2a]')
+                                    ? 'cursor-not-allowed opacity-30'
+                                    : isLight
+                                        ? 'text-slate-600 hover:bg-slate-100'
+                                        : 'text-gray-400 hover:bg-[#2a2a2a]'
                             }`}
                         >
-                            <FontAwesomeIcon icon={faChevronRight} />
+                            <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
                         </button>
                     </nav>
                 </div>

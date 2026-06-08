@@ -117,6 +117,7 @@ export const getVideosByType                   = (type, params) => endpoint.get(
 export const getVideoById                      = (id, access_key) => endpoint.get(`/watch/getVideoById/${id}${access_key ? `/${access_key}` : ''}`, getOptions())
 export const getVideoList                      = (id) => endpoint.get(`/watch/getVideoList/${id}`, getOptions())
 export const getRelatedVideos                  = (id, params) => endpoint.get(`/watch/getRelatedVideos/${id}`, { ...getOptions(), params })
+export const getLikedVideos                    = () => endpoint.get('/watch/getLikedVideos', getOptions())
 export const getVideoComment                   = (id) => endpoint.get(`/watch/getVideoComment/${id}`, getOptions())
 export const addVideoComment                   = (formData) => endpoint.post('/watch/addVideoComment', formData, getOptions())
 export const viewVideo                         = (formData) => endpoint.patch('/watch/viewVideo', formData, getOptions())
@@ -298,6 +299,8 @@ export const getSharedUsers                    = () => endpoint.get('/budget/sha
 /*
     PORTFOLIO
 */
+export const getBookmarkedProjects             = (formData) => endpoint.post('/project/getBookmarkedProjects', formData, getOptions())
+
 export const getPortfolio                      = (formData) => endpoint.post('/portfolio/getPortfolio', formData)
 export const getPortfolioByUsername             = (formData) => endpoint.post('/portfolio/getPortfolioByUsername', formData)
 export const getProject                        = (formData) => endpoint.post('/portfolio/getProject', formData)
@@ -337,6 +340,8 @@ export const restoreGame                     = (id) => endpoint.patch(`/game/tra
 export const permanentDeleteGame             = (id) => endpoint.delete(`/game/trash/permanent/${id}`)
 export const emptyGameTrash                  = () => endpoint.delete('/game/trash/empty')
 export const getGameAnalytics                = (formData) => endpoint.post('/game/analytics', formData)
+export const getFavoriteGames                = (formData) => endpoint.post('/game/getFavorites', formData, getOptions())
+export const getBookmarkedGames              = (formData) => endpoint.post('/game/getBookmarkedGames', formData, getOptions())
 
 /*
     PAGE BUILDER
@@ -394,6 +399,11 @@ export const voteForumComment                = (id, formData) => endpoint.post(`
 export const getForumTags                    = () => endpoint.get('/forum/tags')
 export const searchForum                     = (params) => endpoint.get('/forum/search', { params })
 export const reportForumContent              = (formData) => endpoint.post('/forum/report', formData, getOptions())
+export const saveForumPost                   = (id) => endpoint.post(`/forum/posts/${id}/save`, {}, getOptions())
+export const unsaveForumPost                 = (id) => endpoint.delete(`/forum/posts/${id}/save`, getOptions())
+export const getSavedForumPosts              = (params) => endpoint.get('/forum/saved', { ...getOptions(), params })
+export const getForumReports                 = (params) => endpoint.get('/forum/reports', { ...getOptions(), params })
+export const dismissForumReport              = (id) => endpoint.patch(`/forum/reports/${id}/dismiss`, {}, getOptions())
 
 /*
     BLOB STORAGE

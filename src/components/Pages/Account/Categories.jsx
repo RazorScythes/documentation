@@ -95,6 +95,7 @@ const Categories = ({ user, theme, setNotification }) => {
     const [selected, setSelected] = useState([])
     const [perPage, setPerPage] = useState(10)
     const [actionMenu, setActionMenu] = useState(null)
+    const [actionMenuPos, setActionMenuPos] = useState({ top: 0, right: 0 })
 
     const filtered = useMemo(() => { const arr = Array.isArray(tableData) ? tableData : []; if (!search.trim()) return arr; const q = search.toLowerCase(); return arr.filter(r => (r.name || '').toLowerCase().includes(q)) }, [tableData, search])
     const sorted = useMemo(() => { if (!sortKey) return filtered || []; return [...(filtered || [])].sort((a, b) => { const av = sortKey === 'count' ? (a[sortKey] || 0) : (a[sortKey] || ''); const bv = sortKey === 'count' ? (b[sortKey] || 0) : (b[sortKey] || ''); if (typeof av === 'number') return sortDir === 'asc' ? av - bv : bv - av; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)) }) }, [filtered, sortKey, sortDir])
@@ -116,7 +117,7 @@ const Categories = ({ user, theme, setNotification }) => {
         { key: 'name', label: 'Category', sortable: true },
         { key: 'count', label: 'Used', sortable: true },
         { key: 'user', label: 'Created By' },
-        { key: 'strict', label: 'Strict' },
+        { key: 'strict', labål: 'Strict' },
         { key: 'createdAt', label: 'Created', sortable: true },
         { key: 'actions', label: '' },
     ]
@@ -198,7 +199,7 @@ const Categories = ({ user, theme, setNotification }) => {
                                 {columns.map(col => (<th key={col.key} className={thClass} onClick={() => col.sortable && toggleSort(col.key)}><span className="flex items-center gap-1.5">{col.label}{col.sortable && <FontAwesomeIcon icon={sortKey === col.key ? (sortDir === 'asc' ? faSortUp : faSortDown) : faSort} className="text-[9px] opacity-50" />}</span></th>))}
                             </tr></thead><tbody>
                                 {pageData.length > 0 ? pageData.map((row, i) => (
-                                    <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#0e0e0e]'}`}>
+                                    <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-blue-50/50' : 'bg-blue-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-blue-50/40' : 'hover:bg-[#1F1F1F]'}`}>
                                         <td className={`${tdClass} w-10`}><input type="checkbox" checked={selected.includes(row._id)} onChange={() => toggleOne(row._id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-blue-500" /></td>
                                         <td className={tdClass}>
                                             <div className="flex items-center gap-3">
@@ -210,9 +211,8 @@ const Categories = ({ user, theme, setNotification }) => {
                                         <td className={tdClass}><span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{row.user?.username || '—'}</span></td>
                                         <td className={tdClass}><button onClick={() => handleToggleStrict(row)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${row.strict ? (isLight ? 'bg-rose-50 text-rose-500' : 'bg-rose-900/20 text-rose-400') : (isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#2B2B2B] text-gray-500')}`}><FontAwesomeIcon icon={row.strict ? faLock : faLockOpen} className="text-[11px]" /></button></td>
                                         <td className={tdClass}><span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatDate(row.createdAt)}</span></td>
-                                        <td className={`${tdClass} w-10 relative`}>
-                                            <button onClick={e => { e.stopPropagation(); setActionMenu(actionMenu === row._id ? null : row._id) }} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}><FontAwesomeIcon icon={faEllipsisVertical} className="text-xs" /></button>
-                                            {actionMenu === row._id && (<><div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} /><div className={`absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg overflow-hidden min-w-[120px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}><button onClick={() => { editMode(row); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}><FontAwesomeIcon icon={faPen} className="text-[10px] text-blue-500" /> Edit</button><button onClick={() => { setDeleteId(row._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}><FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete</button></div></>)}
+                                        <td className={`${tdClass} w-10`}>
+                                            <button onClick={e => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setActionMenu(actionMenu === row._id ? null : row._id) }} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}><FontAwesomeIcon icon={faEllipsisVertical} className="text-xs" /></button>
                                         </td>
                                     </tr>
                                 )) : (<tr><td colSpan={columns.length + 1} className={`px-4 py-16 text-center ${isLight ? 'text-slate-400' : 'text-gray-500'}`}><FontAwesomeIcon icon={faFolderOpen} className="text-2xl mb-3 opacity-20 block mx-auto" /><p className="text-sm font-medium">No categories found</p><p className={`text-xs mt-1 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>{search ? 'Try a different search' : 'Create your first category'}</p></td></tr>)}
@@ -227,6 +227,12 @@ const Categories = ({ user, theme, setNotification }) => {
                     )}
                 </div>
             )}
+
+            {actionMenu && (() => {
+                const row = (Array.isArray(tableData) ? tableData : []).find(r => r._id === actionMenu)
+                if (!row) return null
+                return (<><div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} /><div className={`fixed z-50 rounded-lg border shadow-lg overflow-hidden min-w-[120px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`} style={{ top: actionMenuPos.top, right: actionMenuPos.right }}><button onClick={() => { editMode(row); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}><FontAwesomeIcon icon={faPen} className="text-[10px] text-blue-500" /> Edit</button><button onClick={() => { setDeleteId(row._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}><FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete</button></div></>)
+            })()}
         </div>
     )
 }

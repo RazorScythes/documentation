@@ -8,9 +8,12 @@ const initialState = {
     comments: [],
     searchResults: [],
     tags: [],
+    savedPosts: [],
+    savedIds: [],
     pagination: {},
     commentPagination: {},
     searchPagination: {},
+    savedPagination: {},
     alert: {},
     isLoading: false,
     commentLoading: false,
@@ -91,13 +94,33 @@ export const getForumTags = createAsyncThunk('forum/getForumTags', async (_, thu
     catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
 })
 
+let _searchSeq = 0
 export const searchForum = createAsyncThunk('forum/searchForum', async (params, thunkAPI) => {
-    try { return await api.searchForum(params) }
-    catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
+    const seq = ++_searchSeq
+    try {
+        const result = await api.searchForum(params)
+        if (_searchSeq !== seq) return thunkAPI.rejectWithValue({ stale: true })
+        return result
+    } catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
 })
 
 export const reportContent = createAsyncThunk('forum/reportContent', async (formData, thunkAPI) => {
     try { return await api.reportForumContent(formData) }
+    catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
+})
+
+export const savePost = createAsyncThunk('forum/savePost', async (id, thunkAPI) => {
+    try { return await api.saveForumPost(id) }
+    catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
+})
+
+export const unsavePost = createAsyncThunk('forum/unsavePost', async (id, thunkAPI) => {
+    try { return await api.unsaveForumPost(id) }
+    catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
+})
+
+export const getSavedPosts = createAsyncThunk('forum/getSavedPosts', async (params, thunkAPI) => {
+    try { return await api.getSavedForumPosts(params) }
     catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
 })
 
@@ -187,10 +210,16 @@ const forumSlice = createSlice({
 
         .addCase(searchForum.pending, s => { s.isLoading = true })
         .addCase(searchForum.fulfilled, (s, a) => { s.searchResults = a.payload.data.result; s.searchPagination = a.payload.data.pagination; s.isLoading = false })
-        .addCase(searchForum.rejected, (s, a) => { s.isLoading = false; s.alert = a.payload?.alert || {} })
+        .addCase(searchForum.rejected, (s, a) => { if (a.payload?.stale) return; s.isLoading = false; s.alert = a.payload?.alert || {} })
 
         .addCase(reportContent.fulfilled, (s, a) => { s.alert = a.payload?.data?.alert || { variant: 'success', message: 'Report submitted' } })
         .addCase(reportContent.rejected, (s, a) => { s.alert = a.payload?.alert || { variant: 'danger', message: 'Failed to submit report' } })
+
+        .addCase(savePost.fulfilled, (s, a) => { const id = a.payload.data.result.postId; if (!s.savedIds.includes(id)) s.savedIds.push(id); s.alert = a.payload.data.alert })
+        .addCase(savePost.rejected, (s, a) => { s.alert = a.payload?.alert || {} })
+        .addCase(unsavePost.fulfilled, (s, a) => { const id = a.payload.data.result.postId; s.savedIds = s.savedIds.filter(x => x !== id); s.savedPosts = s.savedPosts.filter(p => p._id !== id); s.alert = a.payload.data.alert })
+        .addCase(unsavePost.rejected, (s, a) => { s.alert = a.payload?.alert || {} })
+        .addCase(getSavedPosts.fulfilled, (s, a) => { s.savedPosts = a.payload.data.result; s.savedPagination = a.payload.data.pagination; s.savedIds = a.payload.data.result.map(p => p._id) })
     },
     reducers: {
         clearAlert: (s) => { s.alert = {} },

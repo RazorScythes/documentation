@@ -177,7 +177,9 @@ const Messages = ({ user, theme }) => {
     const [filePreview, setFilePreview] = useState(null)
     const [lightboxImage, setLightboxImage] = useState(null)
     const [msgMenuId, setMsgMenuId] = useState(null)
+    const [msgMenuPos, setMsgMenuPos] = useState({ top: 0, right: 0 })
     const [showHeaderMenu, setShowHeaderMenu] = useState(false)
+    const [headerMenuPos, setHeaderMenuPos] = useState({ top: 0, right: 0 })
     const [confirmDeleteId, setConfirmDeleteId] = useState(null)
     const [confirmBlockUser, setConfirmBlockUser] = useState(null)
     const [sidebarTab, setSidebarTab] = useState('chats')
@@ -391,26 +393,10 @@ const Messages = ({ user, theme }) => {
                                             ? <p className="text-[10px] text-violet-400 font-medium animate-pulse">typing...</p>
                                             : <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>Online</p>}
                                     </div>
-                                    <div className="relative" ref={headerMenuRef}>
-                                        <button onClick={() => setShowHeaderMenu(!showHeaderMenu)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#222]'}`}>
+                                    <div ref={headerMenuRef}>
+                                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setHeaderMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right }); setShowHeaderMenu(!showHeaderMenu) }} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#222]'}`}>
                                             <FontAwesomeIcon icon={faEllipsisV} className="text-sm" />
                                         </button>
-                                        {showHeaderMenu && (
-                                            <div className={`absolute right-0 top-full mt-1.5 w-40 rounded-lg overflow-hidden z-50 border shadow-xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                {blockStatus?.iBlocked ? (
-                                                    <button onClick={() => { dispatch(unblockUser(otherUser._id)); setShowHeaderMenu(false) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#222] text-gray-300'}`}>
-                                                        <FontAwesomeIcon icon={faUnlock} className="text-[10px] text-emerald-500" /> Unblock
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => { setShowHeaderMenu(false); setConfirmBlockUser(otherUser) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}>
-                                                        <FontAwesomeIcon icon={faBan} className="text-[10px]" /> Block user
-                                                    </button>
-                                                )}
-                                                <button onClick={() => { setShowHeaderMenu(false); setConfirmDeleteId(activeConversation._id) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}>
-                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete chat
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 
@@ -445,17 +431,11 @@ const Messages = ({ user, theme }) => {
                                                                 </div>
                                                             )}
                                                             {isMine && (
-                                                                <div className="relative flex-shrink-0 self-center" ref={msgMenuId === msg._id ? msgMenuRef : null}>
-                                                                    <button onClick={() => setMsgMenuId(msgMenuId === msg._id ? null : msg._id)}
+                                                                <div className="flex-shrink-0 self-center" ref={msgMenuId === msg._id ? msgMenuRef : null}>
+                                                                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMsgMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMsgMenuId(msgMenuId === msg._id ? null : msg._id) }}
                                                                         className={`w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-all ${isLight ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-[#333] text-gray-600'} ${msgMenuId === msg._id ? '!opacity-100' : ''}`}>
                                                                         <FontAwesomeIcon icon={faEllipsisV} className="text-[9px]" />
                                                                     </button>
-                                                                    {msgMenuId === msg._id && (
-                                                                        <div className={`absolute right-0 top-full mt-1 w-44 rounded-lg overflow-hidden shadow-xl z-50 border ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                                            <button onClick={() => handleDeleteMessage(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#222] text-gray-300'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px] text-gray-400" /> Delete for me</button>
-                                                                            <button onClick={() => handleDeleteMessageEveryone(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete for everyone</button>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
                                                             )}
                                                             <div className={`max-w-[65%] sm:max-w-[55%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
@@ -480,16 +460,11 @@ const Messages = ({ user, theme }) => {
                                                                 </span>
                                                             </div>
                                                             {!isMine && (
-                                                                <div className="relative flex-shrink-0 self-center" ref={msgMenuId === msg._id ? msgMenuRef : null}>
-                                                                    <button onClick={() => setMsgMenuId(msgMenuId === msg._id ? null : msg._id)}
+                                                                <div className="flex-shrink-0 self-center" ref={msgMenuId === msg._id ? msgMenuRef : null}>
+                                                                    <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setMsgMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMsgMenuId(msgMenuId === msg._id ? null : msg._id) }}
                                                                         className={`w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-all ${isLight ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-[#333] text-gray-600'} ${msgMenuId === msg._id ? '!opacity-100' : ''}`}>
                                                                         <FontAwesomeIcon icon={faEllipsisV} className="text-[9px]" />
                                                                     </button>
-                                                                    {msgMenuId === msg._id && (
-                                                                        <div className={`absolute left-0 top-full mt-1 w-36 rounded-lg overflow-hidden shadow-xl z-50 border ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                                            <button onClick={() => handleDeleteMessage(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete for me</button>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -571,6 +546,40 @@ const Messages = ({ user, theme }) => {
                     )}
                 </div>
             </div>
+
+            {showHeaderMenu && activeConversation && (
+                <div className={`fixed z-50 w-40 rounded-lg overflow-hidden border shadow-xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`} style={{ top: headerMenuPos.top, right: headerMenuPos.right }}>
+                    {blockStatus?.iBlocked ? (
+                        <button onClick={() => { dispatch(unblockUser(otherUser._id)); setShowHeaderMenu(false) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#222] text-gray-300'}`}>
+                            <FontAwesomeIcon icon={faUnlock} className="text-[10px] text-emerald-500" /> Unblock
+                        </button>
+                    ) : (
+                        <button onClick={() => { setShowHeaderMenu(false); setConfirmBlockUser(otherUser) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}>
+                            <FontAwesomeIcon icon={faBan} className="text-[10px]" /> Block user
+                        </button>
+                    )}
+                    <button onClick={() => { setShowHeaderMenu(false); setConfirmDeleteId(activeConversation._id) }} className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-2.5 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}>
+                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete chat
+                    </button>
+                </div>
+            )}
+
+            {msgMenuId && (() => {
+                const messages = activeConversation?.messages || []
+                const msg = messages.find(m => m._id === msgMenuId)
+                if (!msg) return null
+                const isMine = msg.sender === user?._id || msg.sender?._id === user?._id
+                return (
+                    <div className={`fixed z-50 rounded-lg overflow-hidden shadow-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`} style={{ top: msgMenuPos.top, right: msgMenuPos.right }}>
+                        {isMine ? (<>
+                            <button onClick={() => handleDeleteMessage(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-slate-50 text-slate-600' : 'hover:bg-[#222] text-gray-300'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px] text-gray-400" /> Delete for me</button>
+                            <button onClick={() => handleDeleteMessageEveryone(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete for everyone</button>
+                        </>) : (
+                            <button onClick={() => handleDeleteMessage(msg._id)} className={`w-full text-left px-3.5 py-2.5 text-[11px] flex items-center gap-2 font-medium transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/10 text-red-400'}`}><FontAwesomeIcon icon={faTrash} className="text-[9px]" /> Delete for me</button>
+                        )}
+                    </div>
+                )
+            })()}
         </div>
     )
 }

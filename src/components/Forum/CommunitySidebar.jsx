@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
+import { useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUsers, faFileAlt, faCalendar, faShieldHalved, faGavel, faPlus, faLock, faKey } from '@fortawesome/free-solid-svg-icons'
+import { faUsers, faFileAlt, faCalendar, faShieldHalved, faGavel, faPlus, faLock, faKey, faUserSlash, faUserShield, faChevronDown, faChevronUp, faCrown } from '@fortawesome/free-solid-svg-icons'
+import { addModerator, removeModerator, banUser, unbanUser } from '../../actions/community'
 
 const formatCreated = (value) => {
     if (!value) return null
@@ -12,14 +14,106 @@ const formatCreated = (value) => {
     }
 }
 
+const MEMBERS_PREVIEW_COUNT = 8
+
+const MembersPanel = ({ community, isLight, panelClass, divider }) => {
+    const [expanded, setExpanded] = useState(false)
+    const members = community.members || []
+    const creatorId = String(community.creator?._id || community.creator || '')
+    const modIds = useMemo(() => new Set((community.moderators || []).map(m => String(m?._id || m))), [community.moderators])
+
+    const populatedMembers = members.filter(m => m && typeof m === 'object' && m.username)
+    if (populatedMembers.length === 0) return null
+
+    const visibleMembers = expanded ? populatedMembers : populatedMembers.slice(0, MEMBERS_PREVIEW_COUNT)
+    const hasMore = populatedMembers.length > MEMBERS_PREVIEW_COUNT
+
+    const getRoleBadge = (member) => {
+        const id = String(member._id)
+        if (id === creatorId) return { icon: faCrown, label: 'Creator', color: isLight ? 'text-amber-500' : 'text-amber-400' }
+        if (modIds.has(id)) return { icon: faShieldHalved, label: 'Mod', color: isLight ? 'text-indigo-500' : 'text-indigo-400' }
+        return null
+    }
+
+    return (
+        <div className={panelClass}>
+            <div className={`border-b px-4 py-3 sm:px-5 ${divider}`}>
+                <h4 className={`flex items-center justify-between text-xs font-semibold uppercase tracking-wide ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                    <span className="flex items-center gap-2">
+                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md ${isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                            <FontAwesomeIcon icon={faUsers} className="h-3 w-3" />
+                        </span>
+                        Members
+                    </span>
+                    <span className={`text-[11px] font-medium tabular-nums ${isLight ? 'text-slate-400' : 'text-zinc-600'}`}>
+                        {populatedMembers.length}
+                    </span>
+                </h4>
+            </div>
+            <ul className="p-2 sm:p-3">
+                {visibleMembers.map((member, i) => {
+                    const badge = getRoleBadge(member)
+                    return (
+                        <li key={member._id || i}>
+                            <Link
+                                to={`/user/${member.username}`}
+                                className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${isLight ? 'hover:bg-slate-100' : 'hover:bg-[#222]'}`}
+                            >
+                                {member.avatar ? (
+                                    <img
+                                        src={member.avatar}
+                                        alt=""
+                                        className={`h-7 w-7 rounded-full object-cover border ${isLight ? 'border-slate-200' : 'border-[#333]'}`}
+                                    />
+                                ) : (
+                                    <div
+                                        className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold
+                                            ${isLight ? 'border-slate-200 bg-emerald-100 text-emerald-700' : 'border-[#333] bg-emerald-500/20 text-emerald-300'}`}
+                                    >
+                                        {member.username?.[0]?.toUpperCase() ?? '?'}
+                                    </div>
+                                )}
+                                <span className={`min-w-0 flex-1 truncate text-sm ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
+                                    {member.username}
+                                </span>
+                                {badge && (
+                                    <FontAwesomeIcon icon={badge.icon} className={`h-3 w-3 ${badge.color}`} title={badge.label} />
+                                )}
+                            </Link>
+                        </li>
+                    )
+                })}
+            </ul>
+            {hasMore && (
+                <div className={`border-t px-4 py-2 sm:px-5 ${divider}`}>
+                    <button
+                        type="button"
+                        onClick={() => setExpanded(!expanded)}
+                        className={`w-full text-center text-xs font-medium ${isLight ? 'text-indigo-600 hover:text-indigo-700' : 'text-indigo-400 hover:text-indigo-300'}`}
+                    >
+                        {expanded ? 'Show less' : `View all ${populatedMembers.length} members`}
+                    </button>
+                </div>
+            )}
+        </div>
+    )
+}
+
 const CommunitySidebar = ({ community, theme, user, onJoin, onLeave }) => {
+    const dispatch = useDispatch()
     const isLight = theme === 'light'
     const [inviteInput, setInviteInput] = useState('')
     const [inviteError, setInviteError] = useState('')
     const [joining, setJoining] = useState(false)
+    const [modPanelOpen, setModPanelOpen] = useState(false)
+    const [modUsername, setModUsername] = useState('')
+    const [banUsername, setBanUsername] = useState('')
+    const [banReason, setBanReason] = useState('')
+    const [banDuration, setBanDuration] = useState('')
+    const [modActionLoading, setModActionLoading] = useState(false)
     if (!community) return null
     const userId = user?.result?._id || user?._id
-    const isMember = community.members?.some(m => (typeof m === 'string' ? m : m?._id) === userId)
+    const isMember = userId && community.members?.some(m => String(typeof m === 'string' ? m : m?._id) === String(userId))
     const isPrivate = Boolean(community.isPrivate)
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
     const divider = isLight ? 'border-slate-200' : 'border-[#2a2a2a]'
@@ -271,6 +365,102 @@ const CommunitySidebar = ({ community, theme, user, onJoin, onLeave }) => {
                             </li>
                         ))}
                     </ul>
+                </div>
+            )}
+
+            <MembersPanel community={community} isLight={isLight} panelClass={panelClass} divider={divider} />
+
+            {userId && (String(community.creator?._id || community.creator) === String(userId) || community.moderators?.some(m => String(m?._id || m) === String(userId))) && (
+                <div className={panelClass}>
+                    <button
+                        type="button"
+                        onClick={() => setModPanelOpen(!modPanelOpen)}
+                        className={`w-full flex items-center justify-between px-4 py-3 sm:px-5 ${divider} border-b-0`}
+                    >
+                        <h4 className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                            <span className={`inline-flex h-6 w-6 items-center justify-center rounded-md ${isLight ? 'bg-amber-100 text-amber-600' : 'bg-amber-500/15 text-amber-400'}`}>
+                                <FontAwesomeIcon icon={faGavel} className="h-3 w-3" />
+                            </span>
+                            Mod Tools
+                        </h4>
+                        <FontAwesomeIcon icon={modPanelOpen ? faChevronUp : faChevronDown} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                    </button>
+                    {modPanelOpen && (
+                        <div className={`border-t px-4 py-3 sm:px-5 space-y-4 ${divider}`}>
+                            <div>
+                                <label className={`block text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                    <FontAwesomeIcon icon={faUserShield} className="mr-1.5" />Add Moderator
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        value={modUsername}
+                                        onChange={e => setModUsername(e.target.value)}
+                                        placeholder="Username"
+                                        className={`flex-1 rounded-lg border px-3 py-2 text-xs ${isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-[#2a2a2a] bg-[#141414] text-gray-200'}`}
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={!modUsername.trim() || modActionLoading}
+                                        onClick={async () => {
+                                            setModActionLoading(true)
+                                            await dispatch(addModerator({ communityId: community._id, userId: modUsername.trim() }))
+                                            setModUsername('')
+                                            setModActionLoading(false)
+                                        }}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium ${isLight ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-indigo-600 text-white hover:bg-indigo-500'} disabled:opacity-50`}
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className={`block text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                    <FontAwesomeIcon icon={faUserSlash} className="mr-1.5" />Ban User
+                                </label>
+                                <div className="space-y-2">
+                                    <input
+                                        value={banUsername}
+                                        onChange={e => setBanUsername(e.target.value)}
+                                        placeholder="User ID to ban"
+                                        className={`w-full rounded-lg border px-3 py-2 text-xs ${isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-[#2a2a2a] bg-[#141414] text-gray-200'}`}
+                                    />
+                                    <input
+                                        value={banReason}
+                                        onChange={e => setBanReason(e.target.value)}
+                                        placeholder="Reason (optional)"
+                                        className={`w-full rounded-lg border px-3 py-2 text-xs ${isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-[#2a2a2a] bg-[#141414] text-gray-200'}`}
+                                    />
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={banDuration}
+                                            onChange={e => setBanDuration(e.target.value)}
+                                            className={`flex-1 rounded-lg border px-3 py-2 text-xs ${isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-[#2a2a2a] bg-[#141414] text-gray-200'}`}
+                                        >
+                                            <option value="">Permanent</option>
+                                            <option value="1">1 day</option>
+                                            <option value="7">7 days</option>
+                                            <option value="30">30 days</option>
+                                        </select>
+                                        <button
+                                            type="button"
+                                            disabled={!banUsername.trim() || modActionLoading}
+                                            onClick={async () => {
+                                                setModActionLoading(true)
+                                                await dispatch(banUser({ communityId: community._id, userId: banUsername.trim(), reason: banReason, duration: banDuration ? Number(banDuration) : undefined }))
+                                                setBanUsername('')
+                                                setBanReason('')
+                                                setBanDuration('')
+                                                setModActionLoading(false)
+                                            }}
+                                            className={`px-3 py-2 rounded-lg text-xs font-medium ${isLight ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-600 text-white hover:bg-red-500'} disabled:opacity-50`}
+                                        >
+                                            Ban
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

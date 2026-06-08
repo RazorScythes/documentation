@@ -17,6 +17,7 @@ import { joinCommunity, leaveCommunity } from '../../../actions/community'
 import CommunitySidebar from '../../Forum/CommunitySidebar'
 import VoteButtons from '../../Forum/VoteButtons'
 import CommentTree from '../../Forum/CommentTree'
+import ForumToast from '../../Forum/ForumToast'
 import ForumTagPill from '../../Forum/ForumTagPill'
 
 const timeAgo = (d) => {
@@ -63,6 +64,12 @@ const normalizeImageUrl = (item) => {
     return String(item)
 }
 
+const isVideoUrl = (url) => {
+    if (!url) return false
+    const lower = url.toLowerCase()
+    return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.includes('/video/')
+}
+
 const extractMarkdownImages = (raw) => {
     if (!raw) return []
     const re = /!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g
@@ -88,6 +95,7 @@ const PostDetail = ({ user, theme }) => {
     const [submittingComment, setSubmittingComment] = useState(false)
     const [postDeleteOpen, setPostDeleteOpen] = useState(false)
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null)
+    const [nsfwRevealed, setNsfwRevealed] = useState(false)
     const [reportOpen, setReportOpen] = useState(null)
     const [reportReason, setReportReason] = useState('Spam')
     const [reportDetails, setReportDetails] = useState('')
@@ -99,11 +107,11 @@ const PostDetail = ({ user, theme }) => {
 
     const isMod = useMemo(() => {
         if (!userId || !community) return false
-        if (community.creator?._id === userId) return true
-        return community.moderators?.some(m => (typeof m === 'string' ? m : m?._id) === userId)
+        if (String(community.creator?._id) === String(userId)) return true
+        return community.moderators?.some(m => String(typeof m === 'string' ? m : m?._id) === String(userId))
     }, [userId, community])
 
-    const isAuthor = post && userId && post.author?._id === userId
+    const isAuthor = post && userId && String(post.author?._id) === String(userId)
     const userVote = post ? (post.upvotes?.some(uid => String(uid) === String(userId)) ? 1 : post.downvotes?.some(uid => String(uid) === String(userId)) ? -1 : 0) : 0
 
     const orderedComments = useMemo(() => orderCommentsForTree(comments, commentSort), [comments, commentSort])
@@ -254,7 +262,7 @@ const PostDetail = ({ user, theme }) => {
 
     if (isLoading && !post) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
                 <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
                     <div className="flex-1 min-w-0 space-y-4">
                         <div className="h-6 w-32 rounded bg-slate-200 dark:bg-[#2a2a2a] animate-pulse" />
@@ -291,7 +299,7 @@ const PostDetail = ({ user, theme }) => {
 
     if (!post) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-12">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-12 min-h-screen">
                 <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Post not found or failed to load.</p>
                 <Link to="/forum" className={`mt-4 inline-block text-sm font-medium ${isLight ? 'text-indigo-600 hover:underline' : 'text-indigo-400 hover:underline'}`}>Back to forum</Link>
             </div>
@@ -299,7 +307,7 @@ const PostDetail = ({ user, theme }) => {
     }
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 min-h-screen">
             <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
                 <div className="flex-1 min-w-0 w-full">
                     <Link
@@ -376,22 +384,77 @@ const PostDetail = ({ user, theme }) => {
                                 </div>
 
                                 {imageUrls.length > 0 && (
-                                    <div className="mt-4 flex flex-wrap gap-2" aria-label="Post images">
-                                        {imageUrls.map((url, i) => (
-                                            <button
-                                                key={`${url}-${i}`}
-                                                type="button"
-                                                onClick={() => setImagePreviewUrl(url)}
-                                                className="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-indigo-500 rounded-lg"
-                                            >
-                                                <img
-                                                    src={url}
-                                                    alt=""
-                                                    className={`max-h-80 max-w-full w-auto h-auto rounded-lg border object-contain cursor-pointer ${isLight ? 'border-slate-200' : 'border-[#2a2a2a]'}`}
-                                                    loading="lazy"
-                                                />
-                                            </button>
-                                        ))}
+                                    <div className="mt-4" aria-label="Post images">
+                                        {post.isNSFW && !nsfwRevealed ? (
+                                            <div className={`relative rounded-xl overflow-hidden border ${isLight ? 'border-slate-200' : 'border-[#2a2a2a]'}`}>
+                                                <div className="flex flex-wrap gap-2 p-3">
+                                                    {imageUrls.map((url, i) => (
+                                                        isVideoUrl(url) ? (
+                                                            <div key={`${url}-${i}`} className="max-h-40 max-w-[200px] rounded-lg overflow-hidden blur-2xl brightness-50">
+                                                                <video src={url} muted preload="metadata" className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ) : (
+                                                            <img
+                                                                key={`${url}-${i}`}
+                                                                src={url}
+                                                                alt=""
+                                                                className={`max-h-40 max-w-[200px] w-auto h-auto rounded-lg object-contain blur-2xl brightness-50`}
+                                                                loading="lazy"
+                                                            />
+                                                        )
+                                                    ))}
+                                                </div>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 backdrop-blur-sm">
+                                                    <span className="px-3 py-1 rounded-md bg-red-600 text-white text-xs font-bold uppercase tracking-wide">NSFW Content</span>
+                                                    <p className={`text-xs text-white/80`}>This post contains content marked as Not Safe For Work</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNsfwRevealed(true)}
+                                                        className="mt-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 transition-colors"
+                                                    >
+                                                        Show images
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {post.isNSFW && nsfwRevealed && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNsfwRevealed(false)}
+                                                        className={`w-full mb-1 text-left text-xs font-medium ${isLight ? 'text-red-600 hover:text-red-700' : 'text-red-400 hover:text-red-300'}`}
+                                                    >
+                                                        Hide NSFW images
+                                                    </button>
+                                                )}
+                                                {imageUrls.map((url, i) => (
+                                                    isVideoUrl(url) ? (
+                                                        <div key={`${url}-${i}`} className={`rounded-lg border overflow-hidden ${isLight ? 'border-slate-200' : 'border-[#2a2a2a]'}`}>
+                                                            <video
+                                                                src={url}
+                                                                controls
+                                                                preload="metadata"
+                                                                className="max-h-96 max-w-full w-auto h-auto"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            key={`${url}-${i}`}
+                                                            type="button"
+                                                            onClick={() => setImagePreviewUrl(url)}
+                                                            className="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-indigo-500 rounded-lg"
+                                                        >
+                                                            <img
+                                                                src={url}
+                                                                alt=""
+                                                                className={`max-h-80 max-w-full w-auto h-auto rounded-lg border object-contain cursor-pointer ${isLight ? 'border-slate-200' : 'border-[#2a2a2a]'}`}
+                                                                loading="lazy"
+                                                            />
+                                                        </button>
+                                                    )
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -645,9 +708,17 @@ const PostDetail = ({ user, theme }) => {
                         )}
 
                         {commentLoading && !orderedComments.length ? (
-                            <div className={`${panelClass} flex flex-col items-center justify-center py-16 gap-3`}>
-                                <div className={`animate-spin rounded-full h-8 w-8 border-2 border-t-transparent ${isLight ? 'border-slate-400' : 'border-gray-500'}`} />
-                                <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Loading comments…</p>
+                            <div className={`${panelClass} p-4 space-y-4`}>
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="flex gap-3 animate-pulse">
+                                        <div className={`h-8 w-8 rounded-full shrink-0 ${isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]'}`} />
+                                        <div className="flex-1 space-y-2 pt-1">
+                                            <div className={`h-3 w-24 rounded ${isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]'}`} />
+                                            <div className={`h-3 w-full rounded ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                            <div className={`h-3 w-3/4 rounded ${isLight ? 'bg-slate-100' : 'bg-[#222]'}`} />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : orderedComments.length ? (
                             <CommentTree
@@ -687,6 +758,7 @@ const PostDetail = ({ user, theme }) => {
                     )}
                 </aside>
             </div>
+            <ForumToast theme={theme} />
         </div>
     )
 }

@@ -1,11 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { main, dark, light } from '../../style';
 
 import Avatar from '../Custom/Avatar';
 import styles from "../../style";
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares, faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faArrowRight, faDatabase } from '@fortawesome/free-solid-svg-icons';
+import {
+    faChevronDown, faChevronUp, faCog, faGlobe, faHeart, faHome, faListSquares,
+    faMessage, faPlayCircle, faUserEdit, faUsers, faCircleCheck, faArrowRight,
+    faDatabase, faShieldHalved, faChevronRight, faBars, faTimes, faWallet,
+    faBell, faVideo, faLock, faDesktop, faClock, faGamepad, faDiagramProject
+} from '@fortawesome/free-solid-svg-icons';
+import * as api from '../../endpoint';
 
 import Overview from './Account/Overview';
 import Profile from './Account/Profile';
@@ -41,19 +47,25 @@ const Account = ({ user, theme }) => {
     const [image, setImage] = useState('')
     const [profile, setProfile] = useState({})
     const [notification, setNotification] = useState({})
-    const [show, setShow] = useState(true)
+    const [show, setShow] = useState(false)
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+    const [securityData, setSecurityData] = useState(null)
+    const [lastSession, setLastSession] = useState(null)
 
     const isLight = theme === 'light'
 
     useEffect(() => {
-        if(Object.keys(notification).length > 0) { 
-            setShow(true) 
+        if (Object.keys(notification).length > 0) {
+            setShow(true)
+            const timer = setTimeout(() => setShow(false), 5000)
+            return () => clearTimeout(timer)
         }
     }, [notification])
 
-    useEffect(() => {
-        if(!show) { setNotification({}) }
-    }, [show])
+    const handleDismiss = (val) => {
+        setShow(val)
+        if (!val) setNotification({})
+    }
 
     useEffect(() => {
         try {
@@ -74,6 +86,42 @@ const Account = ({ user, theme }) => {
         window.addEventListener('storage', onStorage)
         return () => window.removeEventListener('storage', onStorage)
     }, [])
+
+    useEffect(() => {
+        const fetchSecurityInfo = async () => {
+            try {
+                const [completenessRes, twoFARes, sessionsRes] = await Promise.all([
+                    api.getProfileCompleteness().catch(() => null),
+                    api.get2FAStatus().catch(() => null),
+                    api.getSessions().catch(() => null),
+                ])
+                const completeness = completenessRes?.data?.result
+                const twoFA = twoFARes?.data?.result
+                const sessions = sessionsRes?.data?.result
+
+                let score = 0
+                if (user?.verification?.verified) score += 25
+                if (twoFA?.enabled) score += 25
+                if (completeness?.percentage >= 80) score += 20
+                else if (completeness?.percentage >= 50) score += 10
+                const profileData = JSON.parse(localStorage.getItem('profile') || '{}')
+                if (profileData?.social_links && Object.values(profileData.social_links || {}).some(v => !!v)) score += 15
+                score += 15
+
+                setSecurityData({ score, verified: !!user?.verification?.verified, twoFA: !!twoFA?.enabled, completeness: completeness?.percentage || 0 })
+
+                if (sessions?.length > 0) {
+                    const sorted = [...sessions].sort((a, b) => new Date(b.last_active) - new Date(a.last_active))
+                    setLastSession(sorted[0])
+                }
+            } catch {}
+        }
+        if (user) fetchSecurityInfo()
+    }, [user])
+
+    useEffect(() => {
+        setMobileSidebarOpen(false)
+    }, [page, subpage])
 
     const menuItems = [
         { name: 'Overview', icon: faHome, path: '', dropdown: [] },
@@ -118,7 +166,10 @@ const Account = ({ user, theme }) => {
         { name: 'Settings', icon: faCog, path: 'settings', dropdown: [] },
     ];
     
-    const [openDropdown, setOpenDropdown] = useState(null); 
+    const [openDropdown, setOpenDropdown] = useState(() => {
+        const dropdownParents = ['profile', 'videos', 'globallist']
+        return dropdownParents.find(p => p === page) || null
+    }); 
 
     const toggleDropdown = (itemPath) => {
         setOpenDropdown(openDropdown === itemPath ? null : itemPath);
@@ -133,8 +184,10 @@ const Account = ({ user, theme }) => {
     }
 
     const activeSubPage = (main, type) => {
-        const relativePath = location.pathname;
-        return relativePath.includes(type) && (subpage === undefined && type === `${main}${subpage ? `/${subpage}` : ''}`) || (`${main}/${subpage}`) === type || type === ''
+        const currentPath = `${main}${subpage ? `/${subpage}` : ''}`
+        if (type === main && !subpage) return true
+        if (type === currentPath) return true
+        return false
     }
 
     const redirect = (path) => {
@@ -156,6 +209,51 @@ const Account = ({ user, theme }) => {
         return false
     })?.name || 'Account'
 
+    const breadcrumbs = useMemo(() => {
+        const crumbs = [{ name: 'Account', path: '' }]
+        if (page) {
+            const parentItem = menuItems.find(m => m.path === page)
+            if (parentItem) {
+                crumbs.push({ name: parentItem.name, path: parentItem.path })
+                if (subpage && parentItem.dropdown.length > 0) {
+                    const subItem = parentItem.dropdown.find(d => d.path === `${page}/${subpage}`)
+                    if (subItem) crumbs.push({ name: subItem.name, path: subItem.path })
+                }
+            }
+        }
+        return crumbs
+    }, [page, subpage, menuItems])
+
+    const quickActions = [
+        { name: 'Edit Profile', icon: faUserEdit, path: 'profile' },
+        { name: 'Password', icon: faLock, path: 'profile/password' },
+        { name: 'Videos', icon: faVideo, path: 'videos' },
+        { name: 'Games', icon: faGamepad, external: '/games/manage' },
+        { name: 'Projects', icon: faDiagramProject, external: '/projects/manage' },
+        { name: 'Budget', icon: faWallet, external: '/budget' },
+        { name: 'Settings', icon: faCog, path: 'settings' },
+    ]
+
+    const securityScoreColor = (score) => {
+        if (score >= 80) return { ring: 'text-emerald-500', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', label: 'Strong' }
+        if (score >= 50) return { ring: 'text-blue-500', bg: isLight ? 'bg-blue-50' : 'bg-blue-900/20', label: 'Good' }
+        if (score >= 30) return { ring: 'text-amber-500', bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20', label: 'Fair' }
+        return { ring: 'text-red-500', bg: isLight ? 'bg-red-50' : 'bg-red-900/20', label: 'Weak' }
+    }
+
+    const timeAgo = (dateString) => {
+        if (!dateString) return '—'
+        const diffMs = Date.now() - new Date(dateString).getTime()
+        const diffMin = Math.floor(diffMs / 60000)
+        if (diffMin < 1) return 'Just now'
+        if (diffMin < 60) return `${diffMin}m ago`
+        const diffHr = Math.floor(diffMin / 60)
+        if (diffHr < 24) return `${diffHr}h ago`
+        const diffDay = Math.floor(diffHr / 24)
+        if (diffDay < 30) return `${diffDay}d ago`
+        return `${Math.floor(diffDay / 30)}mo ago`
+    }
+
     return (
         <div className={`relative overflow-hidden ${main.font} ${isLight ? light.body : dark.body}`}>
             <div className={`${styles.paddingX} ${styles.flexCenter}`}>
@@ -166,7 +264,7 @@ const Account = ({ user, theme }) => {
                             theme={theme}
                             data={notification}
                             show={show}
-                            setShow={setShow}
+                            setShow={handleDismiss}
                         />
 
                         {/* Profile Header */}
@@ -205,6 +303,15 @@ const Account = ({ user, theme }) => {
                                             </div>
 
                                             <div className={`flex items-center gap-4`}>
+                                                {lastSession && (
+                                                    <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${isLight ? 'bg-slate-50 border border-slate-100' : 'bg-[#1a1a1a] border border-[#2B2B2B]'}`}>
+                                                        <FontAwesomeIcon icon={faDesktop} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                                                        <div>
+                                                            <p className={`text-[10px] font-medium leading-tight ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{lastSession.device?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</p>
+                                                            <p className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>{timeAgo(lastSession.last_active)}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="text-center">
                                                     <p className={`text-lg font-bold leading-none ${isLight ? 'text-slate-800' : 'text-white'}`}>
                                                         {user?.subscribers?.length || 0}
@@ -222,10 +329,45 @@ const Account = ({ user, theme }) => {
                             </div>
                         </div>
 
+                        {/* Quick Actions */}
+                        <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                            {quickActions.map(action => (
+                                <button
+                                    key={action.name}
+                                    onClick={() => action.external ? navigate(action.external) : redirect(action.path)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                                        isLight
+                                            ? 'bg-white border border-slate-200/60 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 shadow-sm'
+                                            : 'bg-[#111] border border-[#1C1C1C] text-gray-400 hover:bg-blue-900/15 hover:text-blue-400 hover:border-blue-800/40'
+                                    }`}
+                                >
+                                    <FontAwesomeIcon icon={action.icon} className="text-[10px]" />
+                                    {action.name}
+                                </button>
+                            ))}
+                        </div>
+
+
                         {/* Main Content */}
                         <div className="w-full md:flex items-start gap-5 mt-5">
+                            {/* Mobile Sidebar Toggle */}
+                            <button
+                                onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+                                className={`md:hidden w-full flex items-center justify-between px-4 py-3 rounded-xl border mb-3 transition-all ${
+                                    isLight
+                                        ? 'bg-white/80 border-slate-200/60 text-slate-600 shadow-sm'
+                                        : 'bg-[#111] border-[#1C1C1C] text-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <FontAwesomeIcon icon={faBars} className="text-xs" />
+                                    <span className="text-sm font-medium">{currentPageName}</span>
+                                </div>
+                                <FontAwesomeIcon icon={mobileSidebarOpen ? faTimes : faChevronDown} className="text-[10px]" />
+                            </button>
+
                             {/* Sidebar */}
-                            <div className="md:w-60 w-full flex-shrink-0">
+                            <div className={`md:w-60 w-full flex-shrink-0 ${mobileSidebarOpen ? 'block' : 'hidden md:block'}`}>
                                 <div className={`rounded-xl overflow-hidden border ${isLight ? 'bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-sm' : 'bg-[#111] border-[#1C1C1C]'}`}>
                                     <div className={`px-4 py-3 border-b ${isLight ? 'border-slate-100' : 'border-[#1C1C1C]'}`}>
                                         <p className={`text-[10px] font-semibold uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>Navigation</p>
@@ -308,6 +450,50 @@ const Account = ({ user, theme }) => {
                                         </ul>
                                     </nav>
                                 </div>
+
+                                {/* Security Score Widget */}
+                                {securityData && (
+                                    <div className={`mt-4 rounded-xl border overflow-hidden ${isLight ? 'bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-sm' : 'bg-[#111] border-[#1C1C1C]'}`}>
+                                        <div className={`px-4 py-3 border-b ${isLight ? 'border-slate-100' : 'border-[#1C1C1C]'}`}>
+                                            <p className={`text-[10px] font-semibold uppercase tracking-widest ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>Security</p>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="relative w-11 h-11">
+                                                    <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
+                                                        <circle cx="18" cy="18" r="15" fill="none" className={isLight ? 'stroke-slate-100' : 'stroke-[#2B2B2B]'} strokeWidth="3" />
+                                                        <circle cx="18" cy="18" r="15" fill="none" className={securityScoreColor(securityData.score).ring} strokeWidth="3" strokeDasharray={`${securityData.score * 0.942} 100`} strokeLinecap="round" style={{ stroke: 'currentColor' }} />
+                                                    </svg>
+                                                    <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{securityData.score}</span>
+                                                </div>
+                                                <div>
+                                                    <p className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{securityScoreColor(securityData.score).label}</p>
+                                                    <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Security Score</p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${securityData.verified ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                                    <span className={`text-[11px] ${securityData.verified ? (isLight ? 'text-slate-600' : 'text-gray-300') : (isLight ? 'text-slate-400' : 'text-gray-500')}`}>Email verified</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${securityData.twoFA ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                                    <span className={`text-[11px] ${securityData.twoFA ? (isLight ? 'text-slate-600' : 'text-gray-300') : (isLight ? 'text-slate-400' : 'text-gray-500')}`}>2FA enabled</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${securityData.completeness >= 80 ? 'bg-emerald-500' : securityData.completeness >= 50 ? 'bg-amber-400' : 'bg-slate-300'}`} />
+                                                    <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Profile {securityData.completeness}%</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => redirect('settings')}
+                                                className={`mt-3 w-full text-center text-[11px] font-medium py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600' : 'bg-[#1a1a1a] text-gray-500 hover:bg-blue-900/15 hover:text-blue-400'}`}
+                                            >
+                                                Improve Score
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Content Area */}
@@ -316,6 +502,28 @@ const Account = ({ user, theme }) => {
                                     ? 'bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-sm'
                                     : 'bg-[#111] border-[#1C1C1C]'
                             } ${isLight ? light.color : dark.color}`}>
+                                {/* Breadcrumb */}
+                                {breadcrumbs.length > 1 && (
+                                    <div className={`px-4 sm:px-6 py-2.5 border-b ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1C1C1C] bg-[#0e0e0e]'}`}>
+                                        <nav className="flex items-center gap-1.5 text-[11px]" aria-label="Breadcrumb">
+                                            {breadcrumbs.map((crumb, i) => (
+                                                <React.Fragment key={crumb.path}>
+                                                    {i > 0 && <FontAwesomeIcon icon={faChevronRight} className={`text-[8px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />}
+                                                    {i === breadcrumbs.length - 1 ? (
+                                                        <span className={`font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{crumb.name}</span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => redirect(crumb.path)}
+                                                            className={`font-medium transition-colors ${isLight ? 'text-slate-400 hover:text-blue-600' : 'text-gray-500 hover:text-blue-400'}`}
+                                                        >
+                                                            {crumb.name}
+                                                        </button>
+                                                    )}
+                                                </React.Fragment>
+                                            ))}
+                                        </nav>
+                                    </div>
+                                )}
                                 {   
                                     activePage('') ?
                                         <Overview user={user} theme={theme} />

@@ -23,6 +23,12 @@ const uploadToVercel = async (file) => {
     return blob.url
 }
 
+const isVideoUrl = (url) => {
+    if (!url) return false
+    const lower = url.toLowerCase()
+    return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.includes('/video/')
+}
+
 const ImageThumb = ({ url, isLight }) => {
     const t = (url || '').trim()
     const [failed, setFailed] = useState(false)
@@ -38,6 +44,16 @@ const ImageThumb = ({ url, isLight }) => {
         return (
             <div className={`shrink-0 w-16 h-16 rounded-lg border flex items-center justify-center text-[10px] text-center leading-tight px-1.5 ${isLight ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-amber-900/20 border-amber-800/40 text-amber-300'}`}>
                 No preview
+            </div>
+        )
+    }
+    if (isVideoUrl(t)) {
+        return (
+            <div className={`shrink-0 w-16 h-16 rounded-lg border overflow-hidden relative ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#111] border-[#2a2a2a]'}`}>
+                <video src={t} muted className="w-full h-full object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <span className="text-white text-[10px] font-bold">▶</span>
+                </div>
             </div>
         )
     }
@@ -69,6 +85,7 @@ const PostCreate = ({ user, theme }) => {
     const [tags, setTags] = useState(savedDraft?.tags || [])
     const [tagDraft, setTagDraft] = useState('')
     const [images, setImages] = useState(savedDraft?.images || [''])
+    const [isNSFW, setIsNSFW] = useState(false)
     const [uploading, setUploading] = useState({})
     const fileInputRefs = useRef({})
     const [submitting, setSubmitting] = useState(false)
@@ -109,6 +126,7 @@ const PostCreate = ({ user, theme }) => {
             setContent(activePost.content || '')
             setTags(Array.isArray(activePost.tags) ? [...activePost.tags] : [])
             setImages(activePost.images?.length ? [...activePost.images] : [''])
+            setIsNSFW(Boolean(activePost.isNSFW))
         }
     }, [isEdit, editPostId, activePost])
 
@@ -139,14 +157,26 @@ const PostCreate = ({ user, theme }) => {
     const addImageField = () => setImages(prev => [...prev, ''])
     const removeImageAt = (i) => setImages(prev => (prev.length > 1 ? prev.filter((_, j) => j !== i) : ['']))
 
+    const ALLOWED_TYPES = ['image/', 'video/mp4', 'video/webm', 'video/quicktime']
+    const MAX_FILE_SIZE = 50 * 1024 * 1024
+
     const handleFileUpload = async (i, file) => {
-        if (!file || !file.type.startsWith('image/')) return
+        if (!file) return
+        const isAllowed = ALLOWED_TYPES.some(t => file.type.startsWith(t))
+        if (!isAllowed) {
+            setFormError('Unsupported file type. Use images, GIFs, or MP4/WebM videos.')
+            return
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            setFormError('File is too large. Maximum size is 50MB.')
+            return
+        }
         setUploading(prev => ({ ...prev, [i]: true }))
         try {
             const url = await uploadToVercel(file)
             setImageAt(i, url)
         } catch {
-            setFormError('Image upload failed. Try again or paste a URL instead.')
+            setFormError('Upload failed. Try again or paste a URL instead.')
         } finally {
             setUploading(prev => ({ ...prev, [i]: false }))
         }
@@ -162,7 +192,7 @@ const PostCreate = ({ user, theme }) => {
         if (!fileInputRefs.current[i]) {
             const input = document.createElement('input')
             input.type = 'file'
-            input.accept = 'image/*'
+            input.accept = 'image/*,video/mp4,video/webm,.gif,.mp4,.webm,.mov'
             input.onchange = (e) => {
                 const file = e.target?.files?.[0]
                 if (file) handleFileUpload(i, file)
@@ -192,7 +222,8 @@ const PostCreate = ({ user, theme }) => {
                     title: title.trim(),
                     content: content.trim(),
                     tags,
-                    images: imageList
+                    images: imageList,
+                    isNSFW
                 })).unwrap()
                 const r = res?.data?.result
                 if (r?._id) navigate(`/forum/post/${r._id}`)
@@ -202,6 +233,7 @@ const PostCreate = ({ user, theme }) => {
                     content: content.trim(),
                     tags,
                     images: imageList,
+                    isNSFW,
                     communityId: community._id
                 })).unwrap()
                 if (draftKey) localStorage.removeItem(draftKey)
@@ -223,7 +255,7 @@ const PostCreate = ({ user, theme }) => {
 
     if (!uid) {
         return (
-            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-12 text-center">
+            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-12 min-h-screen text-center">
                 <p className={`text-sm ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>Sign in to {isEdit ? 'edit' : 'create'} a post.</p>
                 <Link to="/login" className={`mt-3 inline-block text-sm font-medium ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>Sign in</Link>
             </div>
@@ -232,7 +264,7 @@ const PostCreate = ({ user, theme }) => {
 
     if (isEdit && isBusy && !activePost) {
         return (
-            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-20 flex items-center justify-center">
+            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-20 min-h-screen flex items-center justify-center">
                 <div className={`animate-spin rounded-full h-8 w-8 border-2 border-t-transparent ${isLight ? 'border-indigo-500' : 'border-indigo-400'}`} />
             </div>
         )
@@ -240,7 +272,7 @@ const PostCreate = ({ user, theme }) => {
 
     if (!isEdit && slug && !isBusy && !community) {
         return (
-            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-10">
+            <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-10 min-h-screen">
                 <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Community not found.</p>
                 <Link to="/forum" className={`mt-3 inline-block text-sm font-medium ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>Back to forum</Link>
             </div>
@@ -248,7 +280,7 @@ const PostCreate = ({ user, theme }) => {
     }
 
     return (
-        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 min-h-screen">
             <div className="mb-6">
                 <Link
                     to={backTarget}
@@ -355,9 +387,9 @@ const PostCreate = ({ user, theme }) => {
                     </div>
 
                     <div>
-                        <label className={labelClass}>Images</label>
+                        <label className={labelClass}>Media</label>
                         <p className={`text-xs mb-3 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
-                            Upload a file or paste a direct image URL. The preview updates when the URL is valid.
+                            Upload images, GIFs, or videos (MP4/WebM, max 50MB) or paste a direct URL.
                         </p>
                         <div className="space-y-3">
                             {images.map((u, i) => (
@@ -416,6 +448,29 @@ const PostCreate = ({ user, theme }) => {
                                 Add image
                             </button>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className={`flex items-center gap-3 cursor-pointer select-none`}>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    checked={isNSFW}
+                                    onChange={e => setIsNSFW(e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className={`w-9 h-5 rounded-full transition-colors ${isNSFW ? 'bg-red-500' : (isLight ? 'bg-slate-200' : 'bg-[#333]')} peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1 peer-focus-visible:ring-red-400`} />
+                                <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${isNSFW ? 'translate-x-4' : ''}`} />
+                            </div>
+                            <div>
+                                <span className={`text-sm font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                    Mark as NSFW
+                                </span>
+                                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>
+                                    Images will be blurred until viewers choose to reveal them
+                                </p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 

@@ -6,7 +6,7 @@ import { faUsers, faFileAlt, faLock } from '@fortawesome/free-solid-svg-icons'
 const CommunityCard = ({ community, theme, user, onJoin, onLeave }) => {
     const isLight = theme === 'light'
     const userId = user?.result?._id || user?._id
-    const isMember = community.members?.some(m => (typeof m === 'string' ? m : m?._id) === userId)
+    const isMember = userId && community.members?.some(m => String(typeof m === 'string' ? m : m?._id) === String(userId))
     const initial = community.name?.[0]?.toUpperCase() || '?'
     const hasBanner = Boolean(community.banner)
 
@@ -103,21 +103,29 @@ const CommunityCard = ({ community, theme, user, onJoin, onLeave }) => {
                 </div>
 
                 {user && (
-                    <button
-                        type="button"
-                        onClick={() => (isMember ? onLeave?.(community._id) : onJoin?.(community._id))}
-                        className={
-                            isMember
-                                ? (isLight
-                                    ? 'mt-3 w-full rounded-md border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600'
-                                    : 'mt-3 w-full rounded-md border border-[#333] bg-[#222] py-2 text-sm font-medium text-zinc-300 hover:border-red-900/50 hover:bg-red-950/30 hover:text-red-400')
-                                : (isLight
-                                    ? 'mt-3 w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700'
-                                    : 'mt-3 w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-500')
-                        }
-                    >
-                        {isMember ? 'Leave' : 'Join'}
-                    </button>
+                    community.isPrivate && !isMember ? (
+                        <div className={`mt-3 w-full rounded-md border py-2 text-center text-sm font-medium ${
+                            isLight ? 'border-amber-200 bg-amber-50 text-amber-600' : 'border-amber-800/50 bg-amber-900/20 text-amber-400'
+                        }`}>
+                            Invite Only
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => (isMember ? onLeave?.(community._id) : onJoin?.(community._id))}
+                            className={
+                                isMember
+                                    ? (isLight
+                                        ? 'mt-3 w-full rounded-md border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600'
+                                        : 'mt-3 w-full rounded-md border border-[#333] bg-[#222] py-2 text-sm font-medium text-zinc-300 hover:border-red-900/50 hover:bg-red-950/30 hover:text-red-400')
+                                    : (isLight
+                                        ? 'mt-3 w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700'
+                                        : 'mt-3 w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-500')
+                            }
+                        >
+                            {isMember ? 'Leave' : 'Join'}
+                        </button>
+                    )
                 )}
             </div>
         </div>

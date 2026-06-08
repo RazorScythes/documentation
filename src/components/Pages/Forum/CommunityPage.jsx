@@ -8,7 +8,9 @@ import { getCommunity, joinCommunity, leaveCommunity, clearActive } from '../../
 import { getPosts, votePost, addRealtimePost } from '../../../actions/forum'
 import PostCard from '../../Forum/PostCard'
 import PostSortBar from '../../Forum/PostSortBar'
+import ForumToast from '../../Forum/ForumToast'
 import CommunitySidebar from '../../Forum/CommunitySidebar'
+import { CommunityPageSkeleton, FeedSkeleton } from '../../Forum/ForumSkeleton'
 
 const socketUrl = import.meta.env.VITE_DEVELOPMENT == 'true'
     ? `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`
@@ -43,7 +45,7 @@ const CommunityPage = ({ user, theme }) => {
 
     const isMember = useMemo(() => {
         if (!community?.members || !userId) return false
-        return community.members.some(m => (typeof m === 'string' ? m : m?._id) === userId)
+        return community.members.some(m => String(typeof m === 'string' ? m : m?._id) === String(userId))
     }, [community, userId])
 
     const canCreatePost = Boolean(user && isMember && !communityIsLocked)
@@ -88,7 +90,7 @@ const CommunityPage = ({ user, theme }) => {
 
     if (!slug) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10 min-h-screen">
                 <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Invalid link.</p>
             </div>
         )
@@ -96,16 +98,16 @@ const CommunityPage = ({ user, theme }) => {
 
     if (communityLoading && !community?._id) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-20 flex items-center justify-center">
-                <div className={`animate-spin rounded-full h-8 w-8 border-2 border-t-transparent ${isLight ? 'border-slate-400' : 'border-gray-500'}`} />
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 min-h-screen">
+                <CommunityPageSkeleton isLight={isLight} />
             </div>
         )
     }
 
     if (community?._id && community.slug !== slug) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-20 flex items-center justify-center">
-                <div className={`animate-spin rounded-full h-8 w-8 border-2 border-t-transparent ${isLight ? 'border-slate-400' : 'border-gray-500'}`} />
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 min-h-screen">
+                <CommunityPageSkeleton isLight={isLight} />
             </div>
         )
     }
@@ -113,7 +115,7 @@ const CommunityPage = ({ user, theme }) => {
     if (!communityLoading && !community?._id) {
         const errMsg = communityErrorMessage
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10 min-h-screen">
                 <Link to="/forum" className={`mb-4 inline-flex items-center gap-1.5 text-xs font-medium ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-gray-400 hover:text-gray-200'}`}>
                     <FontAwesomeIcon icon={faArrowLeft} className="text-[10px]" /> Forum
                 </Link>
@@ -139,7 +141,7 @@ const CommunityPage = ({ user, theme }) => {
 
     if (community._restricted) {
         return (
-            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10">
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10 min-h-screen">
                 <Link to="/forum" className={`mb-6 inline-flex items-center gap-1.5 text-xs font-medium ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-gray-400 hover:text-gray-200'}`}>
                     <FontAwesomeIcon icon={faArrowLeft} className="text-[10px]" /> Forum
                 </Link>
@@ -213,12 +215,12 @@ const CommunityPage = ({ user, theme }) => {
     }
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 min-h-screen">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Link to="/forum" className={`flex items-center gap-1.5 text-xs font-medium w-fit ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-gray-400 hover:text-gray-200'}`}>
                     <FontAwesomeIcon icon={faArrowLeft} className="text-[10px]" /> Forum
                 </Link>
-                {userId && (community.creator?._id === userId || community.moderators?.some(m => (m?._id || m) === userId)) && (
+                {userId && (String(community.creator?._id) === String(userId) || community.moderators?.some(m => String(m?._id || m) === String(userId))) && (
                     <Link to={`/forum/c/${community.slug}/edit`} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg w-fit border ${isLight ? 'text-slate-700 border-slate-200 bg-white hover:bg-slate-50' : 'text-gray-200 border-[#2a2a2a] bg-[#1a1a1a] hover:bg-[#222]'}`}>
                         <FontAwesomeIcon icon={faPen} className="text-[10px]" /> Edit community
                     </Link>
@@ -260,10 +262,7 @@ const CommunityPage = ({ user, theme }) => {
                     </div>
 
                     {postsLoading && listPosts.length === 0 ? (
-                        <div className={`${panelClass} flex flex-col items-center justify-center py-20`}>
-                            <div className={`animate-spin rounded-full h-7 w-7 border-2 border-t-transparent ${isLight ? 'border-slate-400' : 'border-gray-500'}`} />
-                            <p className={`text-sm mt-3 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>Loading posts…</p>
-                        </div>
+                        <FeedSkeleton isLight={isLight} count={3} />
                     ) : listPosts.length > 0 ? (
                         <ul className="space-y-2 list-none p-0 m-0">
                             {listPosts.map(post => (
@@ -327,6 +326,7 @@ const CommunityPage = ({ user, theme }) => {
                     />
                 </aside>
             </div>
+            <ForumToast theme={theme} />
         </div>
     )
 }

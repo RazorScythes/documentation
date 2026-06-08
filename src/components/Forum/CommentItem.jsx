@@ -17,7 +17,7 @@ const timeAgo = (d) => {
 const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, onVote, onReport }) => {
     const isLight = theme === 'light'
     const userId = user?.result?._id || user?._id
-    const isAuthor = userId === comment.author?._id
+    const isAuthor = userId && String(userId) === String(comment.author?._id)
     const userVote = comment.upvotes?.some(id => String(id) === String(userId)) ? 1 : comment.downvotes?.some(id => String(id) === String(userId)) ? -1 : 0
     const [showReply, setShowReply] = useState(false)
     const [replyText, setReplyText] = useState('')

@@ -3,13 +3,15 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import { io as socketIO } from 'socket.io-client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faComments, faChevronLeft, faChevronRight, faPlus, faFire, faTags, faGlobe, faUserGroup } from '@fortawesome/free-solid-svg-icons'
-import { getFeed, getPosts, getForumTags, votePost } from '../../../actions/forum'
+import { faComments, faChevronLeft, faChevronRight, faPlus, faFire, faTags, faGlobe, faUserGroup, faBars, faTimes } from '@fortawesome/free-solid-svg-icons'
+import { getFeed, getPosts, getForumTags, votePost, savePost, unsavePost, getSavedPosts } from '../../../actions/forum'
 import { getCommunities } from '../../../actions/community'
 import { getCommunities as fetchCommunities } from '../../../endpoint'
 import PostCard from '../../Forum/PostCard'
 import PostSortBar from '../../Forum/PostSortBar'
+import ForumToast from '../../Forum/ForumToast'
 import ForumTagPill from '../../Forum/ForumTagPill'
+import { FeedSkeleton } from '../../Forum/ForumSkeleton'
 
 const socketUrl = import.meta.env.VITE_DEVELOPMENT == 'true'
     ? `${import.meta.env.VITE_APP_PROTOCOL}://${import.meta.env.VITE_APP_LOCALHOST}:${import.meta.env.VITE_APP_SERVER_PORT}`
@@ -19,7 +21,7 @@ const ForumHome = ({ user, theme }) => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const isLight = theme === 'light'
-    const { feed, posts, pagination, isLoading } = useSelector(s => s.forum)
+    const { feed, posts, pagination, isLoading, savedIds } = useSelector(s => s.forum)
     const { data: communities } = useSelector(s => s.community)
     const tags = useSelector(s => s.forum.tags)
 
@@ -27,6 +29,7 @@ const ForumHome = ({ user, theme }) => {
     const [page, setPage] = useState(1)
     const [joinedCommunities, setJoinedCommunities] = useState([])
     const [newPostBadges, setNewPostBadges] = useState({})
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const joinedIdsRef = useRef([])
 
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
@@ -38,6 +41,10 @@ const ForumHome = ({ user, theme }) => {
         if (user) dispatch(getFeed({ page, sort, limit: 15 }))
         else dispatch(getPosts({ page, sort, limit: 15 }))
     }, [user, dispatch, sort, page])
+
+    useEffect(() => {
+        if (user) dispatch(getSavedPosts({ limit: 100 }))
+    }, [user, dispatch])
 
     useEffect(() => {
         dispatch(getCommunities({ sort: 'popular', limit: 5 }))
@@ -76,8 +83,13 @@ const ForumHome = ({ user, theme }) => {
 
     const items = user ? feed : posts
 
+    const handleSave = (postId) => {
+        if (savedIds.includes(postId)) dispatch(unsavePost(postId))
+        else dispatch(savePost(postId))
+    }
+
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-6 min-h-screen">
             <header className="mb-5 sm:mb-6">
                 <div className="flex items-start gap-3">
                     <div
@@ -107,12 +119,7 @@ const ForumHome = ({ user, theme }) => {
                     </div>
 
                     {isLoading ? (
-                        <div className={`${panelClass} flex flex-col items-center justify-center py-20`}>
-                            <div
-                                className={`h-9 w-9 animate-spin rounded-full border-2 border-t-transparent ${isLight ? 'border-indigo-600' : 'border-indigo-500'}`}
-                            />
-                            <p className={`mt-4 text-sm ${muted}`}>Loading posts…</p>
-                        </div>
+                        <FeedSkeleton isLight={isLight} count={5} />
                     ) : items?.length > 0 ? (
                         <ul className="space-y-2.5" role="list">
                             {items.map(post => (
@@ -122,6 +129,8 @@ const ForumHome = ({ user, theme }) => {
                                         theme={theme}
                                         user={user}
                                         onVote={(id, v) => dispatch(votePost({ id, value: v }))}
+                                        onSave={handleSave}
+                                        savedIds={savedIds}
                                     />
                                 </li>
                             ))}
@@ -198,7 +207,23 @@ const ForumHome = ({ user, theme }) => {
                     )}
                 </div>
 
-                <aside className="hidden w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:block lg:w-72 xl:w-80">
+                <button
+                    type="button"
+                    onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+                    className={`lg:hidden w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                        isLight
+                            ? 'bg-white border-slate-200/60 text-slate-600 shadow-sm'
+                            : 'bg-[#1a1a1a] border-[#2a2a2a] text-gray-400'
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <FontAwesomeIcon icon={faBars} className="text-xs" />
+                        <span className="text-sm font-medium">Communities & Tags</span>
+                    </div>
+                    <FontAwesomeIcon icon={mobileSidebarOpen ? faTimes : faChevronRight} className="text-[10px]" />
+                </button>
+
+                <aside className={`w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:w-72 xl:w-80 ${mobileSidebarOpen ? 'block' : 'hidden lg:block'}`}>
                     <div className="flex flex-col gap-2">
                         <Link
                             to="/forum/communities"
@@ -362,6 +387,7 @@ const ForumHome = ({ user, theme }) => {
                     )}
                 </aside>
             </div>
+            <ForumToast theme={theme} />
         </div>
     )
 }

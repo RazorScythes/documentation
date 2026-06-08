@@ -79,6 +79,7 @@ const ManageUsers = ({ user, theme, setNotification }) => {
     const [perPage, setPerPage] = useState(10)
     const [selected, setSelected] = useState([])
     const [actionMenu, setActionMenu] = useState(null)
+    const [actionMenuPos, setActionMenuPos] = useState({ top: 0, right: 0 })
     const [showFilters, setShowFilters] = useState(false)
 
     useEffect(() => { dispatch(getAllUsers()) }, [])
@@ -356,7 +357,7 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                                         const fullName = [row.profile_id?.first_name, row.profile_id?.last_name].filter(Boolean).join(' ')
 
                                         return (
-                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-cyan-50/50' : 'bg-cyan-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-cyan-50/30' : 'hover:bg-[#0e0e0e]'}`}>
+                                            <tr key={row._id || i} className={`border-t transition-colors ${isLight ? 'border-slate-100' : 'border-[#222]'} ${selected.includes(row._id) ? (isLight ? 'bg-cyan-50/50' : 'bg-cyan-900/10') : (i % 2 === 1 ? (isLight ? 'bg-slate-50/30' : 'bg-[#1A1A1A]/50') : '')} ${isLight ? 'hover:bg-cyan-50/30' : 'hover:bg-[#1F1F1F]'}`}>
                                                 {isAdmin && <td className={`${tdClass} w-10`}><input type="checkbox" checked={selected.includes(row._id)} onChange={() => toggleOne(row._id)} className="w-3.5 h-3.5 rounded cursor-pointer accent-cyan-500" /></td>}
                                                 {/* User Cell */}
                                                 <td className={tdClass}>
@@ -420,33 +421,10 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                                                     </div>
                                                 </td>
                                                 {/* Actions */}
-                                                <td className={`${tdClass} w-10 relative`}>
-                                                    <button onClick={e => { e.stopPropagation(); setActionMenu(actionMenu === row._id ? null : row._id) }} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}>
+                                                <td className={`${tdClass} w-10`}>
+                                                    <button onClick={e => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setActionMenu(actionMenu === row._id ? null : row._id) }} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}>
                                                         <FontAwesomeIcon icon={faEllipsisVertical} className="text-xs" />
                                                     </button>
-                                                    {actionMenu === row._id && (
-                                                        <>
-                                                            <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
-                                                            <div className={`absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg overflow-hidden min-w-[140px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                                {isAdmin && (
-                                                                    <button onClick={() => { setRoleTarget(row); setSelectedRole(row.role || 'User'); setRoleModalOpen(true); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}>
-                                                                        <FontAwesomeIcon icon={faUserShield} className="text-[10px] text-blue-500" /> Change Role
-                                                                    </button>
-                                                                )}
-                                                                {(isAdmin || row.role === 'User') && (
-                                                                    <button onClick={() => { if (row.ban && formatBanExpiry(row.ban)) { setUnbanTarget(row); setUnbanModalOpen(true) } else { setBanTarget(row); setSelectedDuration('7'); setBanReason(''); setBanModalOpen(true) } setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-orange-500 hover:bg-orange-50' : 'text-orange-400 hover:bg-orange-900/10'}`}>
-                                                                        <FontAwesomeIcon icon={row.ban && formatBanExpiry(row.ban) ? faUnlock : faBan} className="text-[10px]" />
-                                                                        {row.ban && formatBanExpiry(row.ban) ? 'Unban' : 'Ban User'}
-                                                                    </button>
-                                                                )}
-                                                                {isAdmin && (
-                                                                    <button onClick={() => { setDeleteId(row._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}>
-                                                                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </>
-                                                    )}
                                                 </td>
                                             </tr>
                                         )
@@ -487,6 +465,38 @@ const ManageUsers = ({ user, theme, setNotification }) => {
                     </>
                 )}
             </div>
+
+            {/* Action Menu (fixed position, outside table overflow) */}
+            {actionMenu && (() => {
+                const row = (Array.isArray(users) ? users : []).find(u => u._id === actionMenu)
+                if (!row) return null
+                return (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
+                        <div
+                            className={`fixed z-50 rounded-lg border shadow-lg overflow-hidden min-w-[140px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}
+                            style={{ top: actionMenuPos.top, right: actionMenuPos.right }}
+                        >
+                            {isAdmin && (
+                                <button onClick={() => { setRoleTarget(row); setSelectedRole(row.role || 'User'); setRoleModalOpen(true); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}>
+                                    <FontAwesomeIcon icon={faUserShield} className="text-[10px] text-blue-500" /> Change Role
+                                </button>
+                            )}
+                            {(isAdmin || row.role === 'User') && (
+                                <button onClick={() => { if (row.ban && formatBanExpiry(row.ban)) { setUnbanTarget(row); setUnbanModalOpen(true) } else { setBanTarget(row); setSelectedDuration('7'); setBanReason(''); setBanModalOpen(true) } setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-orange-500 hover:bg-orange-50' : 'text-orange-400 hover:bg-orange-900/10'}`}>
+                                    <FontAwesomeIcon icon={row.ban && formatBanExpiry(row.ban) ? faUnlock : faBan} className="text-[10px]" />
+                                    {row.ban && formatBanExpiry(row.ban) ? 'Unban' : 'Ban User'}
+                                </button>
+                            )}
+                            {isAdmin && (
+                                <button onClick={() => { setDeleteId(row._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}>
+                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete
+                                </button>
+                            )}
+                        </div>
+                    </>
+                )
+            })()}
         </div>
     )
 }

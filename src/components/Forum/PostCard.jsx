@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faComment, faEye, faThumbtack, faLock, faClock } from '@fortawesome/free-solid-svg-icons'
+import { faComment, faEye, faThumbtack, faLock, faClock, faBookmark as faBookmarkSolid } from '@fortawesome/free-solid-svg-icons'
+import { faBookmark as faBookmarkOutline } from '@fortawesome/free-regular-svg-icons'
 import VoteButtons from './VoteButtons'
 
 const timeAgo = (d) => {
@@ -18,6 +19,12 @@ const authorInitials = (username) => {
     const s = String(username).trim()
     if (s.length <= 1) return s.toUpperCase()
     return s.slice(0, 2).toUpperCase()
+}
+
+const isVideoUrl = (url) => {
+    if (!url) return false
+    const lower = url.toLowerCase()
+    return lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.includes('/video/')
 }
 
 const extractMarkdownImages = (raw) => {
@@ -40,10 +47,11 @@ const contentPreview = (raw) => {
     return t
 }
 
-const PostCard = ({ post, theme, user, onVote }) => {
+const PostCard = ({ post, theme, user, onVote, onSave, savedIds = [] }) => {
     const isLight = theme === 'light'
     const userId = user?.result?._id || user?._id
     const userVote = post.upvotes?.some(id => String(id) === String(userId)) ? 1 : post.downvotes?.some(id => String(id) === String(userId)) ? -1 : 0
+    const [nsfwRevealed, setNsfwRevealed] = useState(false)
 
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
     const metaMuted = isLight ? 'text-slate-500' : 'text-zinc-500'
@@ -139,6 +147,15 @@ const PostCard = ({ post, theme, user, onVote }) => {
                                     <FontAwesomeIcon icon={faLock} className="text-[9px]" />
                                 </span>
                             )}
+                            {post.isNSFW && (
+                                <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase
+                                        ${isLight ? 'border-red-200 bg-red-50 text-red-600' : 'border-red-900/50 bg-red-950/30 text-red-400'}`}
+                                    title="Not Safe For Work"
+                                >
+                                    18+
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -158,16 +175,55 @@ const PostCard = ({ post, theme, user, onVote }) => {
                 </Link>
 
                 {thumbUrl && (
-                    <Link
-                        to={`/forum/post/${post._id}`}
-                        className="mt-2 inline-block max-w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-500"
-                    >
-                        <img
-                            src={thumbUrl}
-                            alt=""
-                            className={`max-h-64 max-w-full w-auto h-auto rounded-lg border object-contain ${isLight ? 'border-slate-200' : 'border-[#333]'}`}
-                        />
-                    </Link>
+                    post.isNSFW && !nsfwRevealed ? (
+                        <button
+                            type="button"
+                            onClick={() => setNsfwRevealed(true)}
+                            className="mt-2 inline-block max-w-full relative text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-500"
+                        >
+                            {isVideoUrl(thumbUrl) ? (
+                                <div className={`relative max-h-64 max-w-full rounded-lg border overflow-hidden ${isLight ? 'border-slate-200' : 'border-[#333]'} blur-xl`}>
+                                    <video src={thumbUrl} muted preload="metadata" className="max-h-64 max-w-full w-auto h-auto object-contain" />
+                                </div>
+                            ) : (
+                                <img
+                                    src={thumbUrl}
+                                    alt=""
+                                    className={`max-h-64 max-w-full w-auto h-auto rounded-lg border object-contain ${isLight ? 'border-slate-200' : 'border-[#333]'} blur-xl`}
+                                />
+                            )}
+                            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/30">
+                                <span className="px-2.5 py-1 rounded-md bg-red-600 text-white text-[10px] font-bold uppercase tracking-wide">Click to reveal NSFW</span>
+                            </div>
+                        </button>
+                    ) : (
+                        <Link
+                            to={`/forum/post/${post._id}`}
+                            className="mt-2 inline-block max-w-full relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-500"
+                        >
+                            {isVideoUrl(thumbUrl) ? (
+                                <div className={`relative max-h-64 max-w-full rounded-lg border overflow-hidden ${isLight ? 'border-slate-200' : 'border-[#333]'}`}>
+                                    <video src={thumbUrl} muted preload="metadata" className="max-h-64 max-w-full w-auto h-auto object-contain" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                        <div className="w-10 h-10 rounded-full bg-black/60 flex items-center justify-center">
+                                            <span className="text-white text-sm ml-0.5">▶</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <img
+                                    src={thumbUrl}
+                                    alt=""
+                                    className={`max-h-64 max-w-full w-auto h-auto rounded-lg border object-contain ${isLight ? 'border-slate-200' : 'border-[#333]'}`}
+                                />
+                            )}
+                            {post.isNSFW && nsfwRevealed && (
+                                <div className="absolute top-2 right-2">
+                                    <span className="px-1.5 py-0.5 rounded bg-red-600/80 text-white text-[9px] font-bold uppercase">18+</span>
+                                </div>
+                            )}
+                        </Link>
+                    )
                 )}
 
                 {post.tags?.length > 0 && (
@@ -199,6 +255,20 @@ const PostCard = ({ post, theme, user, onVote }) => {
                         <FontAwesomeIcon icon={faEye} className="h-3 w-3" />
                         {post.viewCount || 0}
                     </span>
+                    {user && onSave && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onSave(post._id) }}
+                            className={`inline-flex items-center gap-1 font-medium transition-colors ${
+                                savedIds.includes(post._id)
+                                    ? (isLight ? 'text-indigo-600' : 'text-indigo-400')
+                                    : (isLight ? 'text-slate-400 hover:text-indigo-600' : 'text-zinc-500 hover:text-indigo-400')
+                            }`}
+                        >
+                            <FontAwesomeIcon icon={savedIds.includes(post._id) ? faBookmarkSolid : faBookmarkOutline} className="h-3 w-3" />
+                            {savedIds.includes(post._id) ? 'Saved' : 'Save'}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

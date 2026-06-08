@@ -6,10 +6,11 @@ import {
     faSearch, faFileLines, faUsers, faUser,
     faChevronLeft, faChevronRight
 } from '@fortawesome/free-solid-svg-icons'
-import { searchForum, votePost } from '../../../actions/forum'
+import { searchForum, votePost, clearAlert } from '../../../actions/forum'
 import { joinCommunity, leaveCommunity } from '../../../actions/community'
 import PostCard from '../../Forum/PostCard'
 import CommunityCard from '../../Forum/CommunityCard'
+import { SearchSkeleton } from '../../Forum/ForumSkeleton'
 
 const TABS = [
     { id: 'posts', label: 'Posts', icon: faFileLines },
@@ -18,7 +19,7 @@ const TABS = [
 ]
 
 const userJoinDate = (d) => {
-    if (!d) return '—'
+    if (!d) return '\u2014'
     return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -101,6 +102,12 @@ const ForumSearch = ({ user, theme }) => {
 
     useEffect(() => { setInput(qParam) }, [qParam])
     useEffect(() => { setPage(1) }, [qParam, tab])
+    useEffect(() => {
+        if (alert?.message) {
+            const t = setTimeout(() => dispatch(clearAlert()), 4000)
+            return () => clearTimeout(t)
+        }
+    }, [alert, dispatch])
 
     const runSearch = useCallback((nextPage = 1) => {
         if (!qParam) return
@@ -161,7 +168,7 @@ const ForumSearch = ({ user, theme }) => {
     )
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 min-h-screen">
             <div className="mb-6">
                 <h1 className={`text-xl sm:text-2xl font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Search
@@ -170,6 +177,16 @@ const ForumSearch = ({ user, theme }) => {
                     Find posts, communities, and members
                 </p>
             </div>
+
+            {alert?.message && (
+                <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium border ${
+                    alert.variant === 'success'
+                        ? (isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-900/20 border-emerald-800/40 text-emerald-400')
+                        : (isLight ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-900/20 border-red-800/40 text-red-400')
+                }`}>
+                    {alert.message}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="mb-5">
                 <div className={`${panelClass} p-2 sm:p-3`}>
@@ -185,7 +202,7 @@ const ForumSearch = ({ user, theme }) => {
                                 type="search"
                                 value={input}
                                 onChange={e => setInput(e.target.value)}
-                                placeholder="Search the forum…"
+                                placeholder="Search the forum..."
                                 className={`w-full min-h-[2.75rem] rounded-lg border py-2.5 pl-10 pr-3 text-sm outline-none transition ${inputClass}`}
                             />
                         </div>
@@ -254,20 +271,7 @@ const ForumSearch = ({ user, theme }) => {
             )}
 
             {qParam && isLoading && (
-                <div
-                    className={`${panelClass} flex min-h-[16rem] flex-col items-center justify-center py-16 border-dashed ${
-                        isLight ? 'border-slate-200' : 'border-[#2a2a2a]'
-                    }`}
-                >
-                    <div
-                        className={`h-9 w-9 animate-spin rounded-full border-2 border-t-transparent ${
-                            isLight ? 'border-slate-600' : 'border-gray-500'
-                        }`}
-                    />
-                    <p className={`mt-4 text-sm ${isLight ? 'text-slate-600' : 'text-gray-500'}`}>
-                        Searching for “{qParam}”…
-                    </p>
-                </div>
+                <SearchSkeleton isLight={isLight} />
             )}
 
             {qParam && !isLoading && tab === 'posts' && !hasResults && (
@@ -283,7 +287,7 @@ const ForumSearch = ({ user, theme }) => {
                     faUsers,
                     'No communities found',
                     <>
-                        No groups matched “{qParam}”. You can also{' '}
+                        No groups matched your search. You can also{' '}
                         <Link
                             to="/forum/communities"
                             className={`font-medium underline ${isLight ? 'text-slate-800' : 'text-gray-300'}`}
@@ -309,7 +313,7 @@ const ForumSearch = ({ user, theme }) => {
                         {tabTitle}
                     </p>
                     <p className={`mt-0.5 text-sm ${isLight ? 'text-slate-600' : 'text-gray-500'}`}>
-                        <span className={isLight ? 'text-slate-900' : 'text-white'}>“{qParam}”</span>
+                        <span className={isLight ? 'text-slate-900' : 'text-white'}>"{qParam}"</span>
                         {pag.pages > 1 && (
                             <span className="ml-1.5">· page {page}</span>
                         )}

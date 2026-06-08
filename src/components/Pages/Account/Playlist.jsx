@@ -43,6 +43,7 @@ const Playlist = ({ user, theme, setNotification }) => {
     const [confirm, setConfirm] = useState(false)
     const [videoPage, setVideoPage] = useState(1)
     const [actionMenu, setActionMenu] = useState(null)
+    const [actionMenuPos, setActionMenuPos] = useState({ top: 0, right: 0 })
     const [searchQuery, setSearchQuery] = useState('')
     const editNameRef = useRef(null)
     const videosPerPage = 8
@@ -325,24 +326,11 @@ const Playlist = ({ user, theme, setNotification }) => {
                                             )}
                                         </div>
                                         {!isEditing && (
-                                            <div className="flex-shrink-0 relative" onClick={e => e.stopPropagation()}>
-                                                <button onClick={() => setActionMenu(actionMenu === playlist._id ? null : playlist._id)}
+                                            <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
+                                                <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setActionMenu(actionMenu === playlist._id ? null : playlist._id) }}
                                                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}>
                                                     <FontAwesomeIcon icon={faEllipsisVertical} className="text-xs" />
                                                 </button>
-                                                {actionMenu === playlist._id && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
-                                                        <div className={`absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg overflow-hidden min-w-[120px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                            <button onClick={() => startEdit(playlist)} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}>
-                                                                <FontAwesomeIcon icon={faPen} className="text-[10px] text-blue-500" /> Edit
-                                                            </button>
-                                                            <button onClick={() => { setDeleteId(playlist._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}>
-                                                                <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -397,24 +385,11 @@ const Playlist = ({ user, theme, setNotification }) => {
                                                         {playlist.description && <p className={`text-[11px] truncate mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{playlist.description}</p>}
                                                         <p className={`text-[10px] mt-1.5 ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>{formatDate(playlist.createdAt)}</p>
                                                     </div>
-                                                    <div className="flex-shrink-0 relative" onClick={e => e.stopPropagation()}>
-                                                        <button onClick={() => setActionMenu(actionMenu === playlist._id ? null : playlist._id)}
+                                                    <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setActionMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setActionMenu(actionMenu === playlist._id ? null : playlist._id) }}
                                                             className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#2B2B2B]'}`}>
                                                             <FontAwesomeIcon icon={faEllipsisVertical} className="text-xs" />
                                                         </button>
-                                                        {actionMenu === playlist._id && (
-                                                            <>
-                                                                <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
-                                                                <div className={`absolute right-0 top-full mt-1 z-50 rounded-lg border shadow-lg overflow-hidden min-w-[120px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`}>
-                                                                    <button onClick={() => startEdit(playlist)} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}>
-                                                                        <FontAwesomeIcon icon={faPen} className="text-[10px] text-blue-500" /> Edit
-                                                                    </button>
-                                                                    <button onClick={() => { setDeleteId(playlist._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}>
-                                                                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete
-                                                                    </button>
-                                                                </div>
-                                                            </>
-                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -426,6 +401,12 @@ const Playlist = ({ user, theme, setNotification }) => {
                     )}
                 </div>
             )}
+
+            {actionMenu && (() => {
+                const playlist = (Array.isArray(playlists) ? playlists : []).find(r => r._id === actionMenu)
+                if (!playlist) return null
+                return (<><div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} /><div className={`fixed z-50 rounded-lg border shadow-lg overflow-hidden min-w-[120px] ${isLight ? 'bg-white border-slate-200' : 'bg-[#1C1C1C] border-[#333]'}`} style={{ top: actionMenuPos.top, right: actionMenuPos.right }}><button onClick={() => { startEdit(playlist); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-slate-600 hover:bg-slate-50' : 'text-gray-300 hover:bg-[#222]'}`}><FontAwesomeIcon icon={faPen} className="text-[10px] text-blue-500" /> Edit</button><button onClick={() => { setDeleteId(playlist._id); setOpenModal(true); setConfirm(false); setActionMenu(null) }} className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/10'}`}><FontAwesomeIcon icon={faTrash} className="text-[10px]" /> Delete</button></div></>)
+            })()}
         </div>
     )
 }
