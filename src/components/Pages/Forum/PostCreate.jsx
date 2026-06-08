@@ -59,15 +59,31 @@ const PostCreate = ({ user, theme }) => {
     const { activePost, isLoading: forumLoading } = useSelector(s => s.forum)
     const { active: community, isLoading: communityLoading } = useSelector(s => s.community)
 
-    const [title, setTitle] = useState('')
-    const [content, setContent] = useState('')
-    const [tags, setTags] = useState([])
+    const draftKey = isEdit ? null : `forum-draft-${slug || 'general'}`
+    const savedDraft = !isEdit && draftKey ? (() => {
+        try { return JSON.parse(localStorage.getItem(draftKey)) } catch { return null }
+    })() : null
+
+    const [title, setTitle] = useState(savedDraft?.title || '')
+    const [content, setContent] = useState(savedDraft?.content || '')
+    const [tags, setTags] = useState(savedDraft?.tags || [])
     const [tagDraft, setTagDraft] = useState('')
-    const [images, setImages] = useState([''])
+    const [images, setImages] = useState(savedDraft?.images || [''])
     const [uploading, setUploading] = useState({})
     const fileInputRefs = useRef({})
     const [submitting, setSubmitting] = useState(false)
     const [formError, setFormError] = useState('')
+
+    useEffect(() => {
+        if (isEdit || !draftKey) return
+        const timer = setTimeout(() => {
+            const draft = { title, content, tags, images }
+            if (title.trim() || content.trim()) {
+                localStorage.setItem(draftKey, JSON.stringify(draft))
+            }
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [title, content, tags, images, draftKey, isEdit])
 
     const isBusy = communityLoading || forumLoading
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
@@ -188,6 +204,7 @@ const PostCreate = ({ user, theme }) => {
                     images: imageList,
                     communityId: community._id
                 })).unwrap()
+                if (draftKey) localStorage.removeItem(draftKey)
                 const r = res?.data?.result
                 if (r?._id) navigate(`/forum/post/${r._id}`)
                 else if (slug) navigate(`/forum/c/${slug}`)

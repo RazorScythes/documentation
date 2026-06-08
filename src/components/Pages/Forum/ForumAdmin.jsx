@@ -62,7 +62,7 @@ const ForumAdmin = ({ user, theme }) => {
     }, [dispatch, page])
 
     useEffect(() => {
-        dispatch(getPosts({ page: 1, limit: 500, sort: 'new' }))
+        dispatch(getPosts({ page: 1, limit: 20, sort: 'new' }))
     }, [dispatch])
 
     useEffect(() => {

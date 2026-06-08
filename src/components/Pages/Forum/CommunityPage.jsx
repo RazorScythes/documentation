@@ -296,7 +296,7 @@ const CommunityPage = ({ user, theme }) => {
 
                     {pagination?.pages > 1 && (
                         <div className="flex items-center justify-center gap-1 mt-6">
-                            <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                            <button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} aria-label="Previous page"
                                 className={`w-8 h-8 rounded-md flex items-center justify-center text-xs transition-colors ${page === 1 ? 'opacity-40 cursor-not-allowed' : (isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-[#2a2a2a] text-gray-400')}`}>
                                 <FontAwesomeIcon icon={faChevronLeft} />
                             </button>
@@ -309,7 +309,7 @@ const CommunityPage = ({ user, theme }) => {
                                     </button>
                                 )
                             })}
-                            <button type="button" onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={page === pagination.pages}
+                            <button type="button" onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={page === pagination.pages} aria-label="Next page"
                                 className={`w-8 h-8 rounded-md flex items-center justify-center text-xs transition-colors ${page === pagination.pages ? 'opacity-40 cursor-not-allowed' : (isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-[#2a2a2a] text-gray-400')}`}>
                                 <FontAwesomeIcon icon={faChevronRight} />
                             </button>

@@ -96,6 +96,11 @@ export const searchForum = createAsyncThunk('forum/searchForum', async (params, 
     catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
 })
 
+export const reportContent = createAsyncThunk('forum/reportContent', async (formData, thunkAPI) => {
+    try { return await api.reportForumContent(formData) }
+    catch (err) { return thunkAPI.rejectWithValue(err.response?.data || { alert: { variant: 'danger', message: 'Server error' } }) }
+})
+
 const forumSlice = createSlice({
     name: 'forum',
     initialState,
@@ -160,10 +165,11 @@ const forumSlice = createSlice({
             s.feed = s.feed.map(update)
             if (s.activePost?._id === postId) { s.activePost.score = v.score; s.activePost.upvotes = v.upvotes; s.activePost.downvotes = v.downvotes }
         })
+        .addCase(votePost.rejected, (s, a) => { s.alert = a.payload?.alert || { variant: 'danger', message: 'Vote failed' } })
 
         .addCase(getComments.pending, s => { s.commentLoading = true })
         .addCase(getComments.fulfilled, (s, a) => { s.comments = a.payload.data.result; s.commentPagination = a.payload.data.pagination; s.commentLoading = false })
-        .addCase(getComments.rejected, (s, a) => { s.commentLoading = false })
+        .addCase(getComments.rejected, (s, a) => { s.commentLoading = false; s.alert = a.payload?.alert || {} })
 
         .addCase(createComment.fulfilled, (s, a) => { s.comments.unshift(a.payload.data.result); s.alert = a.payload.data.alert })
         .addCase(createComment.rejected, (s, a) => { s.alert = a.payload?.alert || {} })
@@ -175,12 +181,16 @@ const forumSlice = createSlice({
             const v = a.payload.data.result
             s.comments = s.comments.map(c => c._id === v.commentId ? { ...c, score: v.score, upvotes: v.upvotes, downvotes: v.downvotes } : c)
         })
+        .addCase(voteComment.rejected, (s, a) => { s.alert = a.payload?.alert || { variant: 'danger', message: 'Vote failed' } })
 
         .addCase(getForumTags.fulfilled, (s, a) => { s.tags = a.payload.data.result })
 
         .addCase(searchForum.pending, s => { s.isLoading = true })
         .addCase(searchForum.fulfilled, (s, a) => { s.searchResults = a.payload.data.result; s.searchPagination = a.payload.data.pagination; s.isLoading = false })
-        .addCase(searchForum.rejected, (s, a) => { s.isLoading = false })
+        .addCase(searchForum.rejected, (s, a) => { s.isLoading = false; s.alert = a.payload?.alert || {} })
+
+        .addCase(reportContent.fulfilled, (s, a) => { s.alert = a.payload?.data?.alert || { variant: 'success', message: 'Report submitted' } })
+        .addCase(reportContent.rejected, (s, a) => { s.alert = a.payload?.alert || { variant: 'danger', message: 'Failed to submit report' } })
     },
     reducers: {
         clearAlert: (s) => { s.alert = {} },
@@ -194,7 +204,12 @@ const forumSlice = createSlice({
             s.feed = s.feed.map(update)
             if (s.activePost?._id === postId) { s.activePost.score = score; s.activePost.upvotes = upvotes; s.activePost.downvotes = downvotes }
         },
-        addRealtimeComment: (s, a) => { s.comments.push(a.payload) },
+        addRealtimeComment: (s, a) => {
+            const c = a.payload
+            if (c?._id && !s.comments.some(x => String(x._id) === String(c._id))) {
+                s.comments.push(c)
+            }
+        },
     }
 })
 

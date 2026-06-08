@@ -208,6 +208,12 @@ const ForumSearch = ({ user, theme }) => {
             <div
                 className={`${panelClass} p-1 mb-5 flex flex-wrap sm:flex-nowrap gap-0.5 sm:gap-0`}
                 role="tablist"
+                aria-label="Search categories"
+                onKeyDown={(e) => {
+                    const idx = TABS.findIndex(t => t.id === tab)
+                    if (e.key === 'ArrowRight') { e.preventDefault(); setTab(TABS[(idx + 1) % TABS.length].id) }
+                    if (e.key === 'ArrowLeft') { e.preventDefault(); setTab(TABS[(idx - 1 + TABS.length) % TABS.length].id) }
+                }}
             >
                 {TABS.map(t => {
                     const active = tab === t.id
@@ -215,6 +221,9 @@ const ForumSearch = ({ user, theme }) => {
                         <button
                             key={t.id}
                             type="button"
+                            role="tab"
+                            aria-selected={active}
+                            tabIndex={active ? 0 : -1}
                             onClick={() => setTab(t.id)}
                             className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                                 active
@@ -354,6 +363,7 @@ const ForumSearch = ({ user, theme }) => {
                         type="button"
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={page === 1}
+                        aria-label="Previous page"
                         className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm ${
                             page === 1
                                 ? 'cursor-not-allowed opacity-35'
@@ -391,6 +401,7 @@ const ForumSearch = ({ user, theme }) => {
                         type="button"
                         onClick={() => setPage(p => Math.min(pag.pages, p + 1))}
                         disabled={page === pag.pages}
+                        aria-label="Next page"
                         className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm ${
                             page === pag.pages
                                 ? 'cursor-not-allowed opacity-35'

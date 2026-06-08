@@ -6,12 +6,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-    faArrowLeft, faThumbtack, faLock, faPen, faTrash, faComment, faEye, faClock, faComments
+    faArrowLeft, faThumbtack, faLock, faPen, faTrash, faComment, faEye, faClock, faComments, faFlag
 } from '@fortawesome/free-solid-svg-icons'
 import {
     getPost, getComments, votePost, createComment, updateComment, deleteComment, voteComment,
-    clearComments, clearActivePost, clearAlert, updateRealtimeVotes, deletePost,
-    togglePostPin, togglePostLock
+    clearComments, clearActivePost, clearAlert, updateRealtimeVotes, addRealtimeComment, deletePost,
+    togglePostPin, togglePostLock, reportContent
 } from '../../../actions/forum'
 import { joinCommunity, leaveCommunity } from '../../../actions/community'
 import CommunitySidebar from '../../Forum/CommunitySidebar'
@@ -88,8 +88,12 @@ const PostDetail = ({ user, theme }) => {
     const [submittingComment, setSubmittingComment] = useState(false)
     const [postDeleteOpen, setPostDeleteOpen] = useState(false)
     const [imagePreviewUrl, setImagePreviewUrl] = useState(null)
+    const [reportOpen, setReportOpen] = useState(null)
+    const [reportReason, setReportReason] = useState('Spam')
+    const [reportDetails, setReportDetails] = useState('')
+    const [reportSubmitting, setReportSubmitting] = useState(false)
 
-    const post = activePost?._id === id ? activePost : null
+    const post = String(activePost?._id) === String(id) ? activePost : null
     const community = post?.community
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`
 
@@ -134,9 +138,11 @@ const PostDetail = ({ user, theme }) => {
         socket.emit('join_post', id)
         socket.emit('join_community', communityId)
 
-        socket.on('new_forum_comment', () => {
-            const sort = commentSortRef.current
-            dispatch(getComments({ postId: id, sort }))
+        socket.on('new_forum_comment', (data) => {
+            const incoming = data?.comment || data
+            if (incoming?._id) {
+                dispatch(addRealtimeComment(incoming))
+            }
         })
 
         socket.on('post_votes_updated', (raw) => {
@@ -221,6 +227,23 @@ const PostDetail = ({ user, theme }) => {
         } catch { /* handled */ } finally {
             setPostDeleteOpen(false)
         }
+    }
+
+    const handleReport = async () => {
+        if (!reportOpen) return
+        setReportSubmitting(true)
+        try {
+            await dispatch(reportContent({
+                contentId: reportOpen.id,
+                type: reportOpen.type,
+                reason: reportReason,
+                details: reportDetails,
+            })).unwrap()
+        } catch { /* alert handled by redux */ }
+        setReportSubmitting(false)
+        setReportOpen(null)
+        setReportReason('Spam')
+        setReportDetails('')
     }
 
     const backHref = post?.community?.slug ? `/forum/c/${post.community.slug}` : '/forum'
@@ -380,7 +403,7 @@ const PostDetail = ({ user, theme }) => {
                                     >
                                         {post.tags.map(t => (
                                             <span key={t} className="inline-block" role="listitem">
-                                                <ForumTagPill tag={t} theme={theme} onClick={() => {}} />
+                                                <ForumTagPill tag={t} theme={theme} onClick={() => navigate(`/forum/search?q=${encodeURIComponent(t)}`)} />
                                             </span>
                                         ))}
                                     </div>
@@ -395,6 +418,16 @@ const PostDetail = ({ user, theme }) => {
                                         <FontAwesomeIcon icon={faEye} className="text-[11px] opacity-80" />
                                         <span className="font-medium">{post.viewCount || 0} views</span>
                                     </span>
+                                    {user && !isAuthor && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setReportOpen({ id: post._id, type: 'forum_post' })}
+                                            className={`inline-flex items-center gap-1.5 ml-auto ${isLight ? 'text-slate-500 hover:text-red-600' : 'text-gray-500 hover:text-red-400'}`}
+                                        >
+                                            <FontAwesomeIcon icon={faFlag} className="text-[11px]" />
+                                            <span className="font-medium">Report</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 {(isMod || isAuthor) && (
@@ -458,13 +491,15 @@ const PostDetail = ({ user, theme }) => {
                         <div
                             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
                             role="dialog"
-                            aria-modal
+                            aria-modal="true"
+                            aria-label="Image preview"
                             onClick={() => setImagePreviewUrl(null)}
                         >
                             <button
                                 type="button"
                                 className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-md text-sm font-medium text-white bg-white/10 hover:bg-white/20"
                                 onClick={e => { e.stopPropagation(); setImagePreviewUrl(null) }}
+                                aria-label="Close image preview"
                             >
                                 Close
                             </button>
@@ -478,7 +513,8 @@ const PostDetail = ({ user, theme }) => {
                         <div
                             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
                             role="dialog"
-                            aria-modal
+                            aria-modal="true"
+                            aria-labelledby="delete-post-title"
                             onClick={() => setPostDeleteOpen(false)}
                         >
                             <div
@@ -488,11 +524,58 @@ const PostDetail = ({ user, theme }) => {
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg border mb-3 ${isLight ? 'bg-red-50 border-red-200' : 'bg-red-950/40 border-red-900/50'}`}>
                                     <FontAwesomeIcon icon={faTrash} className="text-lg text-red-600 dark:text-red-400" />
                                 </div>
-                                <p className={`text-base font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Delete this post?</p>
+                                <p id="delete-post-title" className={`text-base font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Delete this post?</p>
                                 <p className={`text-sm mt-2 ${isLight ? 'text-slate-500' : 'text-gray-500'}`}>This action cannot be undone. Comments will be removed with the post.</p>
                                 <div className="mt-5 flex flex-col-reverse sm:flex-row justify-end gap-2">
                                     <button type="button" onClick={() => setPostDeleteOpen(false)} className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg border ${isLight ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'bg-[#2a2a2a] text-gray-200 border-[#3a3a3a] hover:bg-[#333]'}`}>Cancel</button>
                                     <button type="button" onClick={handleDeletePost} className="w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {reportOpen && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="report-title"
+                            onClick={() => setReportOpen(null)}
+                        >
+                            <div className={`${panelClass} p-5 sm:p-6 max-w-md w-full shadow-lg`} onClick={e => e.stopPropagation()}>
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-lg border mb-3 ${isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/40 border-amber-900/50'}`}>
+                                    <FontAwesomeIcon icon={faFlag} className={`text-lg ${isLight ? 'text-amber-600' : 'text-amber-400'}`} />
+                                </div>
+                                <p id="report-title" className={`text-base font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Report {reportOpen.type === 'forum_post' ? 'post' : 'comment'}</p>
+                                <div className="mt-4 space-y-3">
+                                    <div>
+                                        <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>Reason</label>
+                                        <select
+                                            value={reportReason}
+                                            onChange={e => setReportReason(e.target.value)}
+                                            className={`w-full rounded-lg border py-2 px-3 text-sm outline-none ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#141414] border-[#2a2a2a] text-gray-100'}`}
+                                        >
+                                            {['Spam', 'Harassment', 'Misinformation', 'Not Appropriate', 'Other'].map(r => (
+                                                <option key={r} value={r}>{r}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>Details (optional)</label>
+                                        <textarea
+                                            value={reportDetails}
+                                            onChange={e => setReportDetails(e.target.value)}
+                                            rows={3}
+                                            placeholder="Additional context..."
+                                            className={`w-full rounded-lg border py-2 px-3 text-sm outline-none resize-none ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400' : 'bg-[#141414] border-[#2a2a2a] text-gray-100 placeholder:text-gray-600'}`}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-5 flex flex-col-reverse sm:flex-row justify-end gap-2">
+                                    <button type="button" onClick={() => setReportOpen(null)} className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg border ${isLight ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'bg-[#2a2a2a] text-gray-200 border-[#3a3a3a] hover:bg-[#333]'}`}>Cancel</button>
+                                    <button type="button" onClick={handleReport} disabled={reportSubmitting} className={`w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-lg ${reportSubmitting ? 'opacity-50 cursor-not-allowed' : ''} ${isLight ? 'bg-amber-600 text-white hover:bg-amber-500' : 'bg-amber-600 text-white hover:bg-amber-500'}`}>
+                                        {reportSubmitting ? 'Submitting…' : 'Submit Report'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -576,6 +659,7 @@ const PostDetail = ({ user, theme }) => {
                                 onEdit={handleEditComment}
                                 onDelete={handleDeleteComment}
                                 onVote={handleVoteComment}
+                                onReport={(commentId) => setReportOpen({ id: commentId, type: 'forum_comment' })}
                             />
                         ) : (
                             <div className={`${panelClass} text-center py-12 px-4`}>

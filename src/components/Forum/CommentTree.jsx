@@ -1,7 +1,7 @@
 import React from 'react'
 import CommentItem from './CommentItem'
 
-const CommentTree = ({ comments, theme, user, postId, onReply, onEdit, onDelete, onVote, depth = 0 }) => {
+const CommentTree = ({ comments, theme, user, postId, onReply, onEdit, onDelete, onVote, onReport, depth = 0 }) => {
     const isLight = theme === 'light'
     const topLevel = comments.filter(c => depth === 0 ? c.parent == null || c.parent === undefined : false)
     const toRender = depth === 0 ? topLevel : comments
@@ -25,6 +25,7 @@ const CommentTree = ({ comments, theme, user, postId, onReply, onEdit, onDelete,
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onVote={onVote}
+                        onReport={onReport}
                     />
                     {depth < 8 && (
                         <div className="mt-1">
@@ -37,6 +38,7 @@ const CommentTree = ({ comments, theme, user, postId, onReply, onEdit, onDelete,
                                 onEdit={onEdit}
                                 onDelete={onDelete}
                                 onVote={onVote}
+                                onReport={onReport}
                                 depth={depth + 1}
                             />
                         </div>

@@ -6,7 +6,6 @@ import styles from '../../style'
 import { useDispatch, useSelector } from 'react-redux'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
-import { fas } from '@fortawesome/free-solid-svg-icons'
 import { 
     faWallet, faChartPie, faCalendarDay, faCalendarAlt, faTags, faPlus, faMinus,
     faTrash, faPen, faCheck, faTimes, faArrowUp, faArrowDown, faEllipsisH,
@@ -16,12 +15,22 @@ import {
     faEye, faEyeSlash, faExchangeAlt, faSpinner, faClone, faShare, faLock, faUsers
 } from '@fortawesome/free-solid-svg-icons'
 
-library.add(fas)
-import { put } from '@vercel/blob'
+library.add(
+    faWallet, faChartPie, faCalendarDay, faCalendarAlt, faTags, faPlus, faMinus,
+    faTrash, faPen, faCheck, faTimes, faArrowUp, faArrowDown, faEllipsisH,
+    faMoneyBillWave, faCreditCard, faMobileAlt, faUniversity, faCoins,
+    faExclamationTriangle, faCheckCircle, faArrowRight, faSyncAlt, faFileExport, faFilter, faPiggyBank, faHistory, faFilePdf,
+    faHandHoldingUsd, faUserFriends, faCalendarCheck, faChevronDown, faChevronUp, faListAlt, faSearch, faCogs, faCircle,
+    faEye, faEyeSlash, faExchangeAlt, faSpinner, faClone, faShare, faLock, faUsers
+)
+
+// Defer loading the full icon set (only needed for icon picker in categories)
+import('@fortawesome/free-solid-svg-icons').then(m => library.add(m.fas))
+const loadVercelBlob = () => import('@vercel/blob').then(m => m.put)
 import { deleteReceipt as deleteReceiptApi } from '../../endpoint'
-import { io as socketIO } from 'socket.io-client'
-import html2canvas from 'html2canvas-pro'
-import { jsPDF } from 'jspdf'
+const loadSocketIO = () => import('socket.io-client').then(m => m.io)
+const loadHtml2Canvas = () => import('html2canvas-pro').then(m => m.default)
+const loadJsPDF = () => import('jspdf').then(m => m.jsPDF)
 import { 
     getBudgetInitialLoad,
     getBudgetDashboard, getBudgetCategories, createBudgetCategory, updateBudgetCategory, 
@@ -101,7 +110,7 @@ const Budget = ({ user, theme }) => {
     const isViewer = viewingRole === 'viewer'
     const isOwner = !isViewingShared
     const budgetOwnerId = isViewingShared ? viewingBudgetOwner.id : undefined
-    const ownerParam = budgetOwnerId ? { budgetOwnerId } : {}
+    const ownerParam = useMemo(() => budgetOwnerId ? { budgetOwnerId } : {}, [budgetOwnerId])
 
     const [showShareBudgetModal, setShowShareBudgetModal] = useState(false)
     const [shareBudgetUsername, setShareBudgetUsername] = useState('')
@@ -131,23 +140,28 @@ const Budget = ({ user, theme }) => {
     const [showNotif, setShowNotif] = useState(true)
 
     // expense form
-    const emptyItem = { description: '', amount: '' }
-    const getDefaultDate = () => {
+    const emptyItem = useMemo(() => ({ description: '', amount: '' }), [])
+    const getDefaultDate = useCallback(() => {
         const today = new Date()
         if (today.getMonth() + 1 === month && today.getFullYear() === year) {
             return today.toISOString().split('T')[0]
         }
         const d = new Date(year, month - 1, 1)
         return d.toISOString().split('T')[0]
-    }
-    const emptyExpense = { date: getDefaultDate(), category: '', type: 'expense', paymentMethod: 'Cash', notes: '', currency: 'PHP', listOnly: false, isRecurring: false, recurrenceRule: '', recurrenceEnd: '' }
+    }, [month, year])
+    const emptyExpense = useMemo(() => ({ date: getDefaultDate(), category: '', type: 'expense', paymentMethod: 'Cash', notes: '', currency: 'PHP', listOnly: false, isRecurring: false, recurrenceRule: '', recurrenceEnd: '', tags: [] }), [getDefaultDate])
     const [expenseForm, setExpenseForm] = useState(emptyExpense)
     const [expenseItems, setExpenseItems] = useState([{ ...emptyItem }])
     const [editingExpense, setEditingExpense] = useState(null)
     const [showExpenseForm, setShowExpenseForm] = useState(false)
 
+    // Pinned/favorite expenses for quick repeat logging
+    const [pinnedExpenses, setPinnedExpenses] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('budget_pinned_expenses') || '[]') } catch { return [] }
+    })
+
     // category form
-    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '', icon: '', rollover: false }
+    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '', icon: '', rollover: false, rolloverRule: 'none' }
     const [categoryForm, setCategoryForm] = useState(emptyCategory)
     const [editingCategory, setEditingCategory] = useState(null)
     const [showCategoryForm, setShowCategoryForm] = useState(false)
@@ -158,6 +172,62 @@ const Budget = ({ user, theme }) => {
     // bulk selection
     const [selectedExpenses, setSelectedExpenses] = useState([])
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
+
+    // Smart notifications / alerts
+    const [budgetNotifications, setBudgetNotifications] = useState([])
+    const [dismissedAlerts, setDismissedAlerts] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('budget_dismissed_alerts') || '[]') } catch { return [] }
+    })
+
+    const dismissAlert = useCallback((alertId) => {
+        setDismissedAlerts(prev => {
+            const next = [...prev, alertId]
+            localStorage.setItem('budget_dismissed_alerts', JSON.stringify(next))
+            return next
+        })
+    }, [])
+
+    const pinExpense = useCallback((expense) => {
+        setPinnedExpenses(prev => {
+            const exists = prev.find(p => p.description === expense.description && p.category === expense.category?._id)
+            if (exists) return prev
+            const pinned = { description: expense.description, amount: expense.amount, category: expense.category?._id, categoryName: expense.category?.name, categoryColor: expense.category?.color, categoryIcon: expense.category?.icon, type: expense.type, paymentMethod: expense.paymentMethod, currency: expense.currency || 'PHP', tags: expense.tags || [] }
+            const next = [...prev, pinned].slice(0, 8)
+            localStorage.setItem('budget_pinned_expenses', JSON.stringify(next))
+            return next
+        })
+    }, [])
+
+    const unpinExpense = useCallback((idx) => {
+        setPinnedExpenses(prev => {
+            const next = prev.filter((_, i) => i !== idx)
+            localStorage.setItem('budget_pinned_expenses', JSON.stringify(next))
+            return next
+        })
+    }, [])
+
+    const quickLogPinned = useCallback(async (pinned) => {
+        const items = [{ description: pinned.description, amount: pinned.amount.toString() }]
+        try {
+            await dispatch(createBudgetExpense({
+                date: getDefaultDate(),
+                category: pinned.category,
+                type: pinned.type,
+                paymentMethod: pinned.paymentMethod,
+                notes: '',
+                currency: pinned.currency,
+                tags: pinned.tags || [],
+                items,
+                month, year, ...ownerParam
+            }))
+            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+            setNotification({ message: `Logged "${pinned.description}"`, variant: 'success' })
+            setShowNotif(true)
+        } catch (err) {
+            setNotification({ message: 'Failed to log expense', variant: 'danger' })
+            setShowNotif(true)
+        }
+    }, [dispatch, getDefaultDate, month, year, ownerParam])
 
     // YTD expenses (fetched separately so monthly expenses stay in Redux)
     const [ytdExpenses, setYtdExpenses] = useState([])
@@ -187,24 +257,32 @@ const Budget = ({ user, theme }) => {
         const isShared = !!budgetOwnerId
 
         dispatch(getBudgetInitialLoad({ month, year, ...currentOwnerParam }))
-        fetchYtdExpenses(year, currentOwnerParam)
 
         setSelectedExpenses([])
         setBulkDeleteConfirm(false)
 
+        // Defer non-critical loads to avoid blocking first paint
+        const deferTimer = setTimeout(() => {
+            fetchYtdExpenses(year, currentOwnerParam)
+        }, 100)
+
         if (!initialLoadRef.current) {
             initialLoadRef.current = true
-            dispatch(getSharedBudgets())
-            dispatch(getSharedUsers())
-            if (!isShared) {
-                dispatch(processRecurring()).then((action) => {
-                    if (action?.payload?.data?.created > 0) {
-                        dispatch(getBudgetExpenses({ month, year, ...currentOwnerParam }))
-                        dispatch(getBudgetDashboard({ month, year, ...currentOwnerParam }))
-                    }
-                })
-            }
+            setTimeout(() => {
+                dispatch(getSharedBudgets())
+                dispatch(getSharedUsers())
+                if (!isShared) {
+                    dispatch(processRecurring()).then((action) => {
+                        if (action?.payload?.data?.created > 0) {
+                            dispatch(getBudgetExpenses({ month, year, ...currentOwnerParam }))
+                            dispatch(getBudgetDashboard({ month, year, ...currentOwnerParam }))
+                        }
+                    })
+                }
+            }, 200)
         }
+
+        return () => clearTimeout(deferTimer)
     }, [user, month, year, budgetOwnerId])
 
     // ==================== SOCKET.IO REAL-TIME ====================
@@ -215,64 +293,76 @@ const Budget = ({ user, theme }) => {
 
     useEffect(() => {
         if (!user) return
+        let socket = null
+        let cancelled = false
 
-        const socket = socketIO(socketUrl, { transports: ['websocket', 'polling'] })
         const roomId = budgetOwnerId || user._id
         const myId = user._id
 
-        socket.emit('join_budget', roomId)
+        loadSocketIO().then(socketIO => {
+            if (cancelled) return
+            socket = socketIO(socketUrl, { transports: ['websocket', 'polling'] })
 
-        socket.on('budget_expenses_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) {
-                dispatch(setExpenses(data.result))
-                dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            }
-        })
+            socket.emit('join_budget', roomId)
 
-        socket.on('budget_categories_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) {
-                dispatch(setCategories(data.result))
-                dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            }
-        })
+            socket.on('budget_expenses_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) {
+                    dispatch(setExpenses(data.result))
+                    dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+                }
+            })
 
-        socket.on('budget_savings_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setSavings(data.result))
-        })
+            socket.on('budget_categories_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) {
+                    dispatch(setCategories(data.result))
+                    dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+                }
+            })
 
-        socket.on('budget_savings_history_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setSavingsHistory(data.result))
-        })
+            socket.on('budget_savings_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setSavings(data.result))
+            })
 
-        socket.on('budget_debts_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setDebts(data.result))
-        })
+            socket.on('budget_savings_history_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setSavingsHistory(data.result))
+            })
 
-        socket.on('budget_lists_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setBudgetLists(data.result))
-        })
+            socket.on('budget_debts_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setDebts(data.result))
+            })
 
-        socket.on('budget_goals_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setGoals(data.result))
-        })
+            socket.on('budget_lists_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setBudgetLists(data.result))
+            })
 
-        socket.on('budget_settings_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setExchangeRatesData(data.result))
-        })
+            socket.on('budget_goals_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setGoals(data.result))
+            })
 
-        socket.on('budget_sharing_updated', (data) => {
-            if (data.userId === roomId && data.actorId !== myId) dispatch(setSharedUsers(data.result))
-        })
+            socket.on('budget_settings_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setExchangeRatesData(data.result))
+            })
 
-        socket.on('budget_access_changed', () => {
-            dispatch(getSharedBudgets())
+            socket.on('budget_sharing_updated', (data) => {
+                if (data.userId === roomId && data.actorId !== myId) dispatch(setSharedUsers(data.result))
+            })
+
+            socket.on('budget_access_changed', (data) => {
+                dispatch(getSharedBudgets())
+                if (data?.revoked && data?.ownerId === budgetOwnerId) {
+                    dispatch(setViewingBudgetOwner(null))
+                }
+            })
         })
 
         return () => {
-            socket.emit('leave_budget', roomId)
-            socket.disconnect()
+            cancelled = true
+            if (socket) {
+                socket.emit('leave_budget', roomId)
+                socket.disconnect()
+            }
         }
-    }, [user, budgetOwnerId, month, year, dispatch, ownerParam])
+    }, [user, budgetOwnerId, month, year, dispatch])
 
     useEffect(() => {
         if (budgetAlert && Object.keys(budgetAlert).length > 0) {
@@ -335,6 +425,7 @@ const Budget = ({ user, theme }) => {
             isRecurring: !!e.isRecurring,
             recurrenceRule: e.recurrenceRule || '',
             recurrenceEnd: e.recurrenceEnd ? toLocalDateString(e.recurrenceEnd) : '',
+            tags: e.tags || [],
         })
         setExpenseItems([{ description: e.description, amount: e.amount.toString() }])
         setEditingExpense(e._id)
@@ -355,6 +446,7 @@ const Budget = ({ user, theme }) => {
             isRecurring: false,
             recurrenceRule: '',
             recurrenceEnd: '',
+            tags: e.tags || [],
         })
         setExpenseItems([{ description: e.description, amount: e.amount.toString() }])
         setEditingExpense(null)
@@ -371,6 +463,7 @@ const Budget = ({ user, theme }) => {
             if (attachmentPreview?.includes('vercel-storage')) {
                 await deleteReceiptApi({ url: attachmentPreview }).catch(() => {})
             }
+            const put = await loadVercelBlob()
             const blob = await put(`receipts/${Date.now()}_${file.name}`, file, {
                 access: 'public', token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
             })
@@ -441,7 +534,7 @@ const Budget = ({ user, theme }) => {
 
     const handleCategorySubmit = async () => {
         if (!categoryForm.name) return
-        const data = { ...categoryForm, ...ownerParam, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover }
+        const data = { ...categoryForm, ...ownerParam, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover, rolloverRule: categoryForm.rolloverRule || 'none' }
         try {
             if (editingCategory) {
                 await dispatch(updateBudgetCategory({ ...data, id: editingCategory })).unwrap()
@@ -459,7 +552,7 @@ const Budget = ({ user, theme }) => {
     }
 
     const handleEditCategory = (c) => {
-        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '', icon: c.icon || '', rollover: !!c.rollover })
+        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '', icon: c.icon || '', rollover: !!c.rollover, rolloverRule: c.rolloverRule || (c.rollover ? 'carry' : 'none') })
         setEditingCategory(c._id)
         setShowCategoryForm(true)
     }
@@ -497,31 +590,34 @@ const Budget = ({ user, theme }) => {
         URL.revokeObjectURL(url)
     }
 
-    const prevMonth = () => {
+    const prevMonth = useCallback(() => {
         if (month === 1) { setMonth(12); setYear(y => y - 1) }
         else setMonth(m => m - 1)
-    }
-    const nextMonth = () => {
+    }, [month])
+    const nextMonth = useCallback(() => {
         if (month === 12) { setMonth(1); setYear(y => y + 1) }
         else setMonth(m => m + 1)
-    }
+    }, [month])
 
     // ==================== KEYBOARD SHORTCUTS ====================
 
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+            if (e.target.closest('[role="dialog"]') || e.target.closest('[contenteditable]')) return
             if (e.key === 'Escape') {
                 if (receiptViewer) { setReceiptViewer(null); return }
                 if (showExpenseForm) { setShowExpenseForm(false); setEditingExpense(null); return }
                 if (showCategoryForm) { setShowCategoryForm(false); setEditingCategory(null); return }
+                if (showShareBudgetModal) { setShowShareBudgetModal(false); return }
             }
+            if (showExpenseForm || showCategoryForm || receiptViewer || showShareBudgetModal) return
             if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) prevMonth()
             if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) nextMonth()
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [receiptViewer, showExpenseForm, showCategoryForm, prevMonth, nextMonth])
+    }, [receiptViewer, showExpenseForm, showCategoryForm, showShareBudgetModal, prevMonth, nextMonth])
 
     // ==================== GROUPED EXPENSES ====================
 
@@ -541,11 +637,199 @@ const Budget = ({ user, theme }) => {
 
     // ==================== SHARED STYLES ====================
 
-    const card = `rounded-xl border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`
-    const inputCls = `w-full px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
-    const selectCls = `px-3 py-2 rounded-lg text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? 'bg-white border-slate-200 focus:border-blue-400 text-slate-800' : 'bg-[#1a1a1a] border-[#333] focus:border-blue-500 text-gray-200'}`
-    const btnPrimary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
-    const btnSecondary = `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`
+    const activeTemplate = budgetSettings?.template || 'default'
+
+    const templateStyles = useMemo(() => {
+        switch (activeTemplate) {
+            case 'compact':
+                return {
+                    card: `rounded-lg border border-solid ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`,
+                    radius: 'rounded-lg',
+                    // Layout & density
+                    cardPadding: 'p-3 sm:p-4',
+                    headerPadding: 'p-3 sm:p-4 mb-3',
+                    sectionGap: 'space-y-3',
+                    gridGap: 'gap-2 sm:gap-3',
+                    tabCls: 'px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs',
+                    tabGap: 'gap-0.5',
+                    tabIconCls: 'text-[10px]',
+                    tabShowLabel: true,
+                    headerTitleCls: 'text-sm sm:text-base font-bold',
+                    headerSubCls: 'text-[10px] sm:text-[11px]',
+                    headerIconSize: 'w-8 h-8 sm:w-9 sm:h-9',
+                    headerIconCls: 'text-sm sm:text-base',
+                    sectionTitleCls: 'text-xs font-semibold',
+                    bodyTextCls: 'text-[11px]',
+                    valueTextCls: 'text-base sm:text-lg font-bold',
+                    // Colors
+                    tabActive: isLight ? 'bg-slate-700 text-white shadow-sm' : 'bg-slate-500 text-white',
+                    tabInactive: isLight ? 'text-slate-500 hover:bg-slate-50' : 'text-gray-400 hover:bg-[#1a1a1a]',
+                    headerIcon: isLight ? 'bg-slate-100' : 'bg-slate-800/40',
+                    headerIconText: isLight ? 'text-slate-600' : 'text-slate-300',
+                    accentBg: isLight ? 'bg-slate-50' : 'bg-slate-800/20',
+                    accentText: isLight ? 'text-slate-600' : 'text-slate-300',
+                    accentBorder: isLight ? 'border-slate-300' : 'border-slate-700',
+                    focusBorder: isLight ? 'focus:border-slate-400' : 'focus:border-slate-500',
+                    btnPrimary: `px-3 py-1.5 rounded-md text-xs font-medium transition-all ${isLight ? 'bg-slate-700 hover:bg-slate-800 text-white' : 'bg-slate-600 hover:bg-slate-700 text-white'}`,
+                    btnSecondary: `px-3 py-1.5 rounded-md text-xs font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`,
+                    progressBar: 'bg-slate-500',
+                    badgeBg: isLight ? 'bg-slate-100 text-slate-600' : 'bg-slate-800/40 text-slate-300',
+                    highlightBg: isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/20 border-slate-800',
+                    fabBg: isLight ? 'bg-slate-700 hover:bg-slate-800 text-white shadow-slate-200' : 'bg-slate-600 hover:bg-slate-700 text-white shadow-slate-900/50',
+                }
+            case 'vibrant':
+                return {
+                    card: `rounded-2xl border border-solid shadow-lg ${isLight ? 'bg-white border-slate-100 shadow-violet-100/50' : 'bg-[#0e0e0e] border-[#2B2B2B] shadow-violet-900/10'}`,
+                    radius: 'rounded-xl',
+                    // Layout & density
+                    cardPadding: 'p-5 sm:p-7',
+                    headerPadding: 'p-5 sm:p-7 mb-5',
+                    sectionGap: 'space-y-5',
+                    gridGap: 'gap-4 sm:gap-5',
+                    tabCls: 'px-4 sm:px-5 py-2.5 text-xs sm:text-sm',
+                    tabGap: 'gap-1.5',
+                    tabIconCls: 'text-sm',
+                    tabShowLabel: true,
+                    headerTitleCls: 'text-lg sm:text-xl font-extrabold',
+                    headerSubCls: 'text-xs sm:text-sm',
+                    headerIconSize: 'w-11 h-11 sm:w-12 sm:h-12',
+                    headerIconCls: 'text-lg sm:text-xl',
+                    sectionTitleCls: 'text-sm font-bold',
+                    bodyTextCls: 'text-xs',
+                    valueTextCls: 'text-xl sm:text-2xl font-extrabold',
+                    // Colors
+                    tabActive: isLight ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-200/50' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30',
+                    tabInactive: isLight ? 'text-violet-500 hover:bg-violet-50' : 'text-violet-400 hover:bg-violet-900/10',
+                    headerIcon: isLight ? 'bg-gradient-to-br from-violet-100 to-fuchsia-100' : 'bg-gradient-to-br from-violet-900/30 to-fuchsia-900/30',
+                    headerIconText: isLight ? 'text-violet-600' : 'text-violet-400',
+                    accentBg: isLight ? 'bg-violet-50' : 'bg-violet-900/10',
+                    accentText: isLight ? 'text-violet-600' : 'text-violet-400',
+                    accentBorder: isLight ? 'border-violet-200' : 'border-violet-800',
+                    focusBorder: isLight ? 'focus:border-violet-400' : 'focus:border-violet-500',
+                    btnPrimary: `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${isLight ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-md shadow-violet-200/50' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white shadow-md shadow-violet-900/30'}`,
+                    btnSecondary: `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${isLight ? 'bg-violet-50 hover:bg-violet-100 text-violet-700' : 'bg-violet-900/20 hover:bg-violet-900/30 text-violet-300'}`,
+                    progressBar: 'bg-gradient-to-r from-violet-500 to-fuchsia-500',
+                    badgeBg: isLight ? 'bg-violet-100 text-violet-600' : 'bg-violet-900/30 text-violet-400',
+                    highlightBg: isLight ? 'bg-violet-50 border-violet-200' : 'bg-violet-900/10 border-violet-800',
+                    fabBg: isLight ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-xl shadow-violet-200/60' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white shadow-xl shadow-violet-900/50',
+                }
+            case 'minimal':
+                return {
+                    card: `rounded-xl ${isLight ? 'bg-white shadow-sm shadow-slate-100' : 'bg-[#0e0e0e]'}`,
+                    radius: 'rounded-lg',
+                    // Layout & density
+                    cardPadding: 'p-5 sm:p-6',
+                    headerPadding: 'p-5 sm:p-6 mb-5',
+                    sectionGap: 'space-y-5',
+                    gridGap: 'gap-4',
+                    tabCls: 'px-3 sm:px-4 py-2 text-xs sm:text-sm',
+                    tabGap: 'gap-2',
+                    tabIconCls: 'hidden',
+                    tabShowLabel: true,
+                    headerTitleCls: 'text-base sm:text-lg font-semibold',
+                    headerSubCls: 'text-[11px] sm:text-xs',
+                    headerIconSize: 'w-9 h-9 sm:w-10 sm:h-10',
+                    headerIconCls: 'text-base sm:text-lg',
+                    sectionTitleCls: 'text-sm font-medium',
+                    bodyTextCls: 'text-xs',
+                    valueTextCls: 'text-lg sm:text-xl font-semibold',
+                    // Colors
+                    tabActive: isLight ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white',
+                    tabInactive: isLight ? 'text-slate-500 hover:text-emerald-600' : 'text-gray-400 hover:text-emerald-400',
+                    headerIcon: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20',
+                    headerIconText: isLight ? 'text-emerald-600' : 'text-emerald-400',
+                    accentBg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/10',
+                    accentText: isLight ? 'text-emerald-600' : 'text-emerald-400',
+                    accentBorder: isLight ? 'border-emerald-200' : 'border-emerald-800',
+                    focusBorder: isLight ? 'focus:border-emerald-400' : 'focus:border-emerald-500',
+                    btnPrimary: `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`,
+                    btnSecondary: `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' : 'bg-emerald-900/20 hover:bg-emerald-900/30 text-emerald-300'}`,
+                    progressBar: 'bg-emerald-500',
+                    badgeBg: isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400',
+                    highlightBg: isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-900/10 border-emerald-800',
+                    fabBg: isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/50',
+                }
+            case 'glass':
+                return {
+                    card: `rounded-2xl border border-solid backdrop-blur-md ${isLight ? 'bg-white/60 border-white/40 shadow-lg shadow-slate-200/30' : 'bg-[#0e0e0e]/70 border-[#2B2B2B]/40 shadow-lg shadow-black/20'}`,
+                    radius: 'rounded-xl',
+                    // Layout & density
+                    cardPadding: 'p-5 sm:p-6',
+                    headerPadding: 'p-5 sm:p-6 mb-4',
+                    sectionGap: 'space-y-4',
+                    gridGap: 'gap-4',
+                    tabCls: 'px-3.5 sm:px-4 py-2 text-xs sm:text-sm',
+                    tabGap: 'gap-1',
+                    tabIconCls: 'text-xs',
+                    tabShowLabel: true,
+                    headerTitleCls: 'text-base sm:text-lg font-bold',
+                    headerSubCls: 'text-[11px] sm:text-xs',
+                    headerIconSize: 'w-10 h-10 sm:w-11 sm:h-11',
+                    headerIconCls: 'text-base sm:text-lg',
+                    sectionTitleCls: 'text-sm font-semibold',
+                    bodyTextCls: 'text-xs',
+                    valueTextCls: 'text-lg sm:text-xl font-bold',
+                    // Colors
+                    tabActive: isLight ? 'bg-cyan-500/80 backdrop-blur-sm text-white shadow-md shadow-cyan-200/30' : 'bg-cyan-600/80 backdrop-blur-sm text-white shadow-md shadow-cyan-900/20',
+                    tabInactive: isLight ? 'text-cyan-600 hover:bg-cyan-50/50 backdrop-blur-sm' : 'text-cyan-400 hover:bg-cyan-900/10',
+                    headerIcon: isLight ? 'bg-cyan-100/60 backdrop-blur-sm' : 'bg-cyan-900/20 backdrop-blur-sm',
+                    headerIconText: isLight ? 'text-cyan-600' : 'text-cyan-400',
+                    accentBg: isLight ? 'bg-cyan-50/60' : 'bg-cyan-900/10',
+                    accentText: isLight ? 'text-cyan-600' : 'text-cyan-400',
+                    accentBorder: isLight ? 'border-cyan-200' : 'border-cyan-800',
+                    focusBorder: isLight ? 'focus:border-cyan-400' : 'focus:border-cyan-500',
+                    btnPrimary: `px-4 py-2 rounded-xl text-sm font-medium transition-all backdrop-blur-sm ${isLight ? 'bg-cyan-500/90 hover:bg-cyan-600/90 text-white shadow-sm' : 'bg-cyan-600/90 hover:bg-cyan-700/90 text-white'}`,
+                    btnSecondary: `px-4 py-2 rounded-xl text-sm font-medium transition-all backdrop-blur-sm ${isLight ? 'bg-cyan-50/60 hover:bg-cyan-100/60 text-cyan-700' : 'bg-cyan-900/20 hover:bg-cyan-900/30 text-cyan-300'}`,
+                    progressBar: 'bg-cyan-500',
+                    badgeBg: isLight ? 'bg-cyan-100/60 text-cyan-600' : 'bg-cyan-900/30 text-cyan-400',
+                    highlightBg: isLight ? 'bg-cyan-50/60 border-cyan-200' : 'bg-cyan-900/10 border-cyan-800',
+                    fabBg: isLight ? 'bg-cyan-500/90 hover:bg-cyan-600/90 text-white shadow-cyan-200 backdrop-blur-sm' : 'bg-cyan-600/90 hover:bg-cyan-700/90 text-white shadow-cyan-900/50',
+                }
+            default:
+                return {
+                    card: `rounded-xl border border-solid ${isLight ? 'bg-white/90 backdrop-blur-sm border-slate-200/80' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`,
+                    radius: 'rounded-lg',
+                    // Layout & density
+                    cardPadding: 'p-4 sm:p-5',
+                    headerPadding: 'p-4 sm:p-6 mb-4',
+                    sectionGap: 'space-y-4',
+                    gridGap: 'gap-3 sm:gap-4',
+                    tabCls: 'px-3 sm:px-4 py-2 text-xs sm:text-sm',
+                    tabGap: 'gap-1',
+                    tabIconCls: 'text-xs',
+                    tabShowLabel: true,
+                    headerTitleCls: 'text-base sm:text-lg font-bold',
+                    headerSubCls: 'text-[11px] sm:text-xs',
+                    headerIconSize: 'w-9 h-9 sm:w-10 sm:h-10',
+                    headerIconCls: 'text-base sm:text-lg',
+                    sectionTitleCls: 'text-sm font-semibold',
+                    bodyTextCls: 'text-xs',
+                    valueTextCls: 'text-lg sm:text-xl font-bold',
+                    // Colors
+                    tabActive: isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white',
+                    tabInactive: isLight ? 'text-slate-500 hover:bg-slate-50' : 'text-gray-400 hover:bg-[#1a1a1a]',
+                    headerIcon: isLight ? 'bg-blue-100' : 'bg-blue-900/30',
+                    headerIconText: isLight ? 'text-blue-600' : 'text-blue-400',
+                    accentBg: isLight ? 'bg-blue-50' : 'bg-blue-900/20',
+                    accentText: isLight ? 'text-blue-600' : 'text-blue-400',
+                    accentBorder: isLight ? 'border-blue-200' : 'border-blue-800',
+                    focusBorder: isLight ? 'focus:border-blue-400' : 'focus:border-blue-500',
+                    btnPrimary: `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`,
+                    btnSecondary: `px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`,
+                    progressBar: 'bg-blue-500',
+                    badgeBg: isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400',
+                    highlightBg: isLight ? 'bg-blue-50 border-blue-200' : 'bg-blue-900/10 border-blue-800',
+                    fabBg: isLight ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-blue-200' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/50',
+                }
+        }
+    }, [activeTemplate, isLight])
+
+    const card = templateStyles.card
+    const cardP = `${templateStyles.card} ${templateStyles.cardPadding}`
+    const inputCls = `w-full px-3 py-2 ${templateStyles.radius} text-sm border border-solid outline-none transition-all ${isLight ? `bg-white border-slate-200 ${templateStyles.focusBorder} text-slate-800` : `bg-[#1a1a1a] border-[#333] ${templateStyles.focusBorder} text-gray-200`}`
+    const selectCls = `px-3 py-2 ${templateStyles.radius} text-sm border border-solid outline-none transition-all cursor-pointer ${isLight ? `bg-white border-slate-200 ${templateStyles.focusBorder} text-slate-800` : `bg-[#1a1a1a] border-[#333] ${templateStyles.focusBorder} text-gray-200`}`
+    const btnPrimary = templateStyles.btnPrimary
+    const btnSecondary = templateStyles.btnSecondary
 
     const allTabs = [
         { id: 'dashboard', label: 'Dashboard', icon: faChartPie },
@@ -561,7 +845,7 @@ const Budget = ({ user, theme }) => {
     ]
     const tabs = isViewer ? allTabs.filter(t => t.id !== 'settings') : allTabs
 
-    const paymentIcon = (m) => {
+    const paymentIcon = useCallback((m) => {
         switch(m) {
             case 'GCash': return faMobileAlt
             case 'Bank': return faUniversity
@@ -569,12 +853,12 @@ const Budget = ({ user, theme }) => {
             case 'PayPal': return faCoins
             default: return faMoneyBillWave
         }
-    }
+    }, [])
 
-    const formatCurrencyRaw = (v, currencyCode) => {
+    const formatCurrencyRaw = useCallback((v, currencyCode) => {
         const cur = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0]
         return `${cur.symbol}${(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    }
+    }, [])
 
     // Exchange rate state (lifted to parent so all tabs can use it)
     const [viewCurrency, setViewCurrency] = useState('')
@@ -609,7 +893,7 @@ const Budget = ({ user, theme }) => {
 
     const activeViewCurrency = viewCurrency || 'PHP'
 
-    const toTargetCurrency = (amount, fromCurrency, target) => {
+    const toTargetCurrency = useCallback((amount, fromCurrency, target) => {
         if (fromCurrency === target) return amount
         if (target === 'PHP') {
             if (fromCurrency === 'PHP') return amount
@@ -621,15 +905,15 @@ const Budget = ({ user, theme }) => {
         if (fromCurrency === 'PHP') return amount * targetRate
         const fromRate = exchangeRates[fromCurrency]
         return (fromRate && fromRate > 0) ? (amount / fromRate) * targetRate : amount * targetRate
-    }
+    }, [exchangeRates])
 
-    const formatCurrency = (v, currencyCode) => {
+    const formatCurrency = useCallback((v, currencyCode) => {
         const from = currencyCode || 'PHP'
         if (from === activeViewCurrency) return formatCurrencyRaw(v, activeViewCurrency)
         const converted = toTargetCurrency(v || 0, from, activeViewCurrency)
         if (converted !== null) return formatCurrencyRaw(converted, activeViewCurrency)
         return formatCurrencyRaw(v, from)
-    }
+    }, [activeViewCurrency, formatCurrencyRaw, toTargetCurrency])
 
     const monthlyBudgetData = useMemo(() => {
         const expenseCats = categories.filter(c => c.type === 'expense')
@@ -667,6 +951,7 @@ const Budget = ({ user, theme }) => {
         })
 
         const catSpending = {}
+        const categoryByMonth = {}
         active.filter(e => e.type === 'expense').forEach(e => {
             const catId = e.category?._id || 'uncategorized'
             const catName = e.category?.name || 'Uncategorized'
@@ -674,21 +959,59 @@ const Budget = ({ user, theme }) => {
             const catIcon = e.category?.icon || ''
             if (!catSpending[catId]) catSpending[catId] = { name: catName, color: catColor, icon: catIcon, amount: 0 }
             catSpending[catId].amount += convert(e.amount, e.currency)
+            const m = new Date(e.date).getMonth()
+            if (!categoryByMonth[catId]) categoryByMonth[catId] = {}
+            if (!categoryByMonth[catId][m]) categoryByMonth[catId][m] = 0
+            categoryByMonth[catId][m] += convert(e.amount, e.currency)
         })
         const topCategories = Object.values(catSpending).sort((a, b) => b.amount - a.amount).slice(0, 5)
 
         const elapsed = month
         const monthlyAvg = elapsed > 0 ? ytdExpense / elapsed : 0
 
-        return { ytdIncome, ytdExpense, ytdBalance, ytdTxCount, monthlyBreakdown, topCategories, monthlyAvg }
+        return { ytdIncome, ytdExpense, ytdBalance, ytdTxCount, monthlyBreakdown, topCategories, monthlyAvg, categoryBreakdown: categoryByMonth }
     }, [ytdExpenses, activeViewCurrency, exchangeRates, month])
 
-    const statusColor = (pct) => {
+    // Smart Notifications Generator
+    useEffect(() => {
+        if (!dashboard || !categories.length) return
+        const alerts = []
+        const today = new Date()
+        const currentDay = (today.getMonth() + 1 === month && today.getFullYear() === year) ? today.getDate() : null
+
+        monthlyBudgetData.filter(c => c.budget > 0).forEach(cat => {
+            if (cat.percentage >= 80 && cat.percentage < 100) {
+                alerts.push({ id: `warn-${cat._id}-${month}`, severity: 'warning', icon: faExclamationTriangle, message: `${cat.name} is at ${Math.round(cat.percentage)}% — ${formatCurrencyRaw(cat.budget - cat.spent, activeViewCurrency)} left` })
+            } else if (cat.percentage >= 100) {
+                alerts.push({ id: `over-${cat._id}-${month}`, severity: 'danger', icon: faExclamationTriangle, message: `${cat.name} exceeded budget by ${formatCurrencyRaw(cat.spent - cat.budget, activeViewCurrency)}` })
+            }
+        })
+
+        if (currentDay && currentDay >= 25) {
+            const recurringCount = expenses.filter(e => e.isRecurring).length
+            if (recurringCount > 0) {
+                alerts.push({ id: `bills-${month}`, severity: 'info', icon: faSyncAlt, message: `${recurringCount} recurring transaction${recurringCount > 1 ? 's' : ''} scheduled this month` })
+            }
+        }
+
+        const upcomingDebts = (debts || []).filter(d => d.due_date && d.amount_paid < d.total_amount).filter(d => {
+            const due = new Date(d.due_date)
+            const daysUntil = Math.ceil((due - today) / (1000 * 60 * 60 * 24))
+            return daysUntil >= 0 && daysUntil <= 3
+        })
+        if (upcomingDebts.length > 0) {
+            alerts.push({ id: `debt-due-${month}-${today.getDate()}`, severity: 'warning', icon: faHandHoldingUsd, message: `${upcomingDebts.length} debt payment${upcomingDebts.length > 1 ? 's' : ''} due within 3 days` })
+        }
+
+        setBudgetNotifications(alerts)
+    }, [dashboard, monthlyBudgetData, expenses, debts, month, year, formatCurrencyRaw, activeViewCurrency])
+
+    const statusColor = useCallback((pct) => {
         if (pct > 100) return { bg: isLight ? 'bg-red-50' : 'bg-red-900/20', text: 'text-red-500', bar: 'bg-red-500', border: isLight ? 'border-red-200' : 'border-red-800/50', label: 'Over budget', icon: faExclamationTriangle }
         if (pct === 100) return { bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', text: 'text-emerald-500', bar: 'bg-emerald-500', border: isLight ? 'border-emerald-200' : 'border-emerald-800/50', label: 'Exactly on budget', icon: faCheckCircle }
         if (pct >= 80) return { bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20', text: 'text-amber-500', bar: 'bg-amber-500', border: isLight ? 'border-amber-200' : 'border-amber-800/50', label: 'Near limit', icon: faExclamationTriangle }
         return { bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20', text: 'text-emerald-500', bar: 'bg-emerald-500', border: isLight ? 'border-emerald-200' : 'border-emerald-800/50', label: 'On track', icon: faCheckCircle }
-    }
+    }, [isLight])
 
     if (!user) {
         return (
@@ -709,12 +1032,12 @@ const Budget = ({ user, theme }) => {
     }
 
     const budgetContextValue = useMemo(() => ({
-        isLight, card, inputCls, selectCls, btnPrimary, btnSecondary,
+        isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, templateStyles,
         formatCurrency, formatCurrencyRaw, activeViewCurrency, toTargetCurrency,
         dispatch, month, year, categories, expenses, isLoading,
         PAYMENT_METHODS, paymentIcon, statusColor,
         setReceiptViewer, setNotification, setShowNotif,
-    }), [isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, dispatch, month, year, categories, expenses, isLoading, PAYMENT_METHODS, paymentIcon, statusColor])
+    }), [isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, templateStyles, formatCurrency, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, dispatch, month, year, categories, expenses, isLoading, PAYMENT_METHODS, paymentIcon, statusColor])
 
     return (
         <BudgetContext.Provider value={budgetContextValue}>
@@ -757,17 +1080,17 @@ const Budget = ({ user, theme }) => {
                         )}
 
                         {/* Header */}
-                        <div className={`${card} p-4 sm:p-6 mb-4`}>
+                        <div className={`${card} ${templateStyles.headerPadding}`}>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
-                                        <FontAwesomeIcon icon={faWallet} className={`text-base sm:text-lg ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                    <div className={`${templateStyles.headerIconSize} ${templateStyles.radius} flex items-center justify-center flex-shrink-0 ${templateStyles.headerIcon}`}>
+                                        <FontAwesomeIcon icon={faWallet} className={`${templateStyles.headerIconCls} ${templateStyles.headerIconText}`} />
                                     </div>
                                     <div>
-                                        <h1 className={`text-base sm:text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                                        <h1 className={`${templateStyles.headerTitleCls} ${isLight ? 'text-slate-800' : 'text-white'}`}>
                                             {isViewingShared ? `${viewingBudgetOwner?.username}'s Budget` : 'Budget Manager'}
                                         </h1>
-                                        <p className={`text-[11px] sm:text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        <p className={`${templateStyles.headerSubCls} ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
                                             {isViewingShared ? `${viewingRole === 'viewer' ? 'View only' : 'Editor'} access` : 'Track your income and expenses'}
                                         </p>
                                     </div>
@@ -788,7 +1111,7 @@ const Budget = ({ user, theme }) => {
                                             <FontAwesomeIcon icon={faSyncAlt} className={`text-xs ${isLoading ? 'animate-spin' : ''}`} />
                                         </button>
                                         {(month !== now.getMonth() + 1 || year !== now.getFullYear()) && (
-                                            <button onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }} className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg flex-shrink-0 transition-all ${isLight ? 'bg-blue-50 hover:bg-blue-100 text-blue-600' : 'bg-blue-900/20 hover:bg-blue-900/30 text-blue-400'}`} title="Jump to current month">
+                                            <button onClick={() => { setMonth(now.getMonth() + 1); setYear(now.getFullYear()) }} className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 ${templateStyles.radius} flex-shrink-0 transition-all ${templateStyles.accentBg} ${templateStyles.accentText}`} title="Jump to current month">
                                                 <FontAwesomeIcon icon={faCalendarDay} className="text-[10px]" />
                                                 <span className="hidden sm:inline">Today</span>
                                             </button>
@@ -797,7 +1120,7 @@ const Budget = ({ user, theme }) => {
                                     {/* Action icons */}
                                     <div className="flex items-center justify-center gap-2">
                                         {expenses.length > 0 && (
-                                            <button onClick={handleExportCSV} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} title="Export to CSV">
+                                            <button onClick={handleExportCSV} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 ${templateStyles.radius} flex-shrink-0 transition-all ${isLight ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`} title="Export to CSV">
                                                 <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
                                                 <span className="hidden sm:inline">Export</span>
                                             </button>
@@ -838,7 +1161,7 @@ const Budget = ({ user, theme }) => {
                                                 >
                                                     <FontAwesomeIcon icon={faUsers} className="text-[10px]" />
                                                     <span className="hidden sm:inline">Budgets</span>
-                                                    <span className={`text-[10px] font-bold px-1 py-0.5 rounded-full ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>{sharedBudgets.length}</span>
+                                                    <span className={`text-[10px] font-bold px-1 py-0.5 rounded-full ${templateStyles.badgeBg}`}>{sharedBudgets.length}</span>
                                                 </button>
                                             {showBudgetDropdown && (
                                             <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl border border-solid shadow-xl z-50 overflow-hidden ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
@@ -883,7 +1206,7 @@ const Budget = ({ user, theme }) => {
                             </div>
 
                             {/* Tabs */}
-                            <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Budget sections"
+                            <div className={`flex ${templateStyles.tabGap} mt-4 overflow-x-auto pb-1 -mx-1 px-1`} role="tablist" aria-label="Budget sections"
                                 onKeyDown={(e) => {
                                     const idx = tabs.findIndex(t => t.id === activeTab)
                                     if (e.key === 'ArrowRight') { e.preventDefault(); setActiveTab(tabs[(idx + 1) % tabs.length].id) }
@@ -901,23 +1224,66 @@ const Budget = ({ user, theme }) => {
                                         aria-controls={`tabpanel-${tab.id}`}
                                         tabIndex={activeTab === tab.id ? 0 : -1}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${
+                                        className={`flex items-center gap-1.5 sm:gap-2 ${templateStyles.tabCls} ${templateStyles.radius} font-medium whitespace-nowrap transition-all ${
                                             activeTab === tab.id
-                                                ? (isLight ? 'bg-blue-500 text-white shadow-sm' : 'bg-blue-600 text-white')
-                                                : (isLight ? 'text-slate-500 hover:bg-slate-50' : 'text-gray-400 hover:bg-[#1a1a1a]')
+                                                ? templateStyles.tabActive
+                                                : templateStyles.tabInactive
                                         }`}
                                     >
-                                        <FontAwesomeIcon icon={tab.icon} className="text-xs" />
-                                        <span className="hidden sm:inline">{tab.label}</span>
-                                        <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                                        <FontAwesomeIcon icon={tab.icon} className={templateStyles.tabIconCls} />
+                                        {templateStyles.tabShowLabel && <span className="hidden sm:inline">{tab.label}</span>}
+                                        {templateStyles.tabShowLabel && <span className="sm:hidden">{tab.label.split(' ')[0]}</span>}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
+                        {/* Pinned Expenses - Quick Log */}
+                        {pinnedExpenses.length > 0 && !isViewer && (
+                            <div className={`mb-3 ${card} px-3 py-2.5`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FontAwesomeIcon icon={faClone} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
+                                    <span className={`text-[11px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Quick Log</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {pinnedExpenses.map((p, i) => (
+                                        <div key={i} className="group relative">
+                                            <button onClick={() => quickLogPinned(p)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border border-solid ${
+                                                isLight ? 'bg-slate-50 hover:bg-blue-50 border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600' : 'bg-[#111] hover:bg-blue-900/20 border-[#1f1f1f] hover:border-blue-800/50 text-gray-300 hover:text-blue-300'
+                                            }`} title={`Quick log: ${p.description} (${p.amount})`}>
+                                                {p.categoryColor && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.categoryColor }} />}
+                                                <span className="truncate max-w-[100px]">{p.description}</span>
+                                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(p.amount, p.currency)}</span>
+                                            </button>
+                                            <button onClick={() => unpinExpense(i)} className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'bg-red-100 text-red-500' : 'bg-red-900/40 text-red-400'}`}>×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Smart Notifications */}
+                        {budgetNotifications.length > 0 && (
+                            <div className="mb-3 space-y-1.5">
+                                {budgetNotifications.filter(n => !dismissedAlerts.includes(n.id)).slice(0, 3).map(n => (
+                                    <div key={n.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-solid ${
+                                        n.severity === 'danger' ? (isLight ? 'bg-red-50/80 border-red-200' : 'bg-red-900/10 border-red-800/30') :
+                                        n.severity === 'warning' ? (isLight ? 'bg-amber-50/80 border-amber-200' : 'bg-amber-900/10 border-amber-800/30') :
+                                        (isLight ? 'bg-blue-50/80 border-blue-200' : 'bg-blue-900/10 border-blue-800/30')
+                                    }`}>
+                                        <FontAwesomeIcon icon={n.icon || faExclamationTriangle} className={`text-xs flex-shrink-0 ${
+                                            n.severity === 'danger' ? 'text-red-500' : n.severity === 'warning' ? 'text-amber-500' : 'text-blue-500'
+                                        }`} />
+                                        <span className={`text-xs flex-1 ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{n.message}</span>
+                                        <button onClick={() => dismissAlert(n.id)} className={`text-xs px-1.5 py-0.5 rounded transition-colors ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-gray-500 hover:text-gray-300'}`}>×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Tab Content */}
                         <div id="budget-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
-                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} />}
+                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} templateStyles={templateStyles} />}
                         {activeTab === 'daily' && (
                             <DailyExpensesTab
                                 groupedByDate={groupedByDate} categories={categories} expenses={expenses}
@@ -948,6 +1314,7 @@ const Budget = ({ user, theme }) => {
                                 PAYMENT_METHODS={PAYMENT_METHODS}
                                 isViewer={isViewer}
                                 ownerParam={ownerParam}
+                                pinExpense={pinExpense}
                             />
                         )}
                         {activeTab === 'monthly' && (
@@ -1024,13 +1391,26 @@ const Budget = ({ user, theme }) => {
                                 viewCurrency={viewCurrency} setViewCurrency={setViewCurrency}
                                 activeViewCurrency={activeViewCurrency} formatCurrencyRaw={formatCurrencyRaw}
                                 budgetSettings={budgetSettings} PAYMENT_METHODS={PAYMENT_METHODS}
-                                month={month} year={year}
+                                month={month} year={year} templateStyles={templateStyles}
+                                dashboard={dashboard} monthlyBudgetData={monthlyBudgetData}
                             />
                         )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Quick Add FAB */}
+            {!isViewer && activeTab !== 'daily' && !showExpenseForm && (
+                <button
+                    onClick={() => { setActiveTab('daily'); setTimeout(() => setShowExpenseForm(true), 100) }}
+                    className={`fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${templateStyles.fabBg}`}
+                    title="Quick add expense (navigate to Daily tab)"
+                    aria-label="Quick add expense"
+                >
+                    <FontAwesomeIcon icon={faPlus} className="text-lg" />
+                </button>
+            )}
 
             {/* Receipt Viewer Lightbox */}
             {receiptViewer && (
@@ -1105,24 +1485,29 @@ const Budget = ({ user, theme }) => {
                                         Shared with ({sharedUsers.length})
                                     </p>
                                     <div className="space-y-1.5">
-                                        {sharedUsers.map(s => {
+                                        {sharedUsers.filter(s => s.sharedWith).map(s => {
                                             const su = s.sharedWith
                                             return (
                                                 <div key={s._id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
                                                     <div className="flex items-center gap-2">
-                                                        {su?.avatar ? (
+                                                        {su.avatar ? (
                                                             <img src={su.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
                                                         ) : (
                                                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${isLight ? 'bg-blue-100 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>
-                                                                {su?.username?.[0]?.toUpperCase() || '?'}
+                                                                {su.username?.[0]?.toUpperCase() || '?'}
                                                             </div>
                                                         )}
-                                                        <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{su?.username}</span>
+                                                        <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{su.username}</span>
+                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                                                            s.role === 'editor'
+                                                                ? (isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400')
+                                                                : (isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#1a1a1a] text-gray-500')
+                                                        }`}>{s.role}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <select
                                                             value={s.role}
-                                                            onChange={e => dispatch(updateBudgetShareAction({ targetUserId: su?._id, role: e.target.value }))}
+                                                            onChange={e => dispatch(updateBudgetShareAction({ targetUserId: su._id, role: e.target.value }))}
                                                             className={`text-[10px] font-semibold px-2 py-1 rounded-md border border-solid cursor-pointer ${
                                                                 s.role === 'editor'
                                                                     ? (isLight ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-blue-900/20 border-blue-800 text-blue-400')
@@ -1133,7 +1518,7 @@ const Budget = ({ user, theme }) => {
                                                             <option value="editor">Editor</option>
                                                         </select>
                                                         <button
-                                                            onClick={() => dispatch(unshareBudget({ targetUserId: su?._id }))}
+                                                            onClick={() => dispatch(unshareBudget({ targetUserId: su._id }))}
                                                             className={`text-[10px] w-6 h-6 rounded flex items-center justify-center ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}
                                                             title="Remove access"
                                                         >
@@ -1162,7 +1547,7 @@ const Budget = ({ user, theme }) => {
 
 // ==================== DASHBOARD TAB ====================
 
-const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon, setReceiptViewer, ytdData, ytdLoading }) => {
+const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon, setReceiptViewer, ytdData, ytdLoading, isViewer, templateStyles }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
 
     if (isLoading || !dashboard) {
@@ -1343,13 +1728,108 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
     const colorMap = {
         emerald: { icon: isLight ? 'text-emerald-600' : 'text-emerald-400', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20' },
         red: { icon: isLight ? 'text-red-600' : 'text-red-400', bg: isLight ? 'bg-red-50' : 'bg-red-900/20' },
-        blue: { icon: isLight ? 'text-blue-600' : 'text-blue-400', bg: isLight ? 'bg-blue-50' : 'bg-blue-900/20' },
+        blue: { icon: templateStyles?.accentText || (isLight ? 'text-blue-600' : 'text-blue-400'), bg: templateStyles?.accentBg || (isLight ? 'bg-blue-50' : 'bg-blue-900/20') },
     }
 
     const budgetUsedPct = totalBudget > 0 ? Math.round((totalExpenses / totalBudget) * 100) : 0
 
+    const healthScore = useMemo(() => {
+        let score = 100
+        let factors = []
+
+        if (totalBudget > 0) {
+            if (budgetUsedPct > 100) { score -= 30; factors.push({ label: 'Over budget', impact: -30, color: 'red' }) }
+            else if (budgetUsedPct > 90) { score -= 15; factors.push({ label: 'Near budget limit', impact: -15, color: 'amber' }) }
+            else if (budgetUsedPct < 50 && transactionCount > 0) { factors.push({ label: 'Budget well managed', impact: 0, color: 'emerald' }) }
+        }
+
+        if (totalIncome > 0) {
+            const savingsRate = ((totalIncome - totalExpenses) / totalIncome) * 100
+            if (savingsRate >= 20) { factors.push({ label: `${Math.round(savingsRate)}% savings rate`, impact: 0, color: 'emerald' }) }
+            else if (savingsRate >= 0) { score -= 10; factors.push({ label: `Low savings rate (${Math.round(savingsRate)}%)`, impact: -10, color: 'amber' }) }
+            else { score -= 25; factors.push({ label: 'Spending exceeds income', impact: -25, color: 'red' }) }
+        }
+
+        const overBudgetCats = monthlyBudgetData.filter(c => c.budget > 0 && c.percentage > 100).length
+        if (overBudgetCats > 2) { score -= 15; factors.push({ label: `${overBudgetCats} categories over budget`, impact: -15, color: 'red' }) }
+        else if (overBudgetCats > 0) { score -= 5; factors.push({ label: `${overBudgetCats} category over budget`, impact: -5, color: 'amber' }) }
+
+        const overdueDebts = activeDebts.filter(d => d.due_date && new Date(d.due_date) < new Date()).length
+        if (overdueDebts > 0) { score -= 10; factors.push({ label: `${overdueDebts} overdue debt${overdueDebts > 1 ? 's' : ''}`, impact: -10, color: 'red' }) }
+
+        if (transactionCount === 0 && new Date().getMonth() + 1 === month) {
+            score -= 5; factors.push({ label: 'No transactions logged', impact: -5, color: 'amber' })
+        }
+
+        return { score: Math.max(0, Math.min(100, score)), factors }
+    }, [totalBudget, budgetUsedPct, totalIncome, totalExpenses, monthlyBudgetData, activeDebts, transactionCount, month])
+
+    const spendingInsights = useMemo(() => {
+        const insights = []
+        if (!ytdData || !ytdData.monthlyBreakdown) return insights
+
+        const prevMonthIdx = month - 2
+        const currMonthIdx = month - 1
+        const prevData = ytdData.monthlyBreakdown[prevMonthIdx]
+        const currExpense = totalExpenses
+
+        if (prevData && prevData.expense > 0) {
+            const change = ((currExpense - prevData.expense) / prevData.expense) * 100
+            if (Math.abs(change) >= 10) {
+                insights.push({
+                    type: change > 0 ? 'increase' : 'decrease',
+                    label: `${Math.abs(Math.round(change))}% ${change > 0 ? 'more' : 'less'} spending vs last month`,
+                    detail: `${formatCurrencyRaw(prevData.expense, activeViewCurrency)} → ${formatCurrencyRaw(currExpense, activeViewCurrency)}`,
+                    color: change > 0 ? 'red' : 'emerald',
+                })
+            }
+        }
+
+        if (ytdData.monthlyAvg > 0 && currExpense > ytdData.monthlyAvg * 1.3) {
+            insights.push({
+                type: 'above_average',
+                label: 'Spending above yearly average',
+                detail: `Monthly avg: ${formatCurrencyRaw(ytdData.monthlyAvg, activeViewCurrency)}`,
+                color: 'amber',
+            })
+        }
+
+        if (topExpenses.length > 0 && totalExpenses > 0) {
+            const topPct = (topExpenses[0].converted / totalExpenses) * 100
+            if (topPct > 30) {
+                insights.push({
+                    type: 'concentration',
+                    label: `Largest expense is ${Math.round(topPct)}% of total`,
+                    detail: `"${topExpenses[0].description}" — ${formatCurrencyRaw(topExpenses[0].converted, activeViewCurrency)}`,
+                    color: 'amber',
+                })
+            }
+        }
+
+        if (dailyAvg > 0 && totalBudget > 0) {
+            const projectedMonthly = dailyAvg * daysInMonth
+            if (projectedMonthly > totalBudget * 1.1) {
+                insights.push({
+                    type: 'projection',
+                    label: 'On pace to exceed budget',
+                    detail: `Projected: ${formatCurrencyRaw(projectedMonthly, activeViewCurrency)} vs Budget: ${formatCurrencyRaw(totalBudget, activeViewCurrency)}`,
+                    color: 'red',
+                })
+            } else if (projectedMonthly < totalBudget * 0.7) {
+                insights.push({
+                    type: 'projection',
+                    label: 'Well under budget pace',
+                    detail: `Projected: ${formatCurrencyRaw(projectedMonthly, activeViewCurrency)}`,
+                    color: 'emerald',
+                })
+            }
+        }
+
+        return insights
+    }, [ytdData, month, totalExpenses, topExpenses, dailyAvg, daysInMonth, totalBudget, activeViewCurrency, formatCurrencyRaw])
+
     return (
-        <div className="space-y-4">
+        <div className={templateStyles?.sectionGap || 'space-y-4'}>
             {/* Budget Alerts */}
             {budgetAlerts.length > 0 && (
                 <AnimateIn>
@@ -1387,20 +1867,108 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                 </AnimateIn>
             )}
 
+            {/* Budget Health Score + Spending Insights */}
+            {(healthScore.factors.length > 0 || spendingInsights.length > 0) && (
+                <AnimateIn delay={50}>
+                    <div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
+                        {/* Health Score */}
+                        <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`relative w-14 h-14 flex-shrink-0`}>
+                                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                                        <circle cx="28" cy="28" r="24" fill="none" stroke={isLight ? '#f1f5f9' : '#1f1f1f'} strokeWidth="5" />
+                                        <circle cx="28" cy="28" r="24" fill="none"
+                                            stroke={healthScore.score >= 80 ? '#10b981' : healthScore.score >= 60 ? '#f59e0b' : '#ef4444'}
+                                            strokeWidth="5" strokeLinecap="round"
+                                            strokeDasharray={`${(healthScore.score / 100) * 150.8} 150.8`}
+                                            style={{ transition: 'stroke-dasharray 1s ease-out' }}
+                                        />
+                                    </svg>
+                                    <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${
+                                        healthScore.score >= 80 ? 'text-emerald-500' : healthScore.score >= 60 ? 'text-amber-500' : 'text-red-500'
+                                    }`}>{healthScore.score}</span>
+                                </div>
+                                <div>
+                                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Budget Health</h3>
+                                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        {healthScore.score >= 80 ? 'Excellent' : healthScore.score >= 60 ? 'Needs attention' : 'Critical'}
+                                    </p>
+                                </div>
+                            </div>
+                            {healthScore.factors.length > 0 && (
+                                <div className="space-y-1.5">
+                                    {healthScore.factors.slice(0, 4).map((f, i) => (
+                                        <div key={i} className={`flex items-center gap-2 text-[11px] px-2.5 py-1.5 rounded-md ${
+                                            f.color === 'red' ? (isLight ? 'bg-red-50 text-red-600' : 'bg-red-900/10 text-red-400') :
+                                            f.color === 'amber' ? (isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/10 text-amber-400') :
+                                            (isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/10 text-emerald-400')
+                                        }`}>
+                                            <FontAwesomeIcon icon={f.color === 'emerald' ? faCheckCircle : faExclamationTriangle} className="text-[9px] flex-shrink-0" />
+                                            <span className="font-medium">{f.label}</span>
+                                            {f.impact < 0 && <span className="ml-auto opacity-60">{f.impact}</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Spending Insights */}
+                        <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                            <div className="flex items-center gap-2.5 mb-4">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                                    <FontAwesomeIcon icon={faChartPie} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                </div>
+                                <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Spending Insights</h3>
+                            </div>
+                            {spendingInsights.length > 0 ? (
+                                <div className="space-y-2">
+                                    {spendingInsights.map((insight, i) => (
+                                        <div key={i} className={`px-3 py-2.5 rounded-lg border border-solid ${
+                                            insight.color === 'red' ? (isLight ? 'bg-red-50/50 border-red-100' : 'bg-red-900/5 border-red-900/20') :
+                                            insight.color === 'amber' ? (isLight ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-900/5 border-amber-900/20') :
+                                            (isLight ? 'bg-emerald-50/50 border-emerald-100' : 'bg-emerald-900/5 border-emerald-900/20')
+                                        }`}>
+                                            <div className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={
+                                                    insight.type === 'increase' ? faArrowUp :
+                                                    insight.type === 'decrease' ? faArrowDown :
+                                                    insight.type === 'projection' ? faCalendarAlt :
+                                                    faExclamationTriangle
+                                                } className={`text-[10px] flex-shrink-0 ${
+                                                    insight.color === 'red' ? 'text-red-500' :
+                                                    insight.color === 'amber' ? 'text-amber-500' : 'text-emerald-500'
+                                                }`} />
+                                                <span className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{insight.label}</span>
+                                            </div>
+                                            <p className={`text-[10px] mt-1 ml-5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{insight.detail}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className={`flex flex-col items-center justify-center py-6 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    <FontAwesomeIcon icon={faCheckCircle} className="text-lg mb-2 text-emerald-500" />
+                                    <p className="text-xs">Everything looks good this month!</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </AnimateIn>
+            )}
+
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 ${templateStyles?.gridGap || 'gap-4'}`}>
                 {summaryCards.map((s, i) => {
                     const cm = colorMap[s.color]
                     return (
                         <AnimateIn key={i} delay={i * 80}>
-                            <div className={`${card} p-5`}>
+                            <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
+                                    <span className={`${templateStyles?.bodyTextCls || 'text-xs'} font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cm.bg}`}>
                                         <FontAwesomeIcon icon={s.icon} className={`text-sm ${cm.icon}`} />
                                     </div>
                                 </div>
-                                <p className={`text-lg sm:text-xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
+                                <p className={`${templateStyles?.valueTextCls || 'text-lg sm:text-xl font-bold'} ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
                             </div>
                         </AnimateIn>
                     )
@@ -1426,10 +1994,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                 </div></AnimateIn>
             )}
 
-            <AnimateIn delay={400}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={400}><div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
                 {/* Top Categories */}
-                <div className={`${card} p-5`}>
-                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Top Spending Categories</h3>
+                <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Top Spending Categories</h3>
                     {topCategories.length > 0 ? (
                         <div className="space-y-3">
                             {topCategories.map((cat, i) => {
@@ -1461,8 +2029,8 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                 </div>
 
                 {/* Payment Methods */}
-                <div className={`${card} p-5`}>
-                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Payment Methods</h3>
+                <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Payment Methods</h3>
                     {paymentMethods.length > 0 ? (
                         <div className="space-y-3">
                             {paymentMethods.map(([method, amount]) => (
@@ -1489,10 +2057,10 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             </div></AnimateIn>
 
             {/* Income Sources + Budget Status */}
-            <AnimateIn delay={500}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={500}><div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
                 {/* Income Sources */}
-                <div className={`${card} p-5`}>
-                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Income Sources</h3>
+                <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Income Sources</h3>
                     {incomeSources.length > 0 ? (
                         <div className="space-y-3">
                             {incomeSources.map((cat, i) => {
@@ -1524,8 +2092,8 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                 </div>
 
                 {/* Budget Status per Category */}
-                <div className={`${card} p-5`}>
-                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Budget Status</h3>
+                <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Budget Status</h3>
                     {budgetCategories.length > 0 ? (
                         <div className="space-y-2.5">
                             {budgetCategories.map(cat => {
@@ -1560,8 +2128,8 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             </div></AnimateIn>
 
             {/* Daily Spending Chart */}
-            <AnimateIn delay={600}><div className={`${card} p-5`}>
-                <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
+            <AnimateIn delay={600}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
                 {d.dailyTotals && Object.keys(d.dailyTotals).length > 0 ? (
                     <DailyChart dailyTotals={d.dailyTotals} month={d.month} year={d.year} isLight={isLight} formatCurrency={formatCurrency} />
                 ) : (
@@ -1570,7 +2138,7 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             </div></AnimateIn>
 
             {/* Recent Transactions + Top Expenses */}
-            <AnimateIn delay={700}><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <AnimateIn delay={700}><div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
                 {/* Recent Transactions */}
                 <div className={`${card} overflow-hidden`}>
                     <div className={`px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
@@ -1653,11 +2221,11 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             </div></AnimateIn>
 
             {/* Savings / Debts / Goals Summary */}
-            <AnimateIn delay={800}><div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <AnimateIn delay={800}><div className={`grid grid-cols-1 sm:grid-cols-3 ${templateStyles?.gridGap || 'gap-4'}`}>
                 <div className={`${card} p-4 cursor-pointer transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} onClick={() => setSavingsDrilldown(true)}>
                     <div className="flex items-center gap-2.5 mb-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'}`}>
-                            <FontAwesomeIcon icon={faPiggyBank} className={`text-sm ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${templateStyles?.accentBg || (isLight ? 'bg-blue-50' : 'bg-blue-900/20')}`}>
+                            <FontAwesomeIcon icon={faPiggyBank} className={`text-sm ${templateStyles?.accentText || (isLight ? 'text-blue-500' : 'text-blue-400')}`} />
                         </div>
                         <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Savings</span>
                     </div>
@@ -1705,28 +2273,28 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             </div></AnimateIn>
 
             {/* Monthly Overview */}
-            <AnimateIn delay={900}><div className={`${card} p-5`}>
-                <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Monthly Overview</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <AnimateIn delay={900}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Monthly Overview</h3>
+                <div className={`grid grid-cols-2 sm:grid-cols-4 ${templateStyles?.gridGap || 'gap-3 sm:gap-4'}`}>
                     <div className="text-center">
-                        <p className={`text-xl sm:text-2xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{transactionCount}</p>
-                        <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Transactions</p>
+                        <p className={`${templateStyles?.valueTextCls || 'text-xl sm:text-2xl font-bold'} ${isLight ? 'text-slate-800' : 'text-white'}`}>{transactionCount}</p>
+                        <p className={`${templateStyles?.bodyTextCls || 'text-[11px] sm:text-xs'} mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Transactions</p>
                     </div>
                     <div className="text-center">
-                        <p className={`text-xl sm:text-2xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{formatCurrencyRaw(totalBudget, activeViewCurrency)}</p>
-                        <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Budget</p>
+                        <p className={`${templateStyles?.valueTextCls || 'text-xl sm:text-2xl font-bold'} ${isLight ? 'text-slate-800' : 'text-white'}`}>{formatCurrencyRaw(totalBudget, activeViewCurrency)}</p>
+                        <p className={`${templateStyles?.bodyTextCls || 'text-[11px] sm:text-xs'} mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Budget</p>
                     </div>
                     <div className="text-center">
-                        <p className={`text-xl sm:text-2xl font-bold ${totalBudget > 0 ? (budgetUsedPct > 100 ? 'text-red-500' : budgetUsedPct > 80 ? 'text-amber-500' : 'text-emerald-500') : (isLight ? 'text-slate-800' : 'text-white')}`}>
+                        <p className={`${templateStyles?.valueTextCls || 'text-xl sm:text-2xl font-bold'} ${totalBudget > 0 ? (budgetUsedPct > 100 ? 'text-red-500' : budgetUsedPct > 80 ? 'text-amber-500' : 'text-emerald-500') : (isLight ? 'text-slate-800' : 'text-white')}`}>
                             {totalBudget > 0 ? `${budgetUsedPct}%` : '—'}
                         </p>
-                        <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget Used</p>
+                        <p className={`${templateStyles?.bodyTextCls || 'text-[11px] sm:text-xs'} mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Budget Used</p>
                     </div>
                     <div className="text-center">
-                        <p className={`text-xl sm:text-2xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                        <p className={`${templateStyles?.valueTextCls || 'text-xl sm:text-2xl font-bold'} ${isLight ? 'text-slate-800' : 'text-white'}`}>
                             {transactionCount > 0 ? formatCurrencyRaw(dailyAvg, activeViewCurrency) : '—'}
                         </p>
-                        <p className={`text-[11px] sm:text-xs mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Daily Average</p>
+                        <p className={`${templateStyles?.bodyTextCls || 'text-[11px] sm:text-xs'} mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Daily Average</p>
                     </div>
                 </div>
 
@@ -1752,14 +2320,14 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
 
                 {d.rolloverAmount > 0 && (
                     <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'} flex items-center gap-2`}>
-                        <FontAwesomeIcon icon={faSyncAlt} className={`text-[10px] ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                        <FontAwesomeIcon icon={faSyncAlt} className={`text-[10px] ${templateStyles?.accentText || (isLight ? 'text-blue-500' : 'text-blue-400')}`} />
                         <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Budget rollover from last month: <span className="font-semibold">{formatCurrency(d.rolloverAmount)}</span></span>
                     </div>
                 )}
             </div></AnimateIn>
 
             {/* Year-to-Date Overview */}
-            <AnimateIn delay={1000}><div className={`${card} p-5`}>
+            <AnimateIn delay={1000}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
@@ -1864,6 +2432,285 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
                     </>
                 )}
             </div></AnimateIn>
+
+            {/* Budget Forecasting / Projection */}
+            <AnimateIn delay={1100}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
+                        <FontAwesomeIcon icon={faCalendarAlt} className={`text-sm ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>End-of-Month Forecast</h3>
+                        <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Projected based on current spending pace</p>
+                    </div>
+                </div>
+                {(() => {
+                    const today = new Date()
+                    const currentDay = (today.getMonth() + 1 === month && today.getFullYear() === year) ? today.getDate() : daysInMonth
+                    const daysElapsed = Math.max(currentDay, 1)
+                    const dailyRate = totalExpenses / daysElapsed
+                    const projectedExpenses = dailyRate * daysInMonth
+                    const projectedBalance = totalIncome - projectedExpenses
+                    const projectedBudgetRemain = totalBudget - projectedExpenses
+                    const daysLeft = daysInMonth - daysElapsed
+                    const safeDaily = totalBudget > 0 ? Math.max((totalBudget - totalExpenses) / Math.max(daysLeft, 1), 0) : 0
+
+                    return (
+                        <div className="space-y-3">
+                            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3`}>
+                                <div className="text-center">
+                                    <p className={`text-lg font-bold ${projectedExpenses > totalBudget && totalBudget > 0 ? 'text-red-500' : (isLight ? 'text-slate-800' : 'text-white')}`}>{formatCurrencyRaw(projectedExpenses, activeViewCurrency)}</p>
+                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Projected Spend</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className={`text-lg font-bold ${projectedBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(projectedBalance, activeViewCurrency)}</p>
+                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Projected Balance</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{daysLeft}</p>
+                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Days Left</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className={`text-lg font-bold ${safeDaily > dailyRate ? 'text-emerald-500' : 'text-amber-500'}`}>{totalBudget > 0 ? formatCurrencyRaw(safeDaily, activeViewCurrency) : '—'}</p>
+                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Safe Daily Budget</p>
+                                </div>
+                            </div>
+                            {totalBudget > 0 && (
+                                <div className={`px-3 py-2.5 rounded-lg border border-solid ${
+                                    projectedExpenses > totalBudget
+                                        ? (isLight ? 'bg-red-50/50 border-red-100' : 'bg-red-900/5 border-red-900/20')
+                                        : projectedExpenses > totalBudget * 0.9
+                                            ? (isLight ? 'bg-amber-50/50 border-amber-100' : 'bg-amber-900/5 border-amber-900/20')
+                                            : (isLight ? 'bg-emerald-50/50 border-emerald-100' : 'bg-emerald-900/5 border-emerald-900/20')
+                                }`}>
+                                    <p className={`text-xs font-medium ${
+                                        projectedExpenses > totalBudget ? 'text-red-600' : projectedExpenses > totalBudget * 0.9 ? 'text-amber-600' : 'text-emerald-600'
+                                    }`}>
+                                        <FontAwesomeIcon icon={projectedExpenses > totalBudget ? faExclamationTriangle : faCheckCircle} className="mr-1.5 text-[10px]" />
+                                        {projectedExpenses > totalBudget
+                                            ? `At this rate, you'll exceed budget by ${formatCurrencyRaw(projectedExpenses - totalBudget, activeViewCurrency)}`
+                                            : projectedExpenses > totalBudget * 0.9
+                                                ? `Close to budget — spending ${formatCurrencyRaw(dailyRate, activeViewCurrency)}/day`
+                                                : `On track! You'll save ~${formatCurrencyRaw(totalBudget - projectedExpenses, activeViewCurrency)} this month`
+                                        }
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
+            </div></AnimateIn>
+
+            {/* Spending Streaks & Challenges */}
+            <AnimateIn delay={1200}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-50' : 'bg-amber-900/20'}`}>
+                        <FontAwesomeIcon icon={faHistory} className={`text-sm ${isLight ? 'text-amber-500' : 'text-amber-400'}`} />
+                    </div>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Spending Streaks</h3>
+                </div>
+                {(() => {
+                    const expenseDates = new Set(active.filter(e => e.type === 'expense').map(e => new Date(e.date).toDateString()))
+                    const today = new Date()
+                    let noSpendStreak = 0
+                    let checkDate = new Date(today)
+                    if (today.getMonth() + 1 === month && today.getFullYear() === year) {
+                        for (let i = 0; i < 60; i++) {
+                            checkDate.setDate(checkDate.getDate() - (i === 0 ? 0 : 1))
+                            if (!expenseDates.has(checkDate.toDateString())) noSpendStreak++
+                            else break
+                        }
+                    }
+
+                    const underBudgetDays = (() => {
+                        if (totalBudget <= 0) return 0
+                        const dailyBudget = totalBudget / daysInMonth
+                        let streak = 0
+                        for (let day = daysInMonth; day >= 1; day--) {
+                            const dayDate = new Date(year, month - 1, day)
+                            const dayExpenses = active.filter(e => e.type === 'expense' && new Date(e.date).toDateString() === dayDate.toDateString())
+                                .reduce((s, e) => s + convert(e.amount, e.currency), 0)
+                            if (dayExpenses <= dailyBudget) streak++
+                            else break
+                        }
+                        return streak
+                    })()
+
+                    const weeklyBudget = totalBudget > 0 ? totalBudget / 4 : 0
+                    const currentWeek = Math.ceil((new Date().getDate()) / 7)
+                    const weekStart = new Date(year, month - 1, (currentWeek - 1) * 7 + 1)
+                    const weekExpenses = active.filter(e => e.type === 'expense' && new Date(e.date) >= weekStart)
+                        .reduce((s, e) => s + convert(e.amount, e.currency), 0)
+                    const weeklyChallenge = weeklyBudget > 0 ? Math.round((weekExpenses / weeklyBudget) * 100) : 0
+
+                    const streaks = [
+                        { label: 'No-Spend Streak', value: `${noSpendStreak} day${noSpendStreak !== 1 ? 's' : ''}`, icon: '🔥', active: noSpendStreak > 0 },
+                        { label: 'Under Daily Budget', value: `${underBudgetDays} day${underBudgetDays !== 1 ? 's' : ''}`, icon: '✅', active: underBudgetDays > 0 },
+                        { label: 'Weekly Challenge', value: weeklyBudget > 0 ? `${weeklyChallenge}% of weekly limit` : 'Set budget first', icon: '🎯', active: weeklyChallenge <= 100 && weeklyBudget > 0 },
+                    ]
+
+                    return (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {streaks.map((s, i) => (
+                                <div key={i} className={`px-3 py-3 rounded-lg border border-solid text-center ${
+                                    s.active
+                                        ? (isLight ? 'bg-emerald-50/50 border-emerald-200' : 'bg-emerald-900/10 border-emerald-800/30')
+                                        : (isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#111] border-[#1f1f1f]')
+                                }`}>
+                                    <span className="text-xl">{s.icon}</span>
+                                    <p className={`text-sm font-bold mt-1 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{s.value}</p>
+                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                })()}
+            </div></AnimateIn>
+
+            {/* Recurring Expense Calendar */}
+            {expenses.filter(e => e.isRecurring).length > 0 && (
+                <AnimateIn delay={1300}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-cyan-50' : 'bg-cyan-900/20'}`}>
+                            <FontAwesomeIcon icon={faCalendarCheck} className={`text-sm ${isLight ? 'text-cyan-500' : 'text-cyan-400'}`} />
+                        </div>
+                        <div>
+                            <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Upcoming Recurring</h3>
+                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Bills & subscriptions this month</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {expenses.filter(e => e.isRecurring).slice(0, 6).map(e => {
+                            const nextDate = new Date(e.date)
+                            nextDate.setMonth(nextDate.getMonth() + 1)
+                            const isPast = new Date(e.date) < new Date()
+                            return (
+                                <div key={e._id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                    <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isPast ? (isLight ? 'bg-emerald-100' : 'bg-emerald-900/20') : (isLight ? 'bg-amber-100' : 'bg-amber-900/20')}`}>
+                                        <FontAwesomeIcon icon={isPast ? faCheckCircle : faSyncAlt} className={`text-[10px] ${isPast ? 'text-emerald-500' : 'text-amber-500'}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{e.description}</p>
+                                        <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                            {e.recurrenceRule} · {new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </p>
+                                    </div>
+                                    <span className={`text-xs font-semibold ${e.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                        {e.type === 'income' ? '+' : '-'}{formatCurrencyRaw(e.amount, e.currency || 'PHP')}
+                                    </span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                        <div className="flex items-center justify-between">
+                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                Total recurring: {expenses.filter(e => e.isRecurring).length} items
+                            </span>
+                            <span className={`text-xs font-semibold text-red-500`}>
+                                {formatCurrencyRaw(expenses.filter(e => e.isRecurring && e.type === 'expense').reduce((s, e) => s + convert(e.amount, e.currency), 0), activeViewCurrency)}/mo
+                            </span>
+                        </div>
+                    </div>
+                </div></AnimateIn>
+            )}
+
+            {/* Category Comparison (Month over Month) */}
+            {ytdData && ytdData.monthlyBreakdown && month > 1 && (
+                <AnimateIn delay={1400}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-pink-50' : 'bg-pink-900/20'}`}>
+                            <FontAwesomeIcon icon={faChartPie} className={`text-sm ${isLight ? 'text-pink-500' : 'text-pink-400'}`} />
+                        </div>
+                        <div>
+                            <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Category Trends</h3>
+                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>This month vs last month</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2.5">
+                        {topCategories.slice(0, 5).map((cat, i) => {
+                            const prevMonthExpenses = ytdData.categoryBreakdown?.[cat.id]?.[month - 2] || 0
+                            const change = prevMonthExpenses > 0 ? ((cat.amount - prevMonthExpenses) / prevMonthExpenses) * 100 : (cat.amount > 0 ? 100 : 0)
+                            return (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                                        {cat.icon ? <SafeIcon name={cat.icon} cls="text-[10px]" style={{ color: cat.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />}
+                                    </div>
+                                    <span className={`text-xs flex-1 min-w-0 truncate ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{cat.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrencyRaw(cat.amount, activeViewCurrency)}</span>
+                                        {prevMonthExpenses > 0 && (
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                change > 10 ? (isLight ? 'bg-red-50 text-red-600' : 'bg-red-900/20 text-red-400') :
+                                                change < -10 ? (isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400') :
+                                                (isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400')
+                                            }`}>
+                                                <FontAwesomeIcon icon={change > 0 ? faArrowUp : change < 0 ? faArrowDown : faCheck} className="mr-0.5 text-[8px]" />
+                                                {Math.abs(Math.round(change))}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div></AnimateIn>
+            )}
+
+            {/* Income Tracking Summary */}
+            {totalIncome > 0 && (
+                <AnimateIn delay={1500}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-50' : 'bg-emerald-900/20'}`}>
+                            <FontAwesomeIcon icon={faArrowUp} className={`text-sm ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                        </div>
+                        <div>
+                            <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Income Overview</h3>
+                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Earnings & savings rate</p>
+                        </div>
+                    </div>
+                    {(() => {
+                        const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0
+                        const incomeVsExpenseRatio = totalExpenses > 0 ? totalIncome / totalExpenses : 0
+                        return (
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div className="text-center">
+                                        <p className="text-lg font-bold text-emerald-500">{formatCurrencyRaw(totalIncome, activeViewCurrency)}</p>
+                                        <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Income</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-lg font-bold ${savingsRate >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{Math.round(savingsRate)}%</p>
+                                        <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Savings Rate</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{incomeVsExpenseRatio.toFixed(1)}x</p>
+                                        <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Income/Expense</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-lg font-bold ${balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(Math.abs(balance), activeViewCurrency)}</p>
+                                        <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{balance >= 0 ? 'Net Saved' : 'Net Loss'}</p>
+                                    </div>
+                                </div>
+                                <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                    <div className="h-full flex">
+                                        <div className="h-full bg-red-400 transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min((totalExpenses / totalIncome) * 100, 100) : 0}%` }} />
+                                        <div className="h-full bg-emerald-400 transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.max(100 - (totalExpenses / totalIncome) * 100, 0) : 0}%` }} />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-[10px] flex items-center gap-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Expenses ({totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0}%)
+                                    </span>
+                                    <span className={`text-[10px] flex items-center gap-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Savings ({Math.round(Math.max(savingsRate, 0))}%)
+                                    </span>
+                                </div>
+                            </div>
+                        )
+                    })()}
+                </div></AnimateIn>
+            )}
 
             {/* Drilldown Modal */}
             {drilldown && (
@@ -2319,9 +3166,9 @@ const DashboardTab = ({ dashboard, expenses, categories, monthlyBudgetData, isLi
             )}
         </div>
     )
-}
+})
 
-const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
+const DailyChart = React.memo(({ dailyTotals, month, year, isLight, formatCurrency }) => {
     const canvasRef = useRef(null)
     const daysInMonth = new Date(year, month, 0).getDate()
     const [tooltip, setTooltip] = useState(null)
@@ -2423,11 +3270,11 @@ const DailyChart = ({ dailyTotals, month, year, isLight, formatCurrency }) => {
             </div>
         </div>
     )
-}
+})
 
 // ==================== DAILY EXPENSES TAB ====================
 
-const DailyExpensesTab = ({
+const DailyExpensesTab = React.memo(({
     groupedByDate, categories, expenses, expenseForm, setExpenseForm, editingExpense,
     expenseItems, setExpenseItems, emptyItem,
     showExpenseForm, setShowExpenseForm, handleExpenseSubmit, handleEditExpense, handleDuplicateExpense,
@@ -2441,7 +3288,7 @@ const DailyExpensesTab = ({
     savedRates, liveRates, savedBaseCurrency,
     viewCurrency, setViewCurrency, exchangeRates, activeViewCurrency,
     toTargetCurrency, formatCurrencyRaw,
-    PAYMENT_METHODS, isViewer, ownerParam = {}
+    PAYMENT_METHODS, isViewer, ownerParam = {}, pinExpense
 }) => {
     const [filterDateFrom, setFilterDateFrom] = useState('')
     const [filterDateTo, setFilterDateTo] = useState('')
@@ -2551,6 +3398,27 @@ const DailyExpensesTab = ({
         return cols
     }
 
+    const autoCategorize = useCallback((description) => {
+        if (!description || !categories.length || !expenses.length) return null
+        const desc = description.toLowerCase()
+        const catScores = {}
+        expenses.filter(e => e.category).forEach(e => {
+            const catId = e.category._id
+            const existingDesc = (e.description || '').toLowerCase()
+            const words = existingDesc.split(/\s+/).filter(w => w.length > 2)
+            words.forEach(word => {
+                if (desc.includes(word)) {
+                    catScores[catId] = (catScores[catId] || 0) + 1
+                }
+            })
+            if (desc === existingDesc || desc.includes(existingDesc) || existingDesc.includes(desc)) {
+                catScores[catId] = (catScores[catId] || 0) + 5
+            }
+        })
+        const best = Object.entries(catScores).sort((a, b) => b[1] - a[1])[0]
+        return best && best[1] >= 2 ? best[0] : null
+    }, [categories, expenses])
+
     const handleCSVFile = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -2564,13 +3432,17 @@ const DailyExpensesTab = ({
                 const cols = parseCSVLine(line)
                 const row = {}
                 headers.forEach((h, i) => { row[h] = cols[i] || '' })
+                const description = row.description || row.name || row.item || ''
+                const suggestedCategory = autoCategorize(description)
                 return {
                     date: row.date || '',
-                    description: row.description || row.name || row.item || '',
+                    description,
                     amount: row.amount || row.price || '0',
                     type: row.type || 'expense',
                     paymentMethod: row.paymentmethod || row['payment method'] || row.method || 'Cash',
                     notes: row.notes || '',
+                    category: row.category || suggestedCategory || '',
+                    autoCategory: !!suggestedCategory,
                 }
             }).filter(r => r.description && parseFloat(r.amount))
             setCsvData(rows)
@@ -3281,6 +4153,31 @@ const DailyExpensesTab = ({
                                     </div>
                                 </div>
                             )}
+
+                            {/* Tags */}
+                            <div className="mt-3">
+                                <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Tags (optional)</label>
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {(expenseForm.tags || []).map((tag, ti) => (
+                                        <span key={ti} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/20 text-blue-400'}`}>
+                                            {tag}
+                                            <button type="button" onClick={() => setExpenseForm(f => ({ ...f, tags: f.tags.filter((_, i) => i !== ti) }))} className="hover:text-red-500">×</button>
+                                        </span>
+                                    ))}
+                                </div>
+                                <input type="text" placeholder="Type tag & press Enter" className={`${inputCls} !py-1.5 !text-xs`}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && e.target.value.trim()) {
+                                            e.preventDefault()
+                                            const tag = e.target.value.trim().toLowerCase()
+                                            if (!(expenseForm.tags || []).includes(tag)) {
+                                                setExpenseForm(f => ({ ...f, tags: [...(f.tags || []), tag] }))
+                                            }
+                                            e.target.value = ''
+                                        }
+                                    }}
+                                />
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2 mt-4">
@@ -3448,6 +4345,11 @@ const DailyExpensesTab = ({
                                                                 <button onClick={() => handleDuplicateExpense(e)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-violet-100 text-violet-500' : 'hover:bg-violet-900/30 text-violet-400'}`} title="Duplicate" aria-label={`Duplicate ${e.description}`}>
                                                                     <FontAwesomeIcon icon={faClone} className="text-[10px]" />
                                                                 </button>
+                                                                {pinExpense && (
+                                                                    <button onClick={() => pinExpense(e)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-amber-100 text-amber-500' : 'hover:bg-amber-900/30 text-amber-400'}`} title="Pin for quick log" aria-label={`Pin ${e.description}`}>
+                                                                        <FontAwesomeIcon icon={faCircle} className="text-[8px]" />
+                                                                    </button>
+                                                                )}
                                                                 <button onClick={() => handleDeleteExpense(e._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === e._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`} title="Delete" aria-label={`Delete ${e.description}`}>
                                                                     <FontAwesomeIcon icon={deleteConfirm === e._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
                                                                 </button>
@@ -3587,11 +4489,11 @@ const DailyExpensesTab = ({
             )}
         </div>
     )
-}
+})
 
 // ==================== MONTHLY BUDGET TAB ====================
 
-const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year, isLoading, expenses, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, categories, paymentIcon, setReceiptViewer }) => {
+const MonthlyBudgetTab = React.memo(({ monthlyBudgetData, dashboard, isLight, card, formatCurrency, statusColor, month, year, isLoading, expenses, formatCurrencyRaw, activeViewCurrency, toTargetCurrency, categories, paymentIcon, setReceiptViewer }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [drilldown, setDrilldown] = useState(null)
 
@@ -3829,11 +4731,11 @@ const MonthlyBudgetTab = ({ monthlyBudgetData, dashboard, isLight, card, formatC
             )}
         </div>
     )
-}
+})
 
 // ==================== CATEGORIES TAB ====================
 
-const CategoriesTab = ({
+const CategoriesTab = React.memo(({
     categories, categoryForm, setCategoryForm, editingCategory, showCategoryForm,
     setShowCategoryForm, handleCategorySubmit, handleEditCategory, handleDeleteCategory,
     setEditingCategory, deleteConfirm, isLight, card, inputCls, selectCls, btnPrimary,
@@ -3981,12 +4883,20 @@ const CategoriesTab = ({
                                     ))}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 sm:col-span-2">
+                            <div className="sm:col-span-2 space-y-2">
                                 <label className={`flex items-center gap-2 cursor-pointer select-none`}>
-                                    <input type="checkbox" checked={!!categoryForm.rollover} onChange={e => setCategoryForm({...categoryForm, rollover: e.target.checked})} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
+                                    <input type="checkbox" checked={!!categoryForm.rollover} onChange={e => setCategoryForm({...categoryForm, rollover: e.target.checked, rolloverRule: e.target.checked ? 'carry' : 'none'})} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
                                     <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Enable budget rollover</span>
                                 </label>
-                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>(carry unspent budget to next month)</span>
+                                {categoryForm.rollover && (
+                                    <div className="ml-6">
+                                        <select value={categoryForm.rolloverRule || 'carry'} onChange={e => setCategoryForm({...categoryForm, rolloverRule: e.target.value})} className={`${selectCls} text-xs`}>
+                                            <option value="carry">Carry unused budget forward</option>
+                                            <option value="savings">Move unused to savings</option>
+                                            <option value="reset">Reset monthly (warn if over)</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
@@ -4162,38 +5072,47 @@ const CategoriesTab = ({
             )}
         </div>
     )
-}
+})
 
 // ==================== SAVINGS TAB ====================
 
 const DENOMINATIONS = DENOMINATIONS_CONST
 
-const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer, ownerParam = {} }) => {
+const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer, ownerParam = {} }) => {
     const [counts, setCounts] = useState(() => {
         const init = {}
         DENOMINATIONS.forEach(d => { init[d.value] = '' })
         return init
     })
     const [hasChanges, setHasChanges] = useState(false)
-    const [loaded, setLoaded] = useState(false)
     const [subTab, setSubTab] = useState('counter')
     const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+    const prevOwnerRef = useRef(ownerParam.budgetOwnerId)
 
     useEffect(() => {
         dispatch(getBudgetSavingsHistory(ownerParam))
     }, [dispatch, ownerParam.budgetOwnerId])
 
+    // Reset and reload counts whenever savings data changes or owner switches
     useEffect(() => {
-        if (savings && Object.keys(savings).length > 0 && !loaded) {
+        const ownerChanged = prevOwnerRef.current !== ownerParam.budgetOwnerId
+        prevOwnerRef.current = ownerParam.budgetOwnerId
+
+        if (savings && typeof savings === 'object') {
             const restored = {}
             DENOMINATIONS.forEach(d => {
                 const val = savings[d.value]
                 restored[d.value] = val ? parseInt(val) : ''
             })
             setCounts(restored)
-            setLoaded(true)
+            setHasChanges(false)
+        } else if (ownerChanged) {
+            const init = {}
+            DENOMINATIONS.forEach(d => { init[d.value] = '' })
+            setCounts(init)
+            setHasChanges(false)
         }
-    }, [savings, loaded])
+    }, [savings, ownerParam.budgetOwnerId])
 
     const updateCount = (denom, val) => {
         const n = val === '' ? '' : parseInt(val) || 0
@@ -4356,7 +5275,8 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                                                 value={counts[d.value]}
                                                 onChange={e => updateCount(d.value, e.target.value)}
                                                 placeholder="0"
-                                                className={`${inputCls} w-16 sm:w-24 text-center !py-1.5`}
+                                                disabled={isViewer}
+                                                className={`${inputCls} w-16 sm:w-24 text-center !py-1.5 ${isViewer ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             />
                                         </div>
                                     </td>
@@ -4404,9 +5324,9 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
                                             <span className={`text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full ${entry.diffTotal > 0 ? (isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400') : entry.diffTotal < 0 ? (isLight ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400') : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-gray-400')}`}>
                                                 {entry.diffTotal > 0 ? '+' : ''}{formatCurrency(entry.diffTotal)}
                                             </span>
-                                            <button onClick={() => handleDeleteHistory(entry._id)} className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${deleteConfirmId === entry._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-50 text-slate-300 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-600 hover:text-red-400')}`}>
+                                            {!isViewer && <button onClick={() => handleDeleteHistory(entry._id)} className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${deleteConfirmId === entry._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-50 text-slate-300 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-600 hover:text-red-400')}`}>
                                                 <FontAwesomeIcon icon={deleteConfirmId === entry._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
-                                            </button>
+                                            </button>}
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1 sm:gap-1.5">
@@ -4438,11 +5358,11 @@ const SavingsTab = ({ isLight, card, inputCls, formatCurrency, dispatch, savings
             )}
         </div>
     )
-}
+})
 
 // ==================== DEBT TAB ====================
 
-const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, PAYMENT_METHODS, isViewer, ownerParam = {} }) => {
+const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, PAYMENT_METHODS, isViewer, ownerParam = {} }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const [showForm, setShowForm] = useState(false)
     const [editing, setEditing] = useState(null)
@@ -4822,7 +5742,7 @@ const DebtTab = ({ debts, categories, dispatch, isLight, card, inputCls, selectC
             </div></AnimateIn>
         </div>
     )
-}
+})
 
 // ==================== LISTS TAB ====================
 
@@ -4927,7 +5847,7 @@ const ListIconPicker = ({ value, onChange, isLight }) => {
     )
 }
 
-const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, btnSecondary, isLoading, isViewer, ownerParam = {} }) => {
+const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, btnSecondary, isLoading, isViewer, ownerParam = {} }) => {
     const [showForm, setShowForm] = useState(false)
     const [editingList, setEditingList] = useState(null)
     const [form, setForm] = useState({ name: '', description: '', color: '#3b82f6', icon: 'peso-sign', currency: '₱', showCurrency: true, items: [] })
@@ -5383,7 +6303,7 @@ const ListsTab = ({ budgetLists, dispatch, isLight, card, inputCls, btnPrimary, 
             )}
         </div>
     )
-}
+})
 
 const QuickAddItem = ({ list, quickAddItem, isLight, inputCls }) => {
     const [name, setName] = useState('')
@@ -5422,7 +6342,7 @@ const QuickAddItem = ({ list, quickAddItem, isLight, inputCls }) => {
 
 // ==================== SUMMARY TAB ====================
 
-const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, paymentIcon, isLoading, activeViewCurrency, toTargetCurrency, ytdData, ytdLoading }) => {
+const SummaryTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetData, groupedByDate, month, year, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, paymentIcon, isLoading, activeViewCurrency, toTargetCurrency, ytdData, ytdLoading }) => {
     const summaryRef = useRef(null)
     const [downloading, setDownloading] = useState(false)
     const [pdfError, setPdfError] = useState('')
@@ -5452,6 +6372,7 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
 
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
 
+            const html2canvas = await loadHtml2Canvas()
             const canvas = await html2canvas(el, {
                 scale: 2,
                 useCORS: true,
@@ -5468,7 +6389,8 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
             scrollEls.forEach((s, i) => { s.style.overflow = ''; s.style.marginLeft = ''; s.style.marginRight = ''; s.style.paddingLeft = ''; s.style.paddingRight = '' })
 
             const imgData = canvas.toDataURL('image/png')
-            const pdf = new jsPDF('p', 'mm', 'a4')
+            const JsPDF = await loadJsPDF()
+            const pdf = new JsPDF('p', 'mm', 'a4')
             const pdfW = pdf.internal.pageSize.getWidth()
             const imgW = canvas.width
             const imgH = canvas.height
@@ -6082,11 +7004,11 @@ const SummaryTab = ({ dashboard, expenses, categories, monthlyBudgetData, groupe
             </div></AnimateIn>
         </div>
     )
-}
+})
 
 // ==================== GOALS TAB ====================
 
-const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, isViewer, ownerParam = {} }) => {
+const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, formatCurrency, isLoading, isViewer, ownerParam = {} }) => {
     const [showForm, setShowForm] = useState(false)
     const [editing, setEditing] = useState(null)
     const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
@@ -6454,11 +7376,49 @@ const GoalsTab = ({ goals, categories, dispatch, isLight, card, inputCls, select
             )}
         </div>
     )
-}
+})
 
 // ==================== SETTINGS TAB ====================
 
-const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year }) => {
+const BUDGET_TEMPLATES = [
+    {
+        id: 'default',
+        name: 'Default',
+        description: 'Clean and balanced design with subtle borders and glassmorphism',
+        preview: { card: 'rounded-xl border', accent: 'blue', density: 'normal', radius: 'xl' },
+        colors: { primary: '#3b82f6', surface: '#ffffff', border: '#e2e8f0' },
+    },
+    {
+        id: 'compact',
+        name: 'Compact',
+        description: 'Denser layout with smaller spacing — fits more data on screen',
+        preview: { card: 'rounded-lg border', accent: 'slate', density: 'tight', radius: 'lg' },
+        colors: { primary: '#475569', surface: '#f8fafc', border: '#e2e8f0' },
+    },
+    {
+        id: 'vibrant',
+        name: 'Vibrant',
+        description: 'Bold gradients and vivid accent colors for a modern feel',
+        preview: { card: 'rounded-2xl shadow-md', accent: 'violet', density: 'normal', radius: '2xl' },
+        colors: { primary: '#8b5cf6', surface: '#faf5ff', border: '#ddd6fe' },
+    },
+    {
+        id: 'minimal',
+        name: 'Minimal',
+        description: 'Ultra-clean with no borders — just subtle shadows and whitespace',
+        preview: { card: 'rounded-xl shadow-sm', accent: 'emerald', density: 'relaxed', radius: 'xl' },
+        colors: { primary: '#10b981', surface: '#f0fdf4', border: 'transparent' },
+    },
+    {
+        id: 'glass',
+        name: 'Glassmorphism',
+        description: 'Frosted glass effect with translucent cards and soft blur',
+        preview: { card: 'rounded-2xl backdrop-blur', accent: 'cyan', density: 'normal', radius: '2xl' },
+        colors: { primary: '#06b6d4', surface: '#ecfeff', border: '#a5f3fc' },
+    },
+]
+
+const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year, templateStyles, dashboard, monthlyBudgetData }) => {
     const [rateEdits, setRateEdits] = useState({})
     const [rateEditorOpen, setRateEditorOpen] = useState(false)
     const [savingRates, setSavingRates] = useState(false)
@@ -6476,6 +7436,9 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
     })
     const [editingCatId, setEditingCatId] = useState(null)
     const [catBudgetEdit, setCatBudgetEdit] = useState('')
+    const [selectedTemplate, setSelectedTemplate] = useState(budgetSettings?.template || 'default')
+    const [savingTemplate, setSavingTemplate] = useState(false)
+    const cardP = `${card} ${templateStyles?.cardPadding || 'p-5'}`
 
     useEffect(() => {
         setFormatEdits({
@@ -6538,6 +7501,20 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
         await dispatch(saveBudgetSettings({ budgetSettings: { ...current, ...overrides } }))
         setSavingSettings(false)
     }
+
+    const handleSelectTemplate = async (templateId) => {
+        setSelectedTemplate(templateId)
+        setSavingTemplate(true)
+        await saveSettings({ template: templateId })
+        setSavingTemplate(false)
+        notify(`Template changed to "${BUDGET_TEMPLATES.find(t => t.id === templateId)?.name}"`)
+    }
+
+    useEffect(() => {
+        if (budgetSettings?.template && budgetSettings.template !== selectedTemplate) {
+            setSelectedTemplate(budgetSettings.template)
+        }
+    }, [budgetSettings?.template])
 
     const handleAddPaymentMethod = async () => {
         const name = newPaymentMethod.trim()
@@ -6614,9 +7591,9 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
     ]
 
     return (
-        <div className="space-y-4">
+        <div className={templateStyles?.sectionGap || 'space-y-4'}>
             {notification && (
-                <div className={`rounded-lg px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-all ${
+                <div className={`${templateStyles?.radius || 'rounded-lg'} px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-all ${
                     notification.variant === 'success'
                         ? (isLight ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-emerald-900/20 text-emerald-400 border border-emerald-800/50')
                         : (isLight ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-red-900/20 text-red-400 border border-red-800/50')
@@ -6626,11 +7603,93 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                 </div>
             )}
 
-            {/* ─── Default Currency ─── */}
-            <AnimateIn delay={0}><div className={`${card} p-5`}>
+            {/* ─── Template Design ─── */}
+            <AnimateIn delay={0}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-blue-50' : 'bg-blue-900/20'}`}>
-                        <FontAwesomeIcon icon={faExchangeAlt} className={`text-sm ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-fuchsia-50' : 'bg-fuchsia-900/20'}`}>
+                        <FontAwesomeIcon icon={faEye} className={`text-sm ${isLight ? 'text-fuchsia-500' : 'text-fuchsia-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Template Design</h3>
+                        <p className={descCls}>Choose a visual style for your budget interface</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {BUDGET_TEMPLATES.map(template => {
+                        const isActive = selectedTemplate === template.id
+                        const accentColors = {
+                            blue: { bg: '#3b82f6', light: '#eff6ff', border: '#bfdbfe' },
+                            slate: { bg: '#475569', light: '#f8fafc', border: '#cbd5e1' },
+                            violet: { bg: '#8b5cf6', light: '#f5f3ff', border: '#c4b5fd' },
+                            emerald: { bg: '#10b981', light: '#ecfdf5', border: '#a7f3d0' },
+                            cyan: { bg: '#06b6d4', light: '#ecfeff', border: '#a5f3fc' },
+                        }
+                        const accent = accentColors[template.preview.accent] || accentColors.blue
+                        return (
+                            <button
+                                key={template.id}
+                                onClick={() => handleSelectTemplate(template.id)}
+                                disabled={savingTemplate}
+                                className={`relative text-left p-4 rounded-xl border-2 border-solid transition-all ${
+                                    isActive
+                                        ? (isLight ? 'border-fuchsia-400 bg-fuchsia-50/50 shadow-sm' : 'border-fuchsia-500 bg-fuchsia-900/10')
+                                        : (isLight ? 'border-slate-200 hover:border-slate-300 bg-white hover:shadow-sm' : 'border-[#2B2B2B] hover:border-[#444] bg-[#0e0e0e]')
+                                } ${savingTemplate ? 'opacity-60 cursor-wait' : ''}`}
+                            >
+                                {isActive && (
+                                    <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${isLight ? 'bg-fuchsia-500' : 'bg-fuchsia-600'}`}>
+                                        <FontAwesomeIcon icon={faCheck} className="text-[8px] text-white" />
+                                    </div>
+                                )}
+                                {/* Mini preview */}
+                                <div className={`mb-3 p-2.5 rounded-lg border border-solid overflow-hidden ${isLight ? 'bg-slate-50 border-slate-100' : 'bg-[#111] border-[#1f1f1f]'}`}>
+                                    <div className="space-y-1.5">
+                                        <div className={`h-2 rounded-full`} style={{ width: '75%', backgroundColor: accent.bg, opacity: 0.8 }} />
+                                        <div className="flex gap-1.5">
+                                            <div className={`flex-1 h-8 rounded-${template.preview.radius === '2xl' ? 'xl' : template.preview.radius === 'lg' ? 'md' : 'lg'}`} style={{ backgroundColor: accent.light, border: `1px solid ${accent.border}` }}>
+                                                <div className="p-1.5">
+                                                    <div className="h-1 w-6 rounded-full" style={{ backgroundColor: accent.bg, opacity: 0.3 }} />
+                                                    <div className="h-1.5 w-10 rounded-full mt-1" style={{ backgroundColor: accent.bg, opacity: 0.6 }} />
+                                                </div>
+                                            </div>
+                                            <div className={`flex-1 h-8 rounded-${template.preview.radius === '2xl' ? 'xl' : template.preview.radius === 'lg' ? 'md' : 'lg'}`} style={{ backgroundColor: accent.light, border: `1px solid ${accent.border}` }}>
+                                                <div className="p-1.5">
+                                                    <div className="h-1 w-8 rounded-full" style={{ backgroundColor: accent.bg, opacity: 0.3 }} />
+                                                    <div className="h-1.5 w-6 rounded-full mt-1" style={{ backgroundColor: accent.bg, opacity: 0.6 }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className={`h-1.5 rounded-full`} style={{ width: '50%', backgroundColor: accent.bg, opacity: 0.4 }} />
+                                    </div>
+                                </div>
+                                {/* Info */}
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h4 className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{template.name}</h4>
+                                    {template.id === 'default' && (
+                                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#1f1f1f] text-gray-500'}`}>Default</span>
+                                    )}
+                                </div>
+                                <p className={`text-[10px] leading-relaxed ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{template.description}</p>
+                            </button>
+                        )
+                    })}
+                </div>
+                {selectedTemplate !== 'default' && (
+                    <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-fuchsia-50 text-fuchsia-600' : 'bg-fuchsia-900/10 text-fuchsia-400'}`}>
+                        <FontAwesomeIcon icon={faCheckCircle} className="text-[10px]" />
+                        <span>Active template: <strong>{BUDGET_TEMPLATES.find(t => t.id === selectedTemplate)?.name}</strong></span>
+                        <button onClick={() => handleSelectTemplate('default')} className={`ml-auto text-[10px] font-medium px-2 py-1 rounded-md transition-all ${isLight ? 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300 border border-[#333]'}`}>
+                            Reset to Default
+                        </button>
+                    </div>
+                )}
+            </div></AnimateIn>
+
+            {/* ─── Default Currency ─── */}
+            <AnimateIn delay={100}><div className={cardP}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${templateStyles?.accentBg || (isLight ? 'bg-blue-50' : 'bg-blue-900/20')}`}>
+                        <FontAwesomeIcon icon={faExchangeAlt} className={`text-sm ${templateStyles?.accentText || (isLight ? 'text-blue-500' : 'text-blue-400')}`} />
                     </div>
                     <div>
                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Default Currency</h3>
@@ -6669,7 +7728,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Exchange Rates ─── */}
-            <AnimateIn delay={100}><div className={`${card} p-5`}>
+            <AnimateIn delay={200}><div className={cardP}>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-amber-50' : 'bg-amber-900/20'}`}>
@@ -6743,7 +7802,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Payment Methods ─── */}
-            <AnimateIn delay={200}><div className={`${card} p-5`}>
+            <AnimateIn delay={300}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
                         <FontAwesomeIcon icon={faCreditCard} className={`text-sm ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
@@ -6796,7 +7855,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Categories Overview ─── */}
-            <AnimateIn delay={300}><div className={`${card} p-5`}>
+            <AnimateIn delay={400}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-50' : 'bg-emerald-900/20'}`}>
                         <FontAwesomeIcon icon={faTags} className={`text-sm ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
@@ -6811,7 +7870,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                         { label: 'Total', value: catStats.total, icon: faTags, color: isLight ? 'text-slate-600' : 'text-gray-300' },
                         { label: 'Expense', value: catStats.expense, icon: faArrowDown, color: 'text-red-500' },
                         { label: 'Income', value: catStats.income, icon: faArrowUp, color: 'text-emerald-500' },
-                        { label: 'With Budget', value: catStats.withBudget, icon: faWallet, color: isLight ? 'text-blue-600' : 'text-blue-400' },
+                        { label: 'With Budget', value: catStats.withBudget, icon: faWallet, color: templateStyles?.accentText || (isLight ? 'text-blue-600' : 'text-blue-400') },
                         { label: 'Rollover', value: catStats.withRollover, icon: faSyncAlt, color: isLight ? 'text-amber-600' : 'text-amber-400' },
                     ].map((s, i) => (
                         <div key={i} className={`text-center px-3 py-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
@@ -6855,7 +7914,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                     ) : (
                                         <button onClick={() => { setEditingCatId(cat._id); setCatBudgetEdit(cat.budget?.toString() || '0') }} className={`text-[10px] font-medium px-2 py-1 rounded transition-all ${
                                             cat.budget > 0
-                                                ? (isLight ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/30')
+                                                ? `${templateStyles?.accentBg || (isLight ? 'bg-blue-50' : 'bg-blue-900/20')} ${templateStyles?.accentText || (isLight ? 'text-blue-600' : 'text-blue-400')}`
                                                 : (isLight ? 'bg-slate-100 text-slate-400 hover:bg-slate-200' : 'bg-[#1a1a1a] text-gray-500 hover:bg-[#222]')
                                         }`}>
                                             <FontAwesomeIcon icon={faWallet} className="mr-1" />
@@ -6891,7 +7950,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Transaction Stats ─── */}
-            <AnimateIn delay={400}><div className={`${card} p-5`}>
+            <AnimateIn delay={500}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-cyan-50' : 'bg-cyan-900/20'}`}>
                         <FontAwesomeIcon icon={faChartPie} className={`text-sm ${isLight ? 'text-cyan-500' : 'text-cyan-400'}`} />
@@ -6904,7 +7963,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                         { label: 'Total Transactions', value: expenseStats.total, color: isLight ? 'text-slate-700' : 'text-gray-200' },
-                        { label: 'Active', value: expenseStats.active, color: isLight ? 'text-blue-600' : 'text-blue-400' },
+                        { label: 'Active', value: expenseStats.active, color: templateStyles?.accentText || (isLight ? 'text-blue-600' : 'text-blue-400') },
                         { label: 'List Only', value: expenseStats.listOnly, color: isLight ? 'text-amber-600' : 'text-amber-400' },
                         { label: 'Recurring', value: expenseStats.recurring, color: isLight ? 'text-violet-600' : 'text-violet-400' },
                     ].map((s, i) => (
@@ -6924,7 +7983,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                                 return (
                                     <span key={code} className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg ${
                                         code === activeViewCurrency
-                                            ? (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
+                                            ? templateStyles?.tabActive || (isLight ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white')
                                             : (isLight ? 'bg-slate-100 text-slate-600' : 'bg-[#1f1f1f] text-gray-400')
                                     }`}>
                                         {cur?.symbol || ''} {code}
@@ -6938,7 +7997,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Data & Formatting ─── */}
-            <AnimateIn delay={500}><div className={`${card} p-5`}>
+            <AnimateIn delay={600}><div className={cardP}>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-rose-50' : 'bg-rose-900/20'}`}>
@@ -7020,7 +8079,7 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
 
             {/* ─── Supported Currencies ─── */}
-            <AnimateIn delay={600}><div className={`${card} p-5`}>
+            <AnimateIn delay={700}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
                         <FontAwesomeIcon icon={faMoneyBillWave} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
@@ -7056,8 +8115,74 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
                 </div>
             </div></AnimateIn>
 
+            {/* ─── Budget Snapshots ─── */}
+            <AnimateIn delay={750}><div className={cardP}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
+                        <FontAwesomeIcon icon={faHistory} className={`text-sm ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Monthly Snapshots</h3>
+                        <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Save a snapshot of current month's budget data</p>
+                    </div>
+                </div>
+                {(() => {
+                    const snapshots = JSON.parse(localStorage.getItem('budget_snapshots') || '[]')
+                    const currentKey = `${year}-${String(month).padStart(2, '0')}`
+                    const hasSnapshot = snapshots.some(s => s.key === currentKey)
+
+                    const saveSnapshot = () => {
+                        const totalIncome = expenses.filter(e => !e.listOnly && e.type === 'income').reduce((s, e) => s + e.amount, 0)
+                        const totalExpense = expenses.filter(e => !e.listOnly && e.type === 'expense').reduce((s, e) => s + e.amount, 0)
+                        const snapshot = {
+                            key: currentKey,
+                            date: new Date().toISOString(),
+                            month, year,
+                            totalIncome, totalExpense,
+                            balance: totalIncome - totalExpense,
+                            transactions: expenses.length,
+                            categories: (monthlyBudgetData || []).filter(c => c.budget > 0).map(c => ({ name: c.name, spent: c.spent, budget: c.budget })),
+                        }
+                        const updated = [...snapshots.filter(s => s.key !== currentKey), snapshot].sort((a, b) => b.key.localeCompare(a.key))
+                        localStorage.setItem('budget_snapshots', JSON.stringify(updated.slice(0, 12)))
+                        setNotification({ message: `Snapshot saved for ${MONTHS[month - 1]} ${year}`, variant: 'success' })
+                    }
+
+                    return (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <button onClick={saveSnapshot} className={btnPrimary}>
+                                    <FontAwesomeIcon icon={faCheck} className="mr-1.5 text-xs" />
+                                    {hasSnapshot ? 'Update Snapshot' : 'Save Snapshot'}
+                                </button>
+                                <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                    {MONTHS[month - 1]} {year} — {expenses.length} transactions
+                                </span>
+                            </div>
+                            {snapshots.length > 0 && (
+                                <div className="space-y-1.5">
+                                    {snapshots.slice(0, 6).map(s => (
+                                        <div key={s.key} className={`flex items-center justify-between px-3 py-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                            <div>
+                                                <span className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{MONTHS[s.month - 1]} {s.year}</span>
+                                                <span className={`text-[10px] ml-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.transactions} txns</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[11px] text-emerald-500 font-medium">+{formatCurrencyRaw(s.totalIncome, activeViewCurrency)}</span>
+                                                <span className="text-[11px] text-red-500 font-medium">-{formatCurrencyRaw(s.totalExpense, activeViewCurrency)}</span>
+                                                <span className={`text-[11px] font-bold ${s.balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(s.balance, activeViewCurrency)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })()}
+            </div></AnimateIn>
+
             {/* ─── Feature Reference ─── */}
-            <AnimateIn delay={700}><div className={`${card} p-5`}>
+            <AnimateIn delay={800}><div className={cardP}>
                 <div className="flex items-center gap-2.5 mb-4">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-teal-50' : 'bg-teal-900/20'}`}>
                         <FontAwesomeIcon icon={faEye} className={`text-sm ${isLight ? 'text-teal-500' : 'text-teal-400'}`} />
@@ -7089,6 +8214,6 @@ const SettingsTab = ({ isLight, card, inputCls, selectCls, btnPrimary, btnSecond
             </div></AnimateIn>
         </div>
     )
-}
+})
 
 export default Budget

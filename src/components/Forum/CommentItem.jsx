@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faReply, faPen, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faReply, faPen, faTrash, faFlag } from '@fortawesome/free-solid-svg-icons'
 import VoteButtons from './VoteButtons'
 
 const timeAgo = (d) => {
@@ -12,7 +14,7 @@ const timeAgo = (d) => {
     return `${Math.floor(s/86400)}d`
 }
 
-const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, onVote }) => {
+const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, onVote, onReport }) => {
     const isLight = theme === 'light'
     const userId = user?.result?._id || user?._id
     const isAuthor = userId === comment.author?._id
@@ -116,16 +118,18 @@ const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, 
                                 </button>
                             </div>
                         </div>
-                    ) : (
-                        <p
-                            className={`max-w-2xl whitespace-pre-wrap text-sm leading-relaxed
-                                ${isLight ? 'text-slate-600' : 'text-zinc-300'}
-                                ${comment.isDeleted
-                                    ? (isLight ? 'text-slate-400 line-through' : 'text-zinc-500 line-through')
-                                    : ''}`}
-                        >
+                    ) : comment.isDeleted ? (
+                        <p className={`max-w-2xl text-sm leading-relaxed line-through ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
                             {comment.content}
                         </p>
+                    ) : (
+                        <div className={`max-w-2xl text-sm leading-relaxed prose prose-sm max-w-none ${
+                            isLight
+                                ? 'prose-slate prose-p:text-slate-600 prose-p:leading-relaxed prose-a:text-indigo-600 prose-code:bg-slate-100 prose-code:rounded prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-pre:bg-slate-50 prose-pre:border prose-pre:border-slate-200 prose-pre:rounded-lg'
+                                : 'prose-invert prose-p:text-zinc-300 prose-p:leading-relaxed prose-a:text-indigo-400 prose-code:bg-[#141414] prose-code:rounded prose-code:px-1 prose-code:py-0.5 prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[#0d0d0d] prose-pre:border prose-pre:border-[#2a2a2a] prose-pre:rounded-lg'
+                        }`}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.content}</ReactMarkdown>
+                        </div>
                     )}
                     {!comment.isDeleted && !editing && (
                         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -143,7 +147,7 @@ const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, 
                                     Reply
                                 </button>
                             )}
-                            {isAuthor && (
+                            {isAuthor ? (
                                 <>
                                     <button
                                         type="button"
@@ -162,6 +166,15 @@ const CommentItem = ({ comment, theme, user, postId, onReply, onEdit, onDelete, 
                                         <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5" />
                                     </button>
                                 </>
+                            ) : user && onReport && (
+                                <button
+                                    type="button"
+                                    onClick={() => onReport(comment._id)}
+                                    className={actionBtn}
+                                    aria-label="Report comment"
+                                >
+                                    <FontAwesomeIcon icon={faFlag} className="h-3 w-3 opacity-80" />
+                                </button>
                             )}
                         </div>
                     )}

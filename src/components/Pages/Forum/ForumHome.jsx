@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { io as socketIO } from 'socket.io-client'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faComments, faChevronLeft, faChevronRight, faPlus, faFire, faTags, faGlobe, faUserGroup } from '@fortawesome/free-solid-svg-icons'
@@ -17,6 +17,7 @@ const socketUrl = import.meta.env.VITE_DEVELOPMENT == 'true'
 
 const ForumHome = ({ user, theme }) => {
     const dispatch = useDispatch()
+    const navigate = useNavigate()
     const isLight = theme === 'light'
     const { feed, posts, pagination, isLoading } = useSelector(s => s.forum)
     const { data: communities } = useSelector(s => s.community)
@@ -144,6 +145,7 @@ const ForumHome = ({ user, theme }) => {
                                 type="button"
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
                                 disabled={page === 1}
+                                aria-label="Previous page"
                                 className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs ${
                                     page === 1
                                         ? 'cursor-not-allowed opacity-35'
@@ -181,6 +183,7 @@ const ForumHome = ({ user, theme }) => {
                                 type="button"
                                 onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
                                 disabled={page === pagination.pages}
+                                aria-label="Next page"
                                 className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs ${
                                     page === pagination.pages
                                         ? 'cursor-not-allowed opacity-35'
@@ -352,7 +355,7 @@ const ForumHome = ({ user, theme }) => {
                             </div>
                             <div className="flex flex-wrap gap-1.5 p-3">
                                 {tags.slice(0, 15).map(t => (
-                                    <ForumTagPill key={t.name} tag={t.name} count={t.count} theme={theme} />
+                                    <ForumTagPill key={t.name} tag={t.name} count={t.count} theme={theme} onClick={() => navigate(`/forum/search?q=${encodeURIComponent(t.name)}`)} />
                                 ))}
                             </div>
                         </div>

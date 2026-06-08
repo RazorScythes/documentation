@@ -25,6 +25,7 @@ const ForumInvite = ({ user, theme }) => {
         }
 
         let mounted = true
+        let timer
         const join = async () => {
             const result = await dispatch(joinCommunityByCode(code))
             if (!mounted) return
@@ -36,7 +37,7 @@ const ForumInvite = ({ user, theme }) => {
                 if (slug) {
                     setCommunitySlug(slug)
                     setStatus('success')
-                    setTimeout(() => navigate(`/forum/c/${slug}`, { replace: true }), 1500)
+                    timer = setTimeout(() => { if (mounted) navigate(`/forum/c/${slug}`, { replace: true }) }, 1500)
                 } else {
                     setStatus('error')
                     setError('Could not resolve community')
@@ -44,7 +45,7 @@ const ForumInvite = ({ user, theme }) => {
             }
         }
         join()
-        return () => { mounted = false }
+        return () => { mounted = false; clearTimeout(timer) }
     }, [code, userId, dispatch, navigate])
 
     const panelClass = `rounded-xl border ${isLight ? 'bg-white border-slate-200/60 shadow-sm' : 'bg-[#1a1a1a] border-[#2a2a2a]'}`

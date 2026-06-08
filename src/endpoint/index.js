@@ -393,6 +393,7 @@ export const deleteForumComment              = (id) => endpoint.delete(`/forum/c
 export const voteForumComment                = (id, formData) => endpoint.post(`/forum/comments/${id}/vote`, formData, getOptions())
 export const getForumTags                    = () => endpoint.get('/forum/tags')
 export const searchForum                     = (params) => endpoint.get('/forum/search', { params })
+export const reportForumContent              = (formData) => endpoint.post('/forum/report', formData, getOptions())
 
 /*
     BLOB STORAGE

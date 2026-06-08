@@ -7,15 +7,18 @@ import { faPen, faEye, faBold, faItalic, faCode, faLink, faList, faImage, faHead
 import { put } from '@vercel/blob'
 import { v4 as uuidv4 } from 'uuid'
 
+let rteCounter = 0
+
 const RichTextEditor = ({ value, onChange, theme, placeholder = 'Write something...', minRows = 6 }) => {
     const isLight = theme === 'light'
     const [preview, setPreview] = useState(false)
     const [imageUploading, setImageUploading] = useState(false)
     const [showImageMenu, setShowImageMenu] = useState(false)
     const imageMenuRef = useRef(null)
+    const [textareaId] = useState(() => `rte-textarea-${++rteCounter}`)
 
     const insert = (prefix, suffix = '') => {
-        const textarea = document.getElementById('rte-textarea')
+        const textarea = document.getElementById(textareaId)
         if (!textarea) return
         const start = textarea.selectionStart
         const end = textarea.selectionEnd
@@ -34,7 +37,7 @@ const RichTextEditor = ({ value, onChange, theme, placeholder = 'Write something
                 token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN
             })
             const markdown = `\n![${file.name}](${blob.url})\n`
-            const textarea = document.getElementById('rte-textarea')
+            const textarea = document.getElementById(textareaId)
             if (textarea) {
                 const pos = textarea.selectionEnd || value.length
                 onChange(value.substring(0, pos) + markdown + value.substring(pos))
@@ -218,7 +221,7 @@ const RichTextEditor = ({ value, onChange, theme, placeholder = 'Write something
                 </div>
             ) : (
                 <TextareaAutosize
-                    id="rte-textarea"
+                    id={textareaId}
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     minRows={minRows}
