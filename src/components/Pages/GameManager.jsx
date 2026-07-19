@@ -12,7 +12,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { Link, useSearchParams } from 'react-router-dom'
 import { put, del } from '@vercel/blob'
-import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, bulkUpdateGames, togglePrivacy, toggleStrict, clearGameAlert, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash, getGameAnalytics } from '../../actions/gameManager'
+import { fetchGames, createGame, updateGame, deleteGame, bulkDeleteGames, bulkUpdateGames, togglePrivacy, toggleStrict, clearGameAlert, clearGameAnalytics, fetchTrash, restoreGame, permanentDeleteGame, emptyTrash, getGameAnalytics } from '../../actions/gameManager'
 import { getFavoriteGamesPopulated, toggleFavoriteGame, getGameCollections, createGameCollection, deleteGameCollection, toggleGameInCollection, getCollectionGames } from '../../actions/game'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
@@ -76,6 +76,8 @@ const GameManager = ({ user, theme }) => {
     const [galleryInput, setGalleryInput] = useState('')
     const [storageInput, setStorageInput] = useState('Google Drive')
     const [linkInputs, setLinkInputs] = useState([])
+    const [linkNameInputs, setLinkNameInputs] = useState([])
+    const [editingLink, setEditingLink] = useState(null)
     const [notification, setNotification] = useState({})
     const [showNotif, setShowNotif] = useState(false)
     const [viewGame, setViewGame] = useState(null)
@@ -94,6 +96,7 @@ const GameManager = ({ user, theme }) => {
     const [bulkCategory, setBulkCategory] = useState('')
     const [changelogVersion, setChangelogVersion] = useState('')
     const [changelogDesc, setChangelogDesc] = useState('')
+    const [editingChangelog, setEditingChangelog] = useState(null)
     const [analyticsGame, setAnalyticsGame] = useState(null)
     const analytics = useSelector((state) => state.gameManager.analytics)
     const collections = useSelector((state) => state.game.collections)
@@ -188,6 +191,8 @@ const GameManager = ({ user, theme }) => {
         setTagInput('')
         setGalleryInput('')
         setLinkInputs([])
+        setLinkNameInputs([])
+        setEditingLink(null)
     }
 
     const openCreate = () => { resetForm(); setView('form') }
@@ -202,7 +207,7 @@ const GameManager = ({ user, theme }) => {
                     landscape: g.landscape || false, carousel: g.carousel || false,
                     details: { latest_version: g.details?.latest_version || '', censorship: g.details?.censorship || 'Uncensored', language: g.details?.language || 'English', developer: g.details?.developer || '', platform: g.details?.platform || 'Desktop' },
                     leave_uploader_message: g.leave_uploader_message || '', gallery: [...(g.gallery || [])],
-                    access_key: [], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: [...d.links] })),
+                    access_key: [], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: (d.links || []).map(lk => typeof lk === 'string' ? { url: lk, name: '' } : { ...lk }) })),
                     guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])],
                     changelog: [],
                 }
@@ -218,12 +223,14 @@ const GameManager = ({ user, theme }) => {
             landscape: g.landscape || false, carousel: g.carousel || false,
             details: { latest_version: g.details?.latest_version || '', censorship: g.details?.censorship || 'Uncensored', language: g.details?.language || 'English', developer: g.details?.developer || '', platform: g.details?.platform || 'Desktop' },
             leave_uploader_message: g.leave_uploader_message || '', gallery: [...(g.gallery || []).map(gi => typeof gi === 'string' ? { url: gi, caption: '', type: 'image' } : { ...gi })],
-            access_key: [...(g.access_key || [])], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: [...d.links] })),
+            access_key: [...(g.access_key || [])], download_link: (g.download_link || []).map(d => ({ storage_name: d.storage_name, links: (d.links || []).map(lk => typeof lk === 'string' ? { url: lk, name: '' } : { ...lk }) })),
             guide_link: g.guide_link || '', password: g.password || '', tags: [...(g.tags || [])],
             changelog: [...(g.changelog || [])],
         })
         setEditId(g._id)
         setLinkInputs((g.download_link || []).map(() => ''))
+        setLinkNameInputs((g.download_link || []).map(() => ''))
+        setEditingLink(null)
         setView('form')
     }
 
@@ -262,6 +269,7 @@ const GameManager = ({ user, theme }) => {
     const handleTogglePrivacy = (id) => dispatch(togglePrivacy(id))
     const handleToggleStrict = (id) => dispatch(toggleStrict(id))
     const handleViewAnalytics = (g) => {
+        dispatch(clearGameAnalytics())
         setAnalyticsGame(g)
         dispatch(getGameAnalytics({ gameId: g._id }))
         setActiveTab('analytics')
@@ -317,19 +325,28 @@ const GameManager = ({ user, theme }) => {
     const removeGalleryUrl = (i) => { const g = [...form.gallery]; g.splice(i, 1); setForm({ ...form, gallery: g }) }
     const updateGalleryCaption = (i, caption) => { const g = [...form.gallery]; g[i] = { ...g[i], caption }; setForm({ ...form, gallery: g }) }
 
-    const addDownloadBucket = () => { setForm({ ...form, download_link: [...form.download_link, { storage_name: storageInput, links: [] }] }); setLinkInputs([...linkInputs, '']) }
-    const removeDownloadBucket = (i) => { const d = [...form.download_link]; d.splice(i, 1); setForm({ ...form, download_link: d }); const l = [...linkInputs]; l.splice(i, 1); setLinkInputs(l) }
+    const addDownloadBucket = () => { setForm({ ...form, download_link: [...form.download_link, { storage_name: storageInput, links: [] }] }); setLinkInputs([...linkInputs, '']); setLinkNameInputs([...linkNameInputs, '']) }
+    const removeDownloadBucket = (i) => { const d = [...form.download_link]; d.splice(i, 1); setForm({ ...form, download_link: d }); const l = [...linkInputs]; l.splice(i, 1); setLinkInputs(l); const n = [...linkNameInputs]; n.splice(i, 1); setLinkNameInputs(n) }
     const addLinkToBucket = (i) => {
         if (!linkInputs[i]) return
         const d = [...form.download_link]
-        d[i] = { ...d[i], links: [...d[i].links, linkInputs[i]] }
+        d[i] = { ...d[i], links: [...d[i].links, { url: linkInputs[i], name: linkNameInputs[i] || '' }] }
         setForm({ ...form, download_link: d })
         const l = [...linkInputs]; l[i] = ''; setLinkInputs(l)
+        const n = [...linkNameInputs]; n[i] = ''; setLinkNameInputs(n)
     }
     const removeLinkFromBucket = (bi, li) => {
         const d = [...form.download_link]
         d[bi] = { ...d[bi], links: d[bi].links.filter((_, j) => j !== li) }
         setForm({ ...form, download_link: d })
+    }
+    const updateLinkInBucket = (bi, li, updates) => {
+        const d = [...form.download_link]
+        const link = d[bi].links[li]
+        const linkObj = typeof link === 'string' ? { url: link, name: '' } : { ...link }
+        d[bi] = { ...d[bi], links: d[bi].links.map((lk, j) => j === li ? { ...linkObj, ...updates } : lk) }
+        setForm({ ...form, download_link: d })
+        setEditingLink(null)
     }
 
     const generateKey = () => {
@@ -578,7 +595,7 @@ const GameManager = ({ user, theme }) => {
                                                 <div className="flex flex-wrap gap-1.5 mb-2">
                                                     {viewGame.privacy && <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded bg-red-500/90 text-white">Private</span>}
                                                     {viewGame.strict && <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded bg-orange-500/90 text-white">Strict</span>}
-                                                    {viewGame.password && <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded bg-blue-500/90 text-white">{viewGame.password}</span>}
+                                                    {viewGame.password && <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded bg-blue-500/90 text-white"><FontAwesomeIcon icon={faKey} className="mr-1" />Password Protected</span>}
                                                     {!viewGame.privacy && !viewGame.strict && !viewGame.password && (
                                                         <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Public</span>
                                                     )}
@@ -655,30 +672,36 @@ const GameManager = ({ user, theme }) => {
                                         {/* Download Links */}
                                         {viewGame.download_link?.some(b => b.links?.length > 0) && (
                                             <div>
-                                                <div className={`flex items-center gap-2 mb-2 pb-2 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#222]'}`}>
+                                                <div className={`flex items-center gap-2 mb-3 pb-2 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#222]'}`}>
                                                     <h4 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Download Links</h4>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {viewGame.download_link.map((bucket, bi) => (
                                                         bucket.links?.length > 0 && (
-                                                            <div key={bi} className={`rounded-lg overflow-hidden border border-solid ${isLight ? 'border-slate-100' : 'border-[#222]'}`}>
-                                                                <div className={`px-3 py-2 ${isLight ? 'bg-slate-50' : 'bg-[#0e0e0e]'}`}>
-                                                                    <p className={`text-xs font-bold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>
-                                                                        <FontAwesomeIcon icon={faDownload} className={`mr-1.5 text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                                                                        {bucket.storage_name}
-                                                                        <span className={`ml-1.5 font-normal ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>({bucket.links.length})</span>
-                                                                    </p>
+                                                            <div key={bi}>
+                                                                <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                                    <FontAwesomeIcon icon={faDownload} className="mr-1.5" />
+                                                                    {bucket.storage_name} ({bucket.links.length})
+                                                                </p>
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    {bucket.links.map((link, li) => {
+                                                                        const linkUrl = typeof link === 'string' ? link : link.url
+                                                                        const linkName = typeof link === 'string' ? '' : (link.name || '')
+                                                                        return (
+                                                                            <a key={li} href={linkUrl} target="_blank" rel="noopener noreferrer"
+                                                                                className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all w-full ${isLight ? 'bg-emerald-50/80 hover:bg-emerald-100 border border-solid border-emerald-100 hover:border-emerald-200' : 'bg-emerald-900/10 hover:bg-emerald-900/20 border border-solid border-emerald-900/30 hover:border-emerald-800/50'}`}>
+                                                                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                                                                    <FontAwesomeIcon icon={faDownload} className={`text-xs ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                                                                                </div>
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{linkName || `Download #${li + 1}`}</p>
+                                                                                    {linkName && <p className={`text-xs truncate ${isLight ? 'text-emerald-500/70' : 'text-emerald-500/60'}`}>{linkUrl}</p>}
+                                                                                </div>
+                                                                                <FontAwesomeIcon icon={faChevronRight} className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5 ${isLight ? 'text-emerald-300' : 'text-emerald-600'}`} />
+                                                                            </a>
+                                                                        )
+                                                                    })}
                                                                 </div>
-                                                                {bucket.links.map((link, li) => (
-                                                                    <div key={li} className={`flex items-center gap-3 px-3 py-2 ${isLight ? 'bg-white' : 'bg-[#141414]'} ${li > 0 ? `border-t border-solid ${isLight ? 'border-slate-50' : 'border-[#1a1a1a]'}` : `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#222]'}`}`}>
-                                                                        <span className={`text-xs ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>-</span>
-                                                                        <p className={`text-xs break-all flex-1 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{link}</p>
-                                                                        <a href={link} target="_blank" rel="noopener noreferrer"
-                                                                            className={`flex-shrink-0 w-6 h-6 rounded flex items-center justify-center transition-colors ${isLight ? 'text-slate-300 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-600 hover:text-blue-400 hover:bg-blue-900/20'}`}>
-                                                                            <FontAwesomeIcon icon={faChevronRight} className="text-[10px]" />
-                                                                        </a>
-                                                                    </div>
-                                                                ))}
                                                             </div>
                                                         )
                                                     ))}
@@ -713,6 +736,32 @@ const GameManager = ({ user, theme }) => {
                                                                     title="Copy link with access key">
                                                                     <FontAwesomeIcon icon={faCopy} className="text-[10px]" />
                                                                 </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Changelog */}
+                                        {viewGame.changelog?.length > 0 && (
+                                            <div>
+                                                <div className={`flex items-center gap-2 mb-3 pb-2 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#222]'}`}>
+                                                    <h4 className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Changelog</h4>
+                                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-gray-500'}`}>{viewGame.changelog.length}</span>
+                                                </div>
+                                                <div className="flex flex-col gap-1.5">
+                                                    {viewGame.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ci) => (
+                                                        <div key={ci} className={`flex gap-2.5 px-3 py-2.5 rounded-lg w-full ${isLight ? 'bg-violet-50/80 border border-solid border-violet-100' : 'bg-violet-900/10 border border-solid border-violet-900/30'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faHistory} className={`text-xs ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-0.5">
+                                                                    <span className={`text-xs font-bold ${isLight ? 'text-violet-600' : 'text-violet-300'}`}>{entry.version}</span>
+                                                                    <span className={`text-xs ${isLight ? 'text-violet-300' : 'text-violet-600'}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                                                </div>
+                                                                <p className={`text-xs whitespace-pre-wrap leading-relaxed ${isLight ? 'text-violet-500/80' : 'text-violet-400/70'}`}>{entry.description}</p>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -893,17 +942,30 @@ const GameManager = ({ user, theme }) => {
                                         collectionGames?.length > 0 ? (
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                 {collectionGames.map((g) => (
-                                                    <Link to={`/games/${g._id}`} key={g._id} className="group">
-                                                        <div className={`rounded-xl overflow-hidden transition-all ${isLight ? 'bg-white border border-solid border-slate-200 hover:shadow-md' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B] hover:border-[#3a3a3a]'}`}>
-                                                            <div className="aspect-[16/10] overflow-hidden">
-                                                                <img src={g.featured_image} alt={g.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                    <div key={g._id} className="group relative">
+                                                        <Link to={`/games/${g._id}`}>
+                                                            <div className={`rounded-xl overflow-hidden transition-all ${isLight ? 'bg-white border border-solid border-slate-200 hover:shadow-md' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B] hover:border-[#3a3a3a]'}`}>
+                                                                <div className="aspect-[16/10] overflow-hidden">
+                                                                    {g.featured_image ? (
+                                                                        <img src={g.featured_image} alt={g.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                                                    ) : (
+                                                                        <div className={`w-full h-full flex items-center justify-center ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                                                            <FontAwesomeIcon icon={faImage} className={`text-2xl ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="p-2.5">
+                                                                    <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.title}</p>
+                                                                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{g.user?.username}</p>
+                                                                </div>
                                                             </div>
-                                                            <div className="p-2.5">
-                                                                <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{g.title}</p>
-                                                                <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{g.user?.username}</p>
-                                                            </div>
-                                                        </div>
-                                                    </Link>
+                                                        </Link>
+                                                        <button onClick={() => { dispatch(toggleGameInCollection({ userId, collectionId: selectedCollection._id, gameId: g._id })); dispatch(getCollectionGames({ userId, collectionId: selectedCollection._id })) }}
+                                                            className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'bg-white/90 text-red-500 hover:bg-red-50' : 'bg-black/70 text-red-400 hover:bg-red-900/40'}`}
+                                                            title="Remove from collection">
+                                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                                        </button>
+                                                    </div>
                                                 ))}
                                             </div>
                                         ) : (
@@ -923,7 +985,11 @@ const GameManager = ({ user, theme }) => {
                                                                 <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{col.games?.length || 0} game{(col.games?.length || 0) !== 1 ? 's' : ''}</p>
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => dispatch(deleteGameCollection({ userId, collectionId: col._id }))}
+                                                        <button onClick={() => setConfirmModal({
+                                                                open: true, title: 'Delete Collection', variant: 'danger', icon: faTrash,
+                                                                message: `"${col.name}" and its game associations will be permanently deleted.`,
+                                                                onConfirm: () => { dispatch(deleteGameCollection({ userId, collectionId: col._id })); setConfirmModal(prev => ({ ...prev, open: false })) }
+                                                            })}
                                                             className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors flex-shrink-0 ${isLight ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20'}`}>
                                                             <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                         </button>
@@ -1067,6 +1133,12 @@ const GameManager = ({ user, theme }) => {
                                                     </button>
                                                     <button onClick={() => handleBulkUpdate({ privacy: false })} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/20 text-emerald-400 hover:bg-emerald-900/30'}`}>
                                                         <FontAwesomeIcon icon={faLockOpen} className="text-[10px] mr-1" />Public
+                                                    </button>
+                                                    <button onClick={() => handleBulkUpdate({ strict: true })} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' : 'bg-orange-900/20 text-orange-400 hover:bg-orange-900/30'}`}>
+                                                        <FontAwesomeIcon icon={faShieldAlt} className="text-[10px] mr-1" />Strict
+                                                    </button>
+                                                    <button onClick={() => handleBulkUpdate({ strict: false })} className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-slate-50 text-slate-600 hover:bg-slate-100' : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#222]'}`}>
+                                                        <FontAwesomeIcon icon={faShieldAlt} className="text-[10px] mr-1" />Unstrict
                                                     </button>
                                                     <select className={`text-xs font-medium px-2 py-1.5 rounded-lg border border-solid ${isLight ? 'border-slate-200 bg-white text-slate-600' : 'border-[#333] bg-[#1a1a1a] text-gray-300'}`}
                                                         value={bulkStatus} onChange={(e) => { if (e.target.value) { handleBulkUpdate({ status: e.target.value }); setBulkStatus('') } }}>
@@ -1227,6 +1299,10 @@ const GameManager = ({ user, theme }) => {
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-center justify-end gap-1">
+                                                                <Link to={`/games/${g._id}`} title="View on site"
+                                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50' : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/20'}`}>
+                                                                    <FontAwesomeIcon icon={faGlobe} className="text-[10px]" />
+                                                                </Link>
                                                                 <button onClick={() => handleViewAnalytics(g)} title="Analytics"
                                                                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20'}`}>
                                                                     <FontAwesomeIcon icon={faChartBar} className="text-[10px]" />
@@ -1575,20 +1651,56 @@ const GameManager = ({ user, theme }) => {
                                                             <FontAwesomeIcon icon={faTrash} />
                                                         </button>
                                                     </div>
-                                                    <div className="flex gap-2 mb-2">
-                                                        <input type="text" className={inputCls} value={linkInputs[bi] || ''} onChange={(e) => { const l = [...linkInputs]; l[bi] = e.target.value; setLinkInputs(l) }} placeholder="Paste download URL"
+                                                    <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                                                        <input type="text" className={`${inputCls} sm:w-32`} value={linkNameInputs[bi] || ''} onChange={(e) => { const n = [...linkNameInputs]; n[bi] = e.target.value; setLinkNameInputs(n) }} placeholder="Link name (optional)" />
+                                                        <input type="text" className={`${inputCls} flex-1`} value={linkInputs[bi] || ''} onChange={(e) => { const l = [...linkInputs]; l[bi] = e.target.value; setLinkInputs(l) }} placeholder="Paste download URL"
                                                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLinkToBucket(bi) } }} />
                                                         <button onClick={() => addLinkToBucket(bi)} className={btnPrimary} disabled={!linkInputs[bi]}><FontAwesomeIcon icon={faPlus} className="text-xs" /></button>
                                                     </div>
-                                                    {bucket.links.map((link, li) => (
-                                                        <div key={li} className={`flex items-center gap-2 py-1.5 text-xs ${li > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#0e0e0e]'}` : ''}`}>
-                                                            <FontAwesomeIcon icon={faLink} className={`flex-shrink-0 ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                                                            <span className={`flex-1 truncate ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{link}</span>
-                                                            <button onClick={() => removeLinkFromBucket(bi, li)} className={`${isLight ? 'text-red-400 hover:text-red-600' : 'text-red-500 hover:text-red-300'}`}>
-                                                                <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
-                                                            </button>
+                                                    {bucket.links.length > 0 && (
+                                                        <div className="flex flex-col gap-1.5 mt-2">
+                                                            {bucket.links.map((link, li) => {
+                                                                const linkUrl = typeof link === 'string' ? link : link.url
+                                                                const linkName = typeof link === 'string' ? '' : (link.name || '')
+                                                                const isEditingThis = editingLink?.bi === bi && editingLink?.li === li
+                                                                if (isEditingThis) {
+                                                                    return (
+                                                                        <div key={li} className={`w-full flex flex-col gap-1.5 p-2.5 rounded-lg ${isLight ? 'bg-emerald-50/50 border border-solid border-emerald-200' : 'bg-emerald-900/10 border border-solid border-emerald-900/30'}`}>
+                                                                            <div className="flex gap-2">
+                                                                                <input type="text" className={`${inputCls} sm:w-32`} value={editingLink.name} onChange={(e) => setEditingLink({ ...editingLink, name: e.target.value })} placeholder="Name" />
+                                                                                <input type="text" className={`${inputCls} flex-1`} value={editingLink.url} onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })} placeholder="URL"
+                                                                                    onKeyDown={(e) => { if (e.key === 'Enter') updateLinkInBucket(bi, li, { url: editingLink.url, name: editingLink.name }) }} />
+                                                                            </div>
+                                                                            <div className="flex gap-1.5">
+                                                                                <button onClick={() => updateLinkInBucket(bi, li, { url: editingLink.url, name: editingLink.name })}
+                                                                                    className={`text-xs px-2.5 py-1 rounded-md font-medium ${isLight ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/40'}`}>
+                                                                                    <FontAwesomeIcon icon={faCheck} className="mr-1" />Save
+                                                                                </button>
+                                                                                <button onClick={() => setEditingLink(null)} className={`text-xs px-2.5 py-1 rounded-md font-medium ${isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1a1a1a]'}`}>Cancel</button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                }
+                                                                return (
+                                                                    <div key={li} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg w-full ${isLight ? 'bg-emerald-50/80 border border-solid border-emerald-100 hover:border-emerald-200' : 'bg-emerald-900/10 border border-solid border-emerald-900/30 hover:border-emerald-800/50'} transition-colors`}>
+                                                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                                                            <FontAwesomeIcon icon={faLink} className={`text-xs ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className={`text-xs font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{linkName || linkUrl}</p>
+                                                                            {linkName && <p className={`text-xs truncate ${isLight ? 'text-emerald-500/70' : 'text-emerald-500/60'}`}>{linkUrl}</p>}
+                                                                        </div>
+                                                                        <button onClick={() => setEditingLink({ bi, li, url: linkUrl, name: linkName })} className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${isLight ? 'text-emerald-400 hover:bg-emerald-100 hover:text-blue-500' : 'text-emerald-600 hover:bg-emerald-900/40 hover:text-blue-400'}`}>
+                                                                            <FontAwesomeIcon icon={faPen} className="text-xs" />
+                                                                        </button>
+                                                                        <button onClick={() => removeLinkFromBucket(bi, li)} className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${isLight ? 'text-emerald-400 hover:bg-red-50 hover:text-red-500' : 'text-emerald-600 hover:bg-red-900/20 hover:text-red-400'}`}>
+                                                                            <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            })}
                                                         </div>
-                                                    ))}
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -1696,16 +1808,9 @@ const GameManager = ({ user, theme }) => {
                                         <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Changelog ({form.changelog?.length || 0})</h3>
                                     </div>
                                     <div className="px-4 sm:px-5 py-4 space-y-3">
-                                        <div className={`flex flex-col sm:flex-row gap-2 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
-                                            <input type="text" value={changelogVersion} onChange={(e) => setChangelogVersion(e.target.value)} placeholder="Version" className={`${inputCls} w-24`} />
-                                            <input type="text" value={changelogDesc} onChange={(e) => setChangelogDesc(e.target.value)} placeholder="What changed..." className={`${inputCls}`}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && changelogVersion && changelogDesc) {
-                                                        e.preventDefault()
-                                                        setForm({ ...form, changelog: [...(form.changelog || []), { version: changelogVersion, description: changelogDesc, date: new Date().toISOString() }] })
-                                                        setChangelogVersion(''); setChangelogDesc('')
-                                                    }
-                                                }} />
+                                        <div className={`flex flex-col gap-2 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
+                                            <input type="text" value={changelogVersion} onChange={(e) => setChangelogVersion(e.target.value)} placeholder="Version" className={`${inputCls} w-32`} />
+                                            <textarea value={changelogDesc} onChange={(e) => setChangelogDesc(e.target.value)} placeholder="What changed..." className={`${inputCls} min-h-[60px] resize-y`} rows={2} />
                                             <button onClick={() => {
                                                 if (changelogVersion && changelogDesc) {
                                                     setForm({ ...form, changelog: [...(form.changelog || []), { version: changelogVersion, description: changelogDesc, date: new Date().toISOString() }] })
@@ -1714,25 +1819,49 @@ const GameManager = ({ user, theme }) => {
                                             }} className={btnPrimary} disabled={!changelogVersion || !changelogDesc}><FontAwesomeIcon icon={faPlus} className="text-xs" /></button>
                                         </div>
                                         {form.changelog?.length > 0 && (
-                                            <div className="space-y-2">
-                                                {form.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ci) => (
-                                                    <div key={ci} className={`flex items-start gap-3 rounded-xl p-3 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
-                                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
-                                                            <FontAwesomeIcon icon={faHistory} className={`text-[10px] ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 mb-0.5">
-                                                                <span className={`text-xs font-bold ${isLight ? 'text-violet-600' : 'text-violet-400'}`}>v{entry.version}</span>
-                                                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                {form.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ci) => {
+                                                    const originalIdx = form.changelog.indexOf(entry)
+                                                    const isEditing = editingChangelog?.idx === originalIdx
+                                                    if (isEditing) {
+                                                        return (
+                                                            <div key={originalIdx} className={`w-full flex flex-col gap-1.5 p-2.5 rounded-lg ${isLight ? 'bg-violet-50/50 border border-solid border-violet-200' : 'bg-violet-900/10 border border-solid border-violet-900/30'}`}>
+                                                                <div className="flex flex-col gap-2">
+                                                                    <input type="text" value={editingChangelog.version} onChange={(e) => setEditingChangelog({ ...editingChangelog, version: e.target.value })} className={`${inputCls} text-xs w-32`} placeholder="Version" />
+                                                                    <textarea value={editingChangelog.description} onChange={(e) => setEditingChangelog({ ...editingChangelog, description: e.target.value })} className={`${inputCls} text-xs min-h-[50px] resize-y`} placeholder="Description" rows={2} />
+                                                                </div>
+                                                                <div className="flex gap-1.5">
+                                                                    <button onClick={() => { const c = [...form.changelog]; c[originalIdx] = { ...c[originalIdx], version: editingChangelog.version, description: editingChangelog.description }; setForm({ ...form, changelog: c }); setEditingChangelog(null) }}
+                                                                        className={`text-xs px-2.5 py-1 rounded-md font-medium ${isLight ? 'bg-violet-100 text-violet-700 hover:bg-violet-200' : 'bg-violet-900/30 text-violet-400 hover:bg-violet-900/40'}`}>
+                                                                        <FontAwesomeIcon icon={faCheck} className="mr-1" />Save
+                                                                    </button>
+                                                                    <button onClick={() => setEditingChangelog(null)} className={`text-xs px-2.5 py-1 rounded-md font-medium ${isLight ? 'text-slate-500 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1a1a1a]'}`}>Cancel</button>
+                                                                </div>
                                                             </div>
-                                                            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</p>
+                                                        )
+                                                    }
+                                                    return (
+                                                        <div key={originalIdx} className={`flex gap-2.5 px-3 py-2.5 rounded-lg w-full transition-colors ${isLight ? 'bg-violet-50/80 border border-solid border-violet-100 hover:border-violet-200' : 'bg-violet-900/10 border border-solid border-violet-900/30 hover:border-violet-800/50'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faHistory} className={`text-xs ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className={`text-xs font-bold ${isLight ? 'text-violet-600' : 'text-violet-300'}`}>{entry.version}</span>
+                                                                <p className={`text-xs whitespace-pre-wrap leading-relaxed mt-0.5 ${isLight ? 'text-violet-500/80' : 'text-violet-400/70'}`}>{entry.description}</p>
+                                                            </div>
+                                                            <div className="flex items-start gap-0.5 flex-shrink-0">
+                                                                <button onClick={() => setEditingChangelog({ idx: originalIdx, version: entry.version, description: entry.description })}
+                                                                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-violet-400 hover:bg-violet-100 hover:text-blue-500' : 'text-violet-600 hover:bg-violet-900/40 hover:text-blue-400'}`}>
+                                                                    <FontAwesomeIcon icon={faPen} className="text-xs" />
+                                                                </button>
+                                                                <button onClick={() => { const c = [...form.changelog]; c.splice(originalIdx, 1); setForm({ ...form, changelog: c }) }}
+                                                                    className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-violet-400 hover:bg-red-50 hover:text-red-500' : 'text-violet-600 hover:bg-red-900/20 hover:text-red-400'}`}>
+                                                                    <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        <button onClick={() => { const c = [...form.changelog]; c.splice(ci, 1); setForm({ ...form, changelog: c }) }}
-                                                            className={`flex-shrink-0 hover:text-red-500 ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>
-                                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                                    )
+                                                })}
                                             </div>
                                         )}
                                     </div>

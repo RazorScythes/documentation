@@ -902,34 +902,42 @@ const GamesSingle = ({ user, theme }) => {
                                     <div className={`${card} p-5 sm:p-6`}>
                                         <h2 className={sectionTitle}><FontAwesomeIcon icon={faDownload} className="text-xs" /> Downloads</h2>
                                         {(game.download_link || []).filter(b => b.links?.length > 0).length > 0 ? (
-                                            <div className="space-y-3">
+                                            <div className="space-y-4">
                                                 {(game.download_link || []).map((bucket, bi) => (
                                                     bucket.links?.length > 0 && (
                                                         <div key={bi}>
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                <FontAwesomeIcon icon={faGoogleDrive} className={`text-xs ${isLight ? 'text-blue-500' : 'text-blue-400'}`} />
-                                                                <span className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{bucket.storage_name}</span>
+                                                                <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                                                    <FontAwesomeIcon icon={faDownload} className="mr-1.5" />
+                                                                    {bucket.storage_name} ({bucket.links.length})
+                                                                </span>
                                                                 {game.password && (
-                                                                    <span className={`text-[10px] px-2 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600 border border-solid border-amber-200' : 'bg-amber-900/20 text-amber-400 border border-solid border-amber-800/40'}`}>
-                                                                        <FontAwesomeIcon icon={faKey} className="mr-1 text-[8px]" /> {game.password}
+                                                                    <span className={`text-xs px-2 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600 border border-solid border-amber-200' : 'bg-amber-900/20 text-amber-400 border border-solid border-amber-800/40'}`}>
+                                                                        <FontAwesomeIcon icon={faKey} className="mr-1" /> {game.password}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="space-y-1.5">
-                                                                {bucket.links.map((link, li) => (
-                                                                    <a key={li} href={link} target="_blank" rel="noopener noreferrer" onClick={addDownloadCount}
-                                                                        className={`flex items-center justify-between p-2.5 rounded-lg transition-all group ${isLight
-                                                                            ? 'bg-slate-50 hover:bg-blue-50 border border-solid border-slate-100 hover:border-blue-200'
-                                                                            : 'bg-[#111] hover:bg-[#1a1a1a] border border-solid border-[#0e0e0e] hover:border-[#333]'
+                                                            <div className="flex flex-col gap-1.5">
+                                                                {bucket.links.map((link, li) => {
+                                                                    const linkUrl = typeof link === 'string' ? link : link.url
+                                                                    const linkName = typeof link === 'string' ? '' : (link.name || '')
+                                                                    return (
+                                                                    <a key={li} href={linkUrl} target="_blank" rel="noopener noreferrer" onClick={addDownloadCount}
+                                                                        className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all w-full ${isLight
+                                                                            ? 'bg-emerald-50/80 hover:bg-emerald-100 border border-solid border-emerald-100 hover:border-emerald-200'
+                                                                            : 'bg-emerald-900/10 hover:bg-emerald-900/20 border border-solid border-emerald-900/30 hover:border-emerald-800/50'
                                                                         }`}>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <FontAwesomeIcon icon={faLink} className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
-                                                                            <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Link #{li + 1}</span>
+                                                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                                                            <FontAwesomeIcon icon={faDownload} className={`text-xs ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
                                                                         </div>
-                                                                        <FontAwesomeIcon icon={faExternalLink}
-                                                                            className={`text-[10px] transition-colors ${isLight ? 'text-slate-300 group-hover:text-blue-500' : 'text-gray-600 group-hover:text-blue-400'}`} />
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className={`text-xs font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{linkName || `Download #${li + 1}`}</p>
+                                                                            {linkName && <p className={`text-xs truncate ${isLight ? 'text-emerald-500/70' : 'text-emerald-500/60'}`}>{linkUrl}</p>}
+                                                                        </div>
+                                                                        <FontAwesomeIcon icon={faChevronRight} className={`text-xs flex-shrink-0 transition-transform group-hover:translate-x-0.5 ${isLight ? 'text-emerald-300' : 'text-emerald-600'}`} />
                                                                     </a>
-                                                                ))}
+                                                                    )
+                                                                })}
                                                             </div>
                                                         </div>
                                                     )
@@ -1002,18 +1010,18 @@ const GamesSingle = ({ user, theme }) => {
                                             <h2 className={sectionTitle}>
                                                 <FontAwesomeIcon icon={faHistory} className="text-xs" /> Changelog
                                             </h2>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
                                                 {game.changelog.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry, ei) => (
-                                                    <div key={ei} className={`flex items-start gap-3 rounded-xl p-3.5 ${isLight ? 'bg-slate-50/80 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-indigo-50' : 'bg-indigo-900/20'}`}>
-                                                            <FontAwesomeIcon icon={faFlag} className={`text-xs ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
+                                                    <div key={ei} className={`flex gap-2.5 px-3 py-2.5 rounded-lg w-full ${isLight ? 'bg-violet-50/80 border border-solid border-violet-100' : 'bg-violet-900/10 border border-solid border-violet-900/30'}`}>
+                                                        <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                                            <FontAwesomeIcon icon={faHistory} className={`text-xs ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className={`text-xs font-bold ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
-                                                                <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatDate(entry.date)}</span>
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <span className={`text-xs font-bold ${isLight ? 'text-violet-600' : 'text-violet-300'}`}>{entry.version}</span>
+                                                                <span className={`text-xs ${isLight ? 'text-violet-300' : 'text-violet-600'}`}>{formatDate(entry.date)}</span>
                                                             </div>
-                                                            <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</p>
+                                                            <p className={`text-xs whitespace-pre-wrap leading-relaxed ${isLight ? 'text-violet-500/80' : 'text-violet-400/70'}`}>{entry.description}</p>
                                                         </div>
                                                     </div>
                                                 ))}

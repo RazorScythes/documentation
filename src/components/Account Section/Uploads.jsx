@@ -1976,11 +1976,13 @@ const Uploads = ({ user }) => {
                                                                             {
                                                                                 gameForm.download_link[i].links.length > 0 &&
                                                                                     gameForm.download_link[i].links.map((data, id) => {
+                                                                                        const linkUrl = typeof data === 'string' ? data : data.url
+                                                                                        const linkName = typeof data === 'string' ? '' : (data.name || '')
                                                                                         return(
-                                                                                            <div key={i} className='w-full flex flex-row p-2 py-3 mb-1 bg-[#EAF0F7] hover:bg-gray-100  hover:text-gray-700 text-[#5A6C7F] border border-[#CAD5DF]'>
+                                                                                            <div key={id} className='w-full flex flex-row p-2 py-3 mb-1 bg-[#EAF0F7] hover:bg-gray-100  hover:text-gray-700 text-[#5A6C7F] border border-[#CAD5DF]'>
                                                                                                 <div className='w-1/2 flex flex-col'>
                                                                                                     <div className='w-full flex flex-row items-center'>
-                                                                                                        <FontAwesomeIcon icon={faChevronRight} className="mr-2 w-3 h-3"/> <p className='font-semibold break-all'>{data}</p>
+                                                                                                        <FontAwesomeIcon icon={faChevronRight} className="mr-2 w-3 h-3"/> <p className='font-semibold break-all'>{linkName ? `${linkName}: ` : ''}{linkUrl}</p>
                                                                                                     </div>
                                                                                                 </div> 
                                                                                                 <div className='w-1/2 text-right'>

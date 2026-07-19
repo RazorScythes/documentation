@@ -166,10 +166,13 @@ export const gameManagerSlice = createSlice({
         clearGameAlert: (state) => {
             state.alert     = ''
             state.variant   = ''
+        },
+        clearGameAnalytics: (state) => {
+            state.analytics = null
         }
     },
 })
 
-export const { clearGameAlert } = gameManagerSlice.actions
+export const { clearGameAlert, clearGameAnalytics } = gameManagerSlice.actions
 
 export default gameManagerSlice.reducer

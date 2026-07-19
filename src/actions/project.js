@@ -593,12 +593,15 @@ export const projectSlice = createSlice({
         state.alert             = '',
         state.variant           = ''
       },
+      clearProjectAnalytics: (state) => {
+        state.analytics = null
+      },
       updateProjectComments: (state, action) => {
         state.comments = action.payload.comments
       },
     },
 })
 
-export const { clearAlert, updateProjectComments } = projectSlice.actions
+export const { clearAlert, clearProjectAnalytics, updateProjectComments } = projectSlice.actions
 
 export default projectSlice.reducer

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
     faProjectDiagram, faPlus, faTimes, faCheck, faTrash, faPen, faEye, faSearch,
@@ -17,7 +17,7 @@ import { fas } from '@fortawesome/free-solid-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
 import { put, del } from '@vercel/blob'
-import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert, bulkDeleteProjects, bulkUpdateProjects, addCollaborator, removeCollaborator, getProjectAnalytics } from '../../actions/project'
+import { getUserProject, uploadProject, editUserProject, removeUserProject, getAdminCategory, addProjectCategory, editProjectCategory, removeProjectCategory, clearAlert, clearProjectAnalytics, bulkDeleteProjects, bulkUpdateProjects, addCollaborator, removeCollaborator, getProjectAnalytics } from '../../actions/project'
 import { getDocs } from '../../actions/documentation'
 import { main, dark, light } from '../../style'
 import styles from '../../style'
@@ -130,6 +130,7 @@ const ProjectManager = ({ user, theme }) => {
     const projVariant = useSelector((state) => state.project.variant)
     const category = useSelector((state) => state.project.category)
     const isLoading = useSelector((state) => state.project.isLoading)
+    const projectData = useSelector((state) => state.project.data)
     const docsData = useSelector((state) => state.docs.docs)
 
     const isLight = theme === 'light'
@@ -143,7 +144,7 @@ const ProjectManager = ({ user, theme }) => {
 
     const [view, setView] = useState('list')
     const [form, setForm] = useState({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)) })
-    const [editIndex, setEditIndex] = useState(null)
+    const [editingProjectId, setEditingProjectId] = useState(null)
     const [submitting, setSubmitting] = useState(false)
     const [uploadingImage, setUploadingImage] = useState(false)
     const [projects, setProjects] = useState([])
@@ -177,7 +178,6 @@ const ProjectManager = ({ user, theme }) => {
     const [showIconPicker, setShowIconPicker] = useState(false)
 
     const [selectedProjects, setSelectedProjects] = useState([])
-    const [showBulkActions, setShowBulkActions] = useState(false)
     const [bulkStatus, setBulkStatus] = useState('')
     const [bulkCategory, setBulkCategory] = useState('')
     const [filterStatus, setFilterStatus] = useState('')
@@ -189,6 +189,7 @@ const ProjectManager = ({ user, theme }) => {
 
     const [changelogVersion, setChangelogVersion] = useState('')
     const [changelogDesc, setChangelogDesc] = useState('')
+    const [editingChangelog, setEditingChangelog] = useState(null)
 
     const [attachmentUploading, setAttachmentUploading] = useState(false)
 
@@ -239,6 +240,14 @@ const ProjectManager = ({ user, theme }) => {
 
     useEffect(() => { if (!showNotif) setNotification({}) }, [showNotif])
 
+    useEffect(() => {
+        if (viewProject && projectData?.collaborators) {
+            setViewProject(prev => prev ? { ...prev, collaborators: projectData.collaborators } : prev)
+        }
+    }, [projectData?.collaborators])
+
+    useEffect(() => { setSelectedProjects([]) }, [page])
+
     /* ─── Sort / Filter / Search ─── */
 
     const handleSort = (key) => {
@@ -247,7 +256,7 @@ const ProjectManager = ({ user, theme }) => {
         setPage(0)
     }
 
-    const clearFilters = () => { setFilterCategory(''); setFilterPurpose(''); setFilterStatus(''); setPage(0) }
+    const clearFilters = () => { setFilterCategory(''); setFilterPurpose(''); setFilterStatus(''); setPage(0); setSelectedProjects([]) }
 
     const handleBulkDelete = () => {
         if (selectedProjects.length === 0) return
@@ -257,7 +266,6 @@ const ProjectManager = ({ user, theme }) => {
             onConfirm: () => {
                 dispatch(bulkDeleteProjects({ id: userId, project_ids: selectedProjects }))
                 setSelectedProjects([])
-                setShowBulkActions(false)
                 setConfirmModal(prev => ({ ...prev, open: false }))
             }
         })
@@ -267,15 +275,13 @@ const ProjectManager = ({ user, theme }) => {
         if (selectedProjects.length === 0 || !bulkStatus) return
         dispatch(bulkUpdateProjects({ id: userId, project_ids: selectedProjects, updates: { status: bulkStatus } }))
         setSelectedProjects([])
-        setShowBulkActions(false)
         setBulkStatus('')
     }
 
     const handleBulkCategoryUpdate = () => {
-        if (selectedProjects.length === 0) return
-        dispatch(bulkUpdateProjects({ id: userId, project_ids: selectedProjects, updates: { categories: bulkCategory } }))
+        if (selectedProjects.length === 0 || !bulkCategory) return
+        dispatch(bulkUpdateProjects({ id: userId, project_ids: selectedProjects, updates: { categories: bulkCategory === '__clear__' ? '' : bulkCategory } }))
         setSelectedProjects([])
-        setShowBulkActions(false)
         setBulkCategory('')
     }
 
@@ -311,7 +317,7 @@ const ProjectManager = ({ user, theme }) => {
                 case 'created_for':   va = a.created_for?.toLowerCase() || ''; vb = b.created_for?.toLowerCase() || ''; break
                 case 'views':         va = a.views?.length || 0; vb = b.views?.length || 0; break
                 case 'likes':         va = a.likes?.length || 0; vb = b.likes?.length || 0; break
-                case 'comments':      va = a.comment?.length || 0; vb = b.comment?.length || 0; break
+                case 'comments':      va = a.commentCount || 0; vb = b.commentCount || 0; break
                 case 'date_start':
                 default:              va = a.date_start || ''; vb = b.date_start || ''; break
             }
@@ -320,7 +326,7 @@ const ProjectManager = ({ user, theme }) => {
             return 0
         })
         return result
-    }, [projects, search, filterCategory, filterPurpose, sortKey, sortDir])
+    }, [projects, search, filterCategory, filterPurpose, filterStatus, sortKey, sortDir])
 
     const totalPages = Math.ceil(processed.length / pageSize)
     const pageData = processed.slice(page * pageSize, (page + 1) * pageSize)
@@ -329,7 +335,7 @@ const ProjectManager = ({ user, theme }) => {
 
     const resetForm = () => {
         setForm({ ...INITIAL_FORM, content: JSON.parse(JSON.stringify(INITIAL_FORM.content)), tags: [], access_key: [], privacy: false, documentation_link: '', attachments: [], changelog: [] })
-        setEditIndex(null)
+        setEditingProjectId(null)
         setTagInput('')
         setContentSelected('')
         setContentGrid1Selected('')
@@ -354,7 +360,7 @@ const ProjectManager = ({ user, theme }) => {
         return date.toISOString().split('T')[0]
     }
 
-    const openEdit = (p, idx) => {
+    const openEdit = (p) => {
         const copiedContent = JSON.parse(JSON.stringify(p.content || []))
         setForm({
             featured_image: p.featured_image || '',
@@ -372,7 +378,7 @@ const ProjectManager = ({ user, theme }) => {
             attachments: JSON.parse(JSON.stringify(p.attachments || [])),
             changelog: JSON.parse(JSON.stringify(p.changelog || [])),
         })
-        setEditIndex(idx)
+        setEditingProjectId(p._id)
         setTagInput('')
         setView('form')
     }
@@ -381,20 +387,19 @@ const ProjectManager = ({ user, theme }) => {
         if (!form.post_title || submitting) return
         setSubmitting(true)
         const data = { ...form }
-        if (editIndex !== null) {
-            const updatedRecord = { ...projects[editIndex], ...data }
-            dispatch(editUserProject({ id: userId, data: updatedRecord }))
+        if (editingProjectId) {
+            dispatch(editUserProject({ id: userId, data: { ...data, _id: editingProjectId } }))
         } else {
             dispatch(uploadProject({ id: userId, data }))
         }
     }
 
-    const handleDelete = (idx) => {
+    const handleDelete = (projectId) => {
         setConfirmModal({
             open: true, title: 'Delete Project', variant: 'danger', icon: faTrash,
             message: 'Are you sure you want to delete this project? This action cannot be undone.',
             onConfirm: () => {
-                dispatch(removeUserProject({ id: userId, project_id: projects[idx]._id }))
+                dispatch(removeUserProject({ id: userId, project_id: projectId }))
                 setConfirmModal(prev => ({ ...prev, open: false }))
             }
         })
@@ -423,7 +428,7 @@ const ProjectManager = ({ user, theme }) => {
     const handleCatDelete = (cat) => {
         setConfirmModal({
             open: true, title: 'Delete Category', variant: 'danger', icon: faTrash,
-            message: `Are you sure you want to delete "${cat.name}"? This will not remove projects using this category.`,
+            message: `Are you sure you want to delete "${cat.name}"? Projects using this category will have their category cleared.`,
             onConfirm: () => {
                 dispatch(removeProjectCategory({ category_id: cat._id }))
                 setConfirmModal(prev => ({ ...prev, open: false }))
@@ -803,8 +808,11 @@ const ProjectManager = ({ user, theme }) => {
                         </SyntaxHighlighter>
                     </div>
                 )
-            case 'single_image':
-                return item.image ? <img key={idx} src={item.image} alt="" className="w-full rounded-lg object-cover cursor-pointer" onClick={() => setLightbox({ open: true, src: item.image })} /> : null
+            case 'single_image': {
+                const viewImgH = item.type === 'full' ? 'h-auto w-auto max-w-full' : item.type === 'boxed-full' ? 'h-80' : item.type === 'rectangular' ? 'h-56' : 'h-auto max-h-[550px]'
+                const imgFit = item.type === 'full' ? 'object-contain' : 'object-cover'
+                return item.image ? <img key={idx} src={item.image} alt="" className={`${item.type === 'full' ? '' : 'w-full'} ${viewImgH} rounded-lg ${imgFit} cursor-pointer`} onClick={() => setLightbox({ open: true, src: item.image })} /> : null
+            }
             case 'grid_image':
                 return (
                     <div key={idx} className={`grid ${item.type === 'boxed' ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
@@ -814,7 +822,7 @@ const ProjectManager = ({ user, theme }) => {
             case 'slider':
                 return item.grid_image?.length > 0 ? (
                     <Carousel key={idx} responsive={CAROUSEL_RESPONSIVE} showDots infinite autoPlay swipeable slidesToSlide={1} className="rounded-lg overflow-hidden">
-                        {item.grid_image.map((img, i) => <img key={i} src={img} alt="" className="w-full h-48 object-cover" />)}
+                        {item.grid_image.map((img, i) => <img key={i} src={img} alt="" className="w-full h-[550px] object-cover" />)}
                     </Carousel>
                 ) : null
             case 'bullet_list':
@@ -823,26 +831,35 @@ const ProjectManager = ({ user, theme }) => {
                 return <ol key={idx} className={`list-decimal pl-5 space-y-0.5 text-xs ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{item.list?.map((li, i) => <li key={i}>{li}</li>)}</ol>
             case 'list_image':
                 return (
-                    <div key={idx} className="space-y-2">
+                    <div key={idx} className="flex flex-col gap-1.5">
                         {item.list?.map((li, i) => (
-                            <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
-                                {li.image && <img src={li.image} alt="" className="w-10 h-10 rounded object-cover" />}
+                            <div key={i} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all ${isLight ? 'bg-sky-50/80 border border-solid border-sky-100 hover:border-sky-200' : 'bg-sky-900/10 border border-solid border-sky-900/30 hover:border-sky-800/50'}`}>
+                                {li.image
+                                    ? <img src={li.image} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+                                    : <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-sky-100' : 'bg-sky-900/30'}`}><FontAwesomeIcon icon={faImage} className={`text-xs ${isLight ? 'text-sky-600' : 'text-sky-400'}`} /></div>
+                                }
                                 <div className="flex-1 min-w-0">
-                                    <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{li.heading}</p>
-                                    {li.sub_heading && <p className={`text-[10px] truncate ${subText}`}>{li.sub_heading}</p>}
+                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-sky-700' : 'text-sky-300'}`}>{li.heading}</p>
+                                    {li.sub_heading && <p className={`text-xs truncate ${isLight ? 'text-sky-500/70' : 'text-sky-400/60'}`}>{li.sub_heading}</p>}
                                 </div>
-                                {li.link && <a href={li.link} target="_blank" rel="noreferrer" className="text-blue-500 text-xs"><FontAwesomeIcon icon={faExternalLinkAlt} /></a>}
+                                {li.link && <a href={li.link} target="_blank" rel="noreferrer" className={`text-xs transition-transform hover:translate-x-0.5 ${isLight ? 'text-sky-400' : 'text-sky-500'}`}><FontAwesomeIcon icon={faExternalLinkAlt} /></a>}
                             </div>
                         ))}
                     </div>
                 )
             case 'download_list':
                 return (
-                    <div key={idx} className="space-y-1">
+                    <div key={idx} className="flex flex-col gap-1.5">
                         {item.list?.map((dl, i) => (
-                            <a key={i} href={dl.link} target="_blank" rel="noreferrer" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100 text-slate-700' : 'bg-[#111] hover:bg-[#1a1a1a] text-gray-300'}`}>
-                                <FontAwesomeIcon icon={resolveIcon(dl.icon)} className="text-blue-500" />
-                                <span>{dl.name}</span>
+                            <a key={i} href={dl.link} target="_blank" rel="noreferrer" className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50/80 hover:bg-emerald-100 border border-solid border-emerald-100 hover:border-emerald-200' : 'bg-emerald-900/10 hover:bg-emerald-900/20 border border-solid border-emerald-900/30 hover:border-emerald-800/50'}`}>
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                    <FontAwesomeIcon icon={resolveIcon(dl.icon)} className={`text-xs ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{dl.name}</p>
+                                    <p className={`text-xs truncate ${isLight ? 'text-emerald-500/70' : 'text-emerald-400/60'}`}>{dl.link}</p>
+                                </div>
+                                <FontAwesomeIcon icon={faExternalLinkAlt} className={`ml-auto text-xs transition-transform group-hover:translate-x-0.5 ${isLight ? 'text-emerald-400' : 'text-emerald-600'}`} />
                             </a>
                         ))}
                     </div>
@@ -942,7 +959,7 @@ const ProjectManager = ({ user, theme }) => {
                 </div>
 
             case 'single_image': {
-                const singleImgH = el.type === 'boxed-full' ? 'h-64' : el.type === 'rectangular' ? 'h-40' : 'h-auto max-h-60'
+                const singleImgH = el.type === 'full' ? 'h-auto w-auto max-w-full' : el.type === 'boxed-full' ? 'h-80' : el.type === 'rectangular' ? 'h-56' : 'h-auto max-h-[550px]'
                 const singleUploadKey = `${box_index}-${currentIndex}-image`
                 return <div key={`${box_index}-${currentIndex}`} className={elCls}>{elHeader}
                     <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-2">
@@ -962,12 +979,13 @@ const ProjectManager = ({ user, theme }) => {
                         <label className={labelCls}>Dimension</label>
                         <select className={`${selectCls} w-full text-xs`} value={el.type || 'rectangular'}
                             onChange={e => isGrid ? typeValueGrid(e, gridParent, box_index, gridSub, gridType) : typeValue(e, index, box_index)}>
-                            <option value="rectangular">Rectangular (240px)</option>
-                            <option value="boxed-full">Boxed Full (500px)</option>
-                            <option value="auto">Auto</option>
+                            <option value="rectangular">Rectangular (224px)</option>
+                            <option value="boxed-full">Boxed Full (320px)</option>
+                            <option value="full">Full (original size)</option>
+                            <option value="auto">Auto (max 550px)</option>
                         </select>
                     </div>
-                    {el.image && <img src={el.image} alt="" className={`w-full ${singleImgH} object-cover rounded-lg`} />}
+                    {el.image && <img src={el.image} alt="" className={`${el.type === 'full' ? '' : 'w-full'} ${singleImgH} ${el.type === 'full' ? 'object-contain' : 'object-cover'} rounded-lg`} />}
                 </div>
             }
 
@@ -1032,7 +1050,7 @@ const ProjectManager = ({ user, theme }) => {
                     {el.grid_image?.length > 0 && <Carousel responsive={CAROUSEL_RESPONSIVE} showDots infinite autoPlay swipeable slidesToSlide={1} className="rounded-lg overflow-hidden">
                         {el.grid_image.map((img, si) => (
                             <div key={si} className="relative">
-                                <img src={img} alt="" className="w-full h-48 object-cover" />
+                                <img src={img} alt="" className="w-full h-[550px] object-cover" />
                                 <button onClick={() => isGrid ? removeGridContentImageGrid(gridParent, si, box_index, gridSub, gridType) : removeGridContentImage(index, si, box_index)}
                                     className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500/80 text-white flex items-center justify-center text-[8px]">
                                     <FontAwesomeIcon icon={faTimes} />
@@ -1056,19 +1074,20 @@ const ProjectManager = ({ user, theme }) => {
                         <button onClick={() => isGrid ? addListsGrid(gridParent, box_index, gridSub, gridType) : addLists(index, box_index)}
                             className={`${btnPrimary} py-2 px-3 text-xs`}>Add</button>
                     </div>
-                    {el.list?.length > 0 && <ListTag className={`${listStyle} pl-5 space-y-1`}>
+                    {el.list?.length > 0 && <div className="flex flex-col gap-1.5">
                         {el.list.map((li, li_i) => (
-                            <li key={li_i} className={`text-xs group/li ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>
-                                <div className="flex items-center justify-between gap-2">
-                                    <span className="flex-1">{li}</span>
-                                    <button onClick={() => isGrid ? removeListsGrid(gridParent, li_i, box_index, gridSub, gridType) : removeLists(index, li_i, box_index)}
-                                        className="opacity-0 group-hover/li:opacity-100 text-red-400 hover:text-red-500 transition-opacity flex-shrink-0">
-                                        <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
-                                    </button>
+                            <div key={li_i} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs group/li transition-all ${isLight ? 'bg-amber-50/80 border border-solid border-amber-100 hover:border-amber-200' : 'bg-amber-900/10 border border-solid border-amber-900/30 hover:border-amber-800/50'}`}>
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-amber-100' : 'bg-amber-900/30'}`}>
+                                    <span className={`text-xs font-bold ${isLight ? 'text-amber-600' : 'text-amber-400'}`}>{item.element === 'number_list' ? li_i + 1 : '•'}</span>
                                 </div>
-                            </li>
+                                <span className={`flex-1 text-xs font-medium ${isLight ? 'text-amber-700' : 'text-amber-300'}`}>{li}</span>
+                                <button onClick={() => isGrid ? removeListsGrid(gridParent, li_i, box_index, gridSub, gridType) : removeLists(index, li_i, box_index)}
+                                    className="opacity-0 group-hover/li:opacity-100 text-red-400 hover:text-red-500 transition-opacity flex-shrink-0">
+                                    <FontAwesomeIcon icon={faTimes} className="text-xs" />
+                                </button>
+                            </div>
                         ))}
-                    </ListTag>}
+                    </div>}
                 </div>
             }
 
@@ -1098,16 +1117,19 @@ const ProjectManager = ({ user, theme }) => {
                     </div>
                     <button onClick={() => isGrid ? addListsMultiGrid(gridParent, box_index, gridSub, gridType) : addListsMulti(index, box_index)}
                         className={`${btnPrimary} py-1.5 px-3 text-xs mb-2`}>Add Item</button>
-                    {el.list?.length > 0 && <div className="space-y-1">
+                    {el.list?.length > 0 && <div className="flex flex-col gap-1.5">
                         {el.list.map((li, li_i) => (
-                            <div key={li_i} className={`flex items-center gap-2 p-2 rounded-lg text-xs ${isLight ? 'bg-white border border-solid border-slate-100' : 'bg-[#0e0e0e] border border-solid border-[#222]'}`}>
-                                {li.image && <img src={li.image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />}
+                            <div key={li_i} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-sky-50/80 border border-solid border-sky-100 hover:border-sky-200' : 'bg-sky-900/10 border border-solid border-sky-900/30 hover:border-sky-800/50'}`}>
+                                {li.image
+                                    ? <img src={li.image} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+                                    : <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-sky-100' : 'bg-sky-900/30'}`}><FontAwesomeIcon icon={faImage} className={`text-xs ${isLight ? 'text-sky-600' : 'text-sky-400'}`} /></div>
+                                }
                                 <div className="flex-1 min-w-0">
-                                    <p className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{li.heading}</p>
-                                    {li.sub_heading && <p className={`text-[10px] truncate ${subText}`}>{li.sub_heading}</p>}
+                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-sky-700' : 'text-sky-300'}`}>{li.heading}</p>
+                                    {li.sub_heading && <p className={`text-xs truncate ${isLight ? 'text-sky-500/70' : 'text-sky-400/60'}`}>{li.sub_heading}</p>}
                                 </div>
                                 <button onClick={() => isGrid ? removeListsGrid(gridParent, li_i, box_index, gridSub, gridType) : removeLists(index, li_i, box_index)}
-                                    className="text-red-400 hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                    className="text-red-400 hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
                             </div>
                         ))}
                     </div>}
@@ -1137,14 +1159,19 @@ const ProjectManager = ({ user, theme }) => {
                     </div>
                     <button onClick={() => isGrid ? addListsDownloadsGrid(gridParent, box_index, gridSub, gridType) : addListsDownloads(index, box_index)}
                         className={`${btnPrimary} py-1.5 px-3 text-xs mb-2`}>Add Download</button>
-                    {el.list?.length > 0 && <div className="space-y-1">
+                    {el.list?.length > 0 && <div className="flex flex-col gap-1.5">
                         {el.list.map((dl, di) => (
-                            <div key={di} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-white border border-solid border-slate-100' : 'bg-[#0e0e0e] border border-solid border-[#222]'}`}>
-                                <FontAwesomeIcon icon={resolveIcon(dl.icon)} className="text-blue-500 flex-shrink-0" />
-                                <span className={`flex-1 truncate ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{dl.name}</span>
-                                <a href={dl.link} target="_blank" rel="noreferrer" className="text-blue-500"><FontAwesomeIcon icon={faExternalLinkAlt} className="text-[10px]" /></a>
+                            <div key={di} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-emerald-50/80 border border-solid border-emerald-100 hover:border-emerald-200' : 'bg-emerald-900/10 border border-solid border-emerald-900/30 hover:border-emerald-800/50'}`}>
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-emerald-100' : 'bg-emerald-900/30'}`}>
+                                    <FontAwesomeIcon icon={resolveIcon(dl.icon)} className={`text-xs ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{dl.name}</p>
+                                    <p className={`text-xs truncate ${isLight ? 'text-emerald-500/70' : 'text-emerald-400/60'}`}>{dl.link}</p>
+                                </div>
+                                <a href={dl.link} target="_blank" rel="noreferrer" className={`text-xs transition-transform hover:translate-x-0.5 ${isLight ? 'text-emerald-400' : 'text-emerald-600'}`}><FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" /></a>
                                 <button onClick={() => isGrid ? removeListsGrid(gridParent, di, box_index, gridSub, gridType) : removeLists(index, di, box_index)}
-                                    className="text-red-400 hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                    className="text-red-400 hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
                             </div>
                         ))}
                     </div>}
@@ -1256,17 +1283,17 @@ const ProjectManager = ({ user, theme }) => {
                                                 <div className="flex flex-wrap gap-3 text-xs">
                                                     <span className={subText}><FontAwesomeIcon icon={faLayerGroup} className="mr-1" />{getCategoryName(viewProject.categories)}</span>
                                                     <span className={subText}><FontAwesomeIcon icon={faFile} className="mr-1" />{viewProject.created_for}</span>
-                                                    {viewProject.date_start && <span className={subText}><FontAwesomeIcon icon={faCalendar} className="mr-1" />{viewProject.date_start}{viewProject.date_end ? ` — ${viewProject.date_end}` : ''}</span>}
+                                                    {viewProject.date_start && <span className={subText}><FontAwesomeIcon icon={faCalendar} className="mr-1" />{new Date(viewProject.date_start).toLocaleDateString()}{viewProject.date_end ? ` — ${new Date(viewProject.date_end).toLocaleDateString()}` : ''}</span>}
                                                 </div>
                                                 <div className="flex flex-wrap gap-3 text-xs">
                                                     <span className={subText}>{viewProject.views?.length || 0} views</span>
                                                     <span className={subText}>{viewProject.likes?.length || 0} likes</span>
-                                                    <span className={subText}>{viewProject.comment?.length || 0} comments</span>
+                                                    <span className={subText}>{viewProject.commentCount || 0} comments</span>
                                                 </div>
                                                 {viewProject.tags?.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 pt-1">
+                                                    <div className="flex flex-wrap gap-1.5 pt-1">
                                                         {viewProject.tags.map((t, i) => (
-                                                            <span key={i} className={`px-2 py-0.5 rounded text-[10px] font-medium ${isLight ? 'bg-blue-50 text-blue-600' : 'bg-blue-900/30 text-blue-400'}`}>{t}</span>
+                                                            <span key={i} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${isLight ? 'bg-purple-50 text-purple-700 border border-solid border-purple-100' : 'bg-purple-900/20 text-purple-400 border border-solid border-purple-900/30'}`}>{t}</span>
                                                         ))}
                                                     </div>
                                                 )}
@@ -1281,6 +1308,48 @@ const ProjectManager = ({ user, theme }) => {
                                                 </div>
                                             </div>
                                         ))}
+                                        {/* Attachments */}
+                                        {viewProject.attachments?.length > 0 && (
+                                            <div className={`border-t border-solid pt-4 ${sectionBorder}`}>
+                                                <h3 className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                                    <FontAwesomeIcon icon={faDownload} className="text-[10px]" /> Attachments
+                                                </h3>
+                                                <div className="flex flex-col gap-1.5">
+                                                    {viewProject.attachments.map((att, ai) => (
+                                                        <a key={ai} href={att.url} target="_blank" rel="noopener noreferrer" className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-blue-50/80 border border-solid border-blue-100 hover:border-blue-200' : 'bg-blue-900/10 border border-solid border-blue-900/30 hover:border-blue-800/50'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faFile} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`text-xs font-semibold truncate ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>{att.name}</p>
+                                                                {att.size > 0 && <p className={`text-xs ${isLight ? 'text-blue-500/70' : 'text-blue-400/60'}`}>{att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`}</p>}
+                                                            </div>
+                                                            <FontAwesomeIcon icon={faDownload} className={`text-xs transition-transform group-hover:translate-y-0.5 ${isLight ? 'text-blue-400' : 'text-blue-600'}`} />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Changelog */}
+                                        {viewProject.changelog?.length > 0 && (
+                                            <div className={`border-t border-solid pt-4 ${sectionBorder}`}>
+                                                <h3 className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
+                                                    <FontAwesomeIcon icon={faHistory} className="text-[10px]" /> Changelog
+                                                </h3>
+                                                <div className="flex flex-col gap-1.5">
+                                                    {viewProject.changelog.map((entry, ci) => (
+                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-violet-50/80 border border-solid border-violet-100' : 'bg-violet-900/10 border border-solid border-violet-900/30'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faHistory} className={`text-xs ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                                                            </div>
+                                                            <span className={`text-xs font-bold whitespace-nowrap ${isLight ? 'text-violet-700' : 'text-violet-300'}`}>{entry.version}</span>
+                                                            <span className={`flex-1 whitespace-pre-wrap text-xs ${isLight ? 'text-violet-600' : 'text-violet-400/80'}`}>{entry.description}</span>
+                                                            <span className={`text-xs whitespace-nowrap ${isLight ? 'text-violet-400' : 'text-violet-500/60'}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                         {/* Collaborators */}
                                         <div className={`border-t border-solid pt-4 ${sectionBorder}`}>
                                             <h3 className={`text-xs font-bold mb-3 flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>
@@ -1402,7 +1471,7 @@ const ProjectManager = ({ user, theme }) => {
                                         <p className={`text-xs mb-3 ${subText}`}>Select a project to view analytics:</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {projects?.map(p => (
-                                                <button key={p._id} onClick={() => { setAnalyticsProject(p); dispatch(getProjectAnalytics({ project_id: p._id, id: userId })) }}
+                                                <button key={p._id} onClick={() => { dispatch(clearProjectAnalytics()); setAnalyticsProject(p); dispatch(getProjectAnalytics({ project_id: p._id, id: userId })) }}
                                                     className={`text-left p-3 rounded-xl border border-solid transition-all hover:scale-[1.01] ${isLight ? 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50' : 'border-[#2B2B2B] hover:border-emerald-700 hover:bg-emerald-900/10'}`}>
                                                     <p className={`text-xs font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{p.post_title}</p>
                                                     <div className={`flex gap-3 mt-1 text-[10px] ${subText}`}>
@@ -1628,6 +1697,7 @@ const ProjectManager = ({ user, theme }) => {
                                         {bulkStatus && <button onClick={handleBulkStatusUpdate} className={`${btnPrimary} py-1 px-2.5 text-[10px]`}>Apply Status</button>}
                                         <select className={`${selectCls} text-xs py-1`} value={bulkCategory} onChange={e => setBulkCategory(e.target.value)}>
                                             <option value="">Set Category...</option>
+                                            <option value="__clear__">No Category (clear)</option>
                                             {category?.map((c, i) => <option key={i} value={c._id}>{c.name}</option>)}
                                         </select>
                                         {bulkCategory && <button onClick={handleBulkCategoryUpdate} className={`${btnPrimary} py-1 px-2.5 text-[10px]`}>Apply Category</button>}
@@ -1748,11 +1818,15 @@ const ProjectManager = ({ user, theme }) => {
                                                                 className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-blue-500 ${isLight ? 'hover:bg-blue-50' : 'hover:bg-blue-900/20'}`}>
                                                                 <FontAwesomeIcon icon={faEye} className="text-xs" />
                                                             </button>
-                                                            <button title="Edit" onClick={() => openEdit(p, projects.indexOf(p))}
+                                                            <Link to={`/projects/${p._id}`} title="View Public Page" target="_blank"
+                                                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-emerald-500 ${isLight ? 'hover:bg-emerald-50' : 'hover:bg-emerald-900/20'}`}>
+                                                                <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+                                                            </Link>
+                                                            <button title="Edit" onClick={() => openEdit(p)}
                                                                 className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-amber-500 ${isLight ? 'hover:bg-amber-50' : 'hover:bg-amber-900/20'}`}>
                                                                 <FontAwesomeIcon icon={faPen} className="text-xs" />
                                                             </button>
-                                                            <button title="Delete" onClick={() => handleDelete(projects.indexOf(p))}
+                                                            <button title="Delete" onClick={() => handleDelete(p._id)}
                                                                 className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-red-500 ${isLight ? 'hover:bg-red-50' : 'hover:bg-red-900/20'}`}>
                                                                 <FontAwesomeIcon icon={faTrash} className="text-xs" />
                                                             </button>
@@ -1807,7 +1881,7 @@ const ProjectManager = ({ user, theme }) => {
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-purple-100' : 'bg-purple-900/30'}`}>
                                             <FontAwesomeIcon icon={faProjectDiagram} className={`text-sm ${isLight ? 'text-purple-600' : 'text-purple-400'}`} />
                                         </div>
-                                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{editIndex !== null ? 'Edit Project' : 'New Project'}</h3>
+                                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{editingProjectId ? 'Edit Project' : 'New Project'}</h3>
                                     </div>
                                     <div className="px-4 sm:px-5 py-4 space-y-3">
                                         {/* Featured Image */}
@@ -1895,20 +1969,22 @@ const ProjectManager = ({ user, theme }) => {
                                         <div>
                                             <label className={labelCls}><FontAwesomeIcon icon={faDownload} className="mr-1" />Attachments</label>
                                             {form.attachments?.length > 0 && (
-                                                <div className="space-y-1.5 mb-3">
+                                                <div className="flex flex-col gap-1.5 mb-3">
                                                     {form.attachments.map((att, ai) => (
-                                                        <div key={ai} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
-                                                            <FontAwesomeIcon icon={faFile} className={isLight ? 'text-blue-400' : 'text-blue-500'} />
+                                                        <div key={ai} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-blue-50/80 border border-solid border-blue-100 hover:border-blue-200' : 'bg-blue-900/10 border border-solid border-blue-900/30 hover:border-blue-800/50'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-blue-100' : 'bg-blue-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faFile} className={`text-xs ${isLight ? 'text-blue-600' : 'text-blue-400'}`} />
+                                                            </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-gray-300'}`}>{att.name}</p>
-                                                                {att.size > 0 && <p className={`text-[10px] mt-0.5 ${mutedText}`}>{att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`}</p>}
+                                                                <p className={`text-xs font-semibold truncate ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>{att.name}</p>
+                                                                {att.size > 0 && <p className={`text-xs mt-0.5 ${isLight ? 'text-blue-500/70' : 'text-blue-400/60'}`}>{att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`}</p>}
                                                             </div>
                                                             {att.url && (
-                                                                <a href={att.url} target="_blank" rel="noopener noreferrer" className={`hover:text-blue-500 ${mutedText}`}>
-                                                                    <FontAwesomeIcon icon={faDownload} className="text-[10px]" />
+                                                                <a href={att.url} target="_blank" rel="noopener noreferrer" className={`${isLight ? 'text-blue-400 hover:text-blue-600' : 'text-blue-500 hover:text-blue-300'}`}>
+                                                                    <FontAwesomeIcon icon={faDownload} className="text-xs" />
                                                                 </a>
                                                             )}
-                                                            <button onClick={() => removeAttachment(ai)} className={`hover:text-red-500 ${mutedText}`}><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                                            <button onClick={() => removeAttachment(ai)} className={`${isLight ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-400'}`}><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1926,27 +2002,50 @@ const ProjectManager = ({ user, theme }) => {
                                         {/* Changelog */}
                                         <div>
                                             <label className={labelCls}><FontAwesomeIcon icon={faHistory} className="mr-1" />Changelog</label>
-                                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
+                                            <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
                                                 <input type="text" className={`${inputCls} w-20 text-xs`} value={changelogVersion}
                                                     onChange={e => setChangelogVersion(e.target.value)} placeholder="v1.0" />
-                                                <input type="text" className={`${inputCls} text-xs`} value={changelogDesc}
+                                                <textarea className={`${inputCls} text-xs min-h-[50px] resize-y`} rows={2} value={changelogDesc}
                                                     onChange={e => setChangelogDesc(e.target.value)} placeholder="What changed..."
-                                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addChangelog() } }} />
-                                                <button onClick={addChangelog} className={`${btnPrimary} py-1.5 px-2.5 text-[10px] flex items-center gap-1`}>
-                                                    <FontAwesomeIcon icon={faPlus} className="text-[10px] mr-1" />Add
+                                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addChangelog() } }} />
+                                                <button onClick={addChangelog} className={`${btnPrimary} py-1.5 px-2.5 text-xs flex items-center gap-1`}>
+                                                    <FontAwesomeIcon icon={faPlus} className="text-xs mr-1" />Add
                                                 </button>
                                             </div>
 
                                             {form.changelog?.length > 0 && (
-                                                <div className="space-y-1.5 mb-3 mt-1">
-                                                    {form.changelog.map((entry, ci) => (
-                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-slate-50 border border-solid border-slate-100' : 'bg-[#111] border border-solid border-[#0e0e0e]'}`}>
-                                                            <span className={`font-bold whitespace-nowrap ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>v{entry.version}</span>
-                                                            <span className={`flex-1 truncate ${isLight ? 'text-slate-600' : 'text-gray-400'}`}>{entry.description}</span>
-                                                            <span className={`text-[10px] whitespace-nowrap ${mutedText}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
-                                                            <button onClick={() => removeChangelog(ci)} className={`hover:text-red-500 ${mutedText}`}><FontAwesomeIcon icon={faTimes} className="text-[10px]" /></button>
+                                                <div className="flex flex-col gap-1.5 mb-3 mt-1">
+                                                    {form.changelog.map((entry, ci) => {
+                                                        const isEditing = editingChangelog?.index === ci
+                                                        return (
+                                                        <div key={ci} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs transition-all ${isLight ? 'bg-violet-50/80 border border-solid border-violet-100 hover:border-violet-200' : 'bg-violet-900/10 border border-solid border-violet-900/30 hover:border-violet-800/50'}`}>
+                                                            <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
+                                                                <FontAwesomeIcon icon={faHistory} className={`text-xs ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                                                            </div>
+                                                            {isEditing ? (
+                                                                <>
+                                                                    <input type="text" className={`${inputCls} w-20 text-xs`} value={editingChangelog.version}
+                                                                        onChange={e => setEditingChangelog(prev => ({ ...prev, version: e.target.value }))} />
+                                                                    <textarea className={`${inputCls} flex-1 text-xs min-h-[40px] resize-y`} rows={1} value={editingChangelog.description}
+                                                                        onChange={e => setEditingChangelog(prev => ({ ...prev, description: e.target.value }))} />
+                                                                    <button onClick={() => { setForm(prev => { const c = [...(prev.changelog || [])]; c[ci] = { ...c[ci], version: editingChangelog.version, description: editingChangelog.description }; return { ...prev, changelog: c } }); setEditingChangelog(null) }}
+                                                                        className="text-emerald-500 hover:text-emerald-600"><FontAwesomeIcon icon={faCheck} className="text-xs" /></button>
+                                                                    <button onClick={() => setEditingChangelog(null)}
+                                                                        className="text-red-400 hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span className={`text-xs font-bold whitespace-nowrap ${isLight ? 'text-violet-700' : 'text-violet-300'}`}>{entry.version}</span>
+                                                                    <span className={`flex-1 whitespace-pre-wrap text-xs ${isLight ? 'text-violet-600' : 'text-violet-400/80'}`}>{entry.description}</span>
+                                                                    <span className={`text-xs whitespace-nowrap ${isLight ? 'text-violet-400' : 'text-violet-500/60'}`}>{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</span>
+                                                                    <button onClick={() => setEditingChangelog({ index: ci, version: entry.version, description: entry.description })}
+                                                                        className={`${isLight ? 'text-blue-400 hover:text-blue-500' : 'text-blue-500 hover:text-blue-400'}`}><FontAwesomeIcon icon={faPen} className="text-xs" /></button>
+                                                                    <button onClick={() => removeChangelog(ci)} className={`${isLight ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-400'}`}><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
+                                                                </>
+                                                            )}
                                                         </div>
-                                                    ))}
+                                                        )
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -1964,9 +2063,9 @@ const ProjectManager = ({ user, theme }) => {
                                             {form.tags.length > 0 && (
                                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                                     {form.tags.map((t, i) => (
-                                                        <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${isLight ? 'bg-purple-50 text-purple-700' : 'bg-purple-900/30 text-purple-400'}`}>
+                                                        <span key={i} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-purple-50 text-purple-700 border border-solid border-purple-100 hover:border-purple-200' : 'bg-purple-900/20 text-purple-400 border border-solid border-purple-900/30 hover:border-purple-800/50'}`}>
                                                             {t}
-                                                            <button onClick={() => removeTag(i)} className="hover:text-red-500"><FontAwesomeIcon icon={faTimes} className="text-[9px]" /></button>
+                                                            <button onClick={() => removeTag(i)} className={`${isLight ? 'text-red-400 hover:text-red-500' : 'text-red-500 hover:text-red-400'}`}><FontAwesomeIcon icon={faTimes} className="text-xs" /></button>
                                                         </span>
                                                     ))}
                                                 </div>
@@ -2015,7 +2114,7 @@ const ProjectManager = ({ user, theme }) => {
                                                         {form.access_key.map((k, ki) => (
                                                             <div key={ki} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isLight ? 'bg-white border border-solid border-amber-200/60' : 'bg-[#0e0e0e] border border-solid border-[#2B2B2B]'}`}>
                                                                 <code className={`font-mono font-bold flex-1 ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>{k.key}</code>
-                                                                <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/projects/${editIndex !== null ? projects[editIndex]?._id : 'ID'}?access_key=${k.key}`)}
+                                                                <button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/projects/${editingProjectId || 'ID'}?access_key=${k.key}`)} disabled={!editingProjectId}
                                                                     title="Copy link" className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#222] text-gray-500'}`}>
                                                                     <FontAwesomeIcon icon={faCopy} className="text-[10px]" />
                                                                 </button>
@@ -2077,7 +2176,7 @@ const ProjectManager = ({ user, theme }) => {
                                     <button onClick={() => { resetForm(); setView('list') }} className={btnSecondary}>Cancel</button>
                                     <button onClick={handleSubmit} disabled={submitting} className={`${btnPrimary} flex items-center gap-2 disabled:opacity-50`}>
                                         {submitting && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                                        <span>{editIndex !== null ? 'Update Project' : 'Upload Project'}</span>
+                                        <span>{editingProjectId ? 'Update Project' : 'Upload Project'}</span>
                                     </button>
                                 </div>
                             </div>

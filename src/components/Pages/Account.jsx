@@ -30,6 +30,7 @@ import Categories from './Account/Categories';
 import ManageUsers from './Account/ManageUsers';
 import BlobStorage from './Account/BlobStorage';
 import MongoStorage from './Account/MongoStorage';
+import VaultManager from '../PasswordManager/VaultManager';
 
 import Notification from '../Custom/Notification';
 
@@ -160,6 +161,7 @@ const Account = ({ user, theme }) => {
         { name: 'Messages', icon: faMessage, path: 'messages', dropdown: [] },
         ...(['Admin', 'Moderator'].includes(user?.role) ? [{ name: 'Users', icon: faUsers, path: 'users', dropdown: [] }] : []),
         ...(['Admin'].includes(user?.role) ? [
+            { name: 'Password Vault', icon: faLock, path: 'vault', dropdown: [] },
             { name: 'Blob Storage', icon: faDatabase, path: 'storage', dropdown: [] },
             { name: 'MongoDB', icon: faDatabase, path: 'mongodb', dropdown: [] },
         ] : []),
@@ -561,6 +563,10 @@ const Account = ({ user, theme }) => {
                                     : activePage('users') ?
                                         (['Admin', 'Moderator'].includes(user?.role) ?
                                             <ManageUsers user={user} theme={theme} setNotification={setNotification} />
+                                        : <RedirectOverview />)
+                                    : activePage('vault') ?
+                                        (['Admin'].includes(user?.role) ?
+                                            <VaultManager user={user} theme={theme} />
                                         : <RedirectOverview />)
                                     : activePage('storage') ?
                                         (['Admin'].includes(user?.role) ?

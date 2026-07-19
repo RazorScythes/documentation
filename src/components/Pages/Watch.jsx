@@ -466,7 +466,7 @@ const Watch = ({ user, theme }) => {
 
     return (
         <div className={`relative overflow-hidden ${main.font} ${isLight ? light.body : dark.body}`}>
-            <div className={`${styles.paddingX} ${styles.flexCenter}`}>
+            <div className={`sm:px-16 px-0 ${styles.flexCenter}`}>
                 <div className={theaterMode ? 'w-full max-w-[1600px]' : styles.boxWidthEx}>
                     <Notification
                         theme={theme}
@@ -488,7 +488,7 @@ const Watch = ({ user, theme }) => {
                         notFound ?
                             <ErrorPage code="404" icon={faSearch} title="Video Not Found" message="This video doesn't exist or may have been removed by the uploader." />
                         :
-                        <div className={`${main.container} lg:px-12 px-4 relative my-16 transition-all duration-500 ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                        <div className={`${main.container} lg:px-12 relative my-16 transition-all duration-500 ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                             <div className='grid lg:grid-cols-3 grid-cols-1 gap-8 place-content-start mt-8'>
                                 <div className={`${theaterMode ? 'lg:col-span-3' : 'lg:col-span-2'} flex flex-col gap-4`}>
                                     {/* Video Player */}

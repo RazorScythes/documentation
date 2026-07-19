@@ -28,6 +28,7 @@ import pageBuilderSlice from '../actions/pageBuilder'
 import notificationSlice from '../actions/notification'
 import communitySlice from '../actions/community'
 import forumSlice from '../actions/forum'
+import vaultSlice from '../actions/vault'
 export const store = configureStore({
     reducer: {
         auth        : authReducer,
@@ -58,7 +59,8 @@ export const store = configureStore({
         pageBuilder : pageBuilderSlice,
         notification: notificationSlice,
         community   : communitySlice,
-        forum       : forumSlice
+        forum       : forumSlice,
+        vault       : vaultSlice
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware({

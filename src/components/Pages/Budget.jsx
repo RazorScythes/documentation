@@ -47,6 +47,7 @@ import {
     clearAlert, clearSearchResults,
     setExpenses, setCategories, setDashboard, setSavings, setSavingsHistory, setDebts, setBudgetLists, setGoals, setExchangeRatesData, setSharedUsers,
 } from '../../actions/budget'
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import Notification from '../Custom/Notification'
 import BudgetContext from './Budget/BudgetContext'
 import { ModalOverlay as ModalOverlayShared, AnimateIn as AnimateInShared, SafeIcon as SafeIconShared } from './Budget/SharedComponents'
@@ -81,6 +82,28 @@ const ModalOverlay = ({ children, onClose, className = '' }) => {
             {children}
         </div>,
         document.body
+    )
+}
+
+const DeleteConfirmModal = ({ isLight, onConfirm, onCancel, title = 'Delete', message = 'Are you sure? This action cannot be undone.' }) => {
+    return (
+        <ModalOverlay onClose={onCancel}>
+            <div className={`relative rounded-xl shadow-2xl w-full max-w-md p-6 ${isLight ? 'bg-white' : 'bg-[#161616] border border-[#222]'}`} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 mb-5">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-red-50' : 'bg-red-900/20'}`}>
+                        <FontAwesomeIcon icon={faExclamationTriangle} className="text-lg text-red-500" />
+                    </div>
+                    <div>
+                        <h3 className={`text-base font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>{title}</h3>
+                        <p className={`text-sm mt-0.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{message}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2.5">
+                    <button onClick={onCancel} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isLight ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-300 hover:bg-[#252525]'}`}>Cancel</button>
+                    <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-all">Delete</button>
+                </div>
+            </div>
+        </ModalOverlay>
     )
 }
 
@@ -129,6 +152,13 @@ const Budget = ({ user, theme }) => {
     }, [searchParams])
 
     useEffect(() => {
+        const hidden = budgetSettings?.hiddenTabs || []
+        if (hidden.includes(activeTab) && activeTab !== 'dashboard' && activeTab !== 'settings') {
+            setActiveTab('dashboard')
+        }
+    }, [budgetSettings?.hiddenTabs, activeTab])
+
+    useEffect(() => {
         if (!showBudgetDropdown) return
         const close = (e) => { if (!e.target.closest('[aria-haspopup]')?.parentElement?.contains(e.target)) setShowBudgetDropdown(false) }
         document.addEventListener('click', close)
@@ -168,6 +198,7 @@ const Budget = ({ user, theme }) => {
 
     // delete confirm
     const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const [deleteModal, setDeleteModal] = useState(null)
 
     // bulk selection
     const [selectedExpenses, setSelectedExpenses] = useState([])
@@ -481,27 +512,25 @@ const Budget = ({ user, theme }) => {
         setExpenseForm(prev => ({ ...prev, attachments: [] }))
     }
 
-    const handleDeleteExpense = useCallback(async (id) => {
-        if (deleteConfirm === id) {
-            await dispatch(deleteBudgetExpense({ id, month, year, ...ownerParam }))
-            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            setDeleteConfirm(null)
-        } else {
-            setDeleteConfirm(id)
-            setTimeout(() => setDeleteConfirm(null), 3000)
-        }
-    }, [deleteConfirm, month, year, dispatch, ownerParam])
+    const handleDeleteExpense = useCallback((id) => {
+        setDeleteModal({ type: 'expense', id, title: 'Delete Expense', message: 'Are you sure you want to delete this expense? This cannot be undone.' })
+    }, [])
 
-    const handleBulkDelete = async () => {
-        if (!bulkDeleteConfirm) {
-            setBulkDeleteConfirm(true)
-            setTimeout(() => setBulkDeleteConfirm(false), 3000)
-            return
-        }
+    const confirmDeleteExpense = useCallback(async (id) => {
+        await dispatch(deleteBudgetExpense({ id, month, year, ...ownerParam }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        setDeleteModal(null)
+    }, [month, year, dispatch, ownerParam])
+
+    const handleBulkDelete = () => {
+        setDeleteModal({ type: 'bulk', title: 'Delete Expenses', message: `Are you sure you want to delete ${selectedExpenses.length} selected expense${selectedExpenses.length > 1 ? 's' : ''}? This cannot be undone.` })
+    }
+
+    const confirmBulkDelete = async () => {
         await dispatch(bulkDeleteBudgetExpenses({ ids: selectedExpenses, month, year, ...ownerParam }))
         setSelectedExpenses([])
-        setBulkDeleteConfirm(false)
         dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const handleBulkCategoryUpdate = async (categoryId) => {
@@ -557,15 +586,14 @@ const Budget = ({ user, theme }) => {
         setShowCategoryForm(true)
     }
 
-    const handleDeleteCategory = async (id) => {
-        if (deleteConfirm === id) {
-            await dispatch(deleteBudgetCategory({ id, ...ownerParam }))
-            dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
-            setDeleteConfirm(null)
-        } else {
-            setDeleteConfirm(id)
-            setTimeout(() => setDeleteConfirm(null), 3000)
-        }
+    const handleDeleteCategory = (id) => {
+        setDeleteModal({ type: 'category', id, title: 'Delete Category', message: 'Are you sure you want to delete this category? All expenses in this category will become uncategorized.' })
+    }
+
+    const confirmDeleteCategory = async (id) => {
+        await dispatch(deleteBudgetCategory({ id, ...ownerParam }))
+        dispatch(getBudgetDashboard({ month, year, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const handleExportCSV = () => {
@@ -843,7 +871,8 @@ const Budget = ({ user, theme }) => {
         { id: 'summary', label: 'Summary', icon: faFilePdf },
         { id: 'settings', label: 'Settings', icon: faCogs },
     ]
-    const tabs = isViewer ? allTabs.filter(t => t.id !== 'settings') : allTabs
+    const hiddenTabs = budgetSettings?.hiddenTabs || []
+    const tabs = (isViewer ? allTabs.filter(t => t.id !== 'settings') : allTabs).filter(t => !hiddenTabs.includes(t.id) || t.id === 'dashboard' || t.id === 'settings')
 
     const paymentIcon = useCallback((m) => {
         switch(m) {
@@ -982,7 +1011,7 @@ const Budget = ({ user, theme }) => {
         monthlyBudgetData.filter(c => c.budget > 0).forEach(cat => {
             if (cat.percentage >= 80 && cat.percentage < 100) {
                 alerts.push({ id: `warn-${cat._id}-${month}`, severity: 'warning', icon: faExclamationTriangle, message: `${cat.name} is at ${Math.round(cat.percentage)}% — ${formatCurrencyRaw(cat.budget - cat.spent, activeViewCurrency)} left` })
-            } else if (cat.percentage >= 100) {
+            } else if (cat.percentage > 100) {
                 alerts.push({ id: `over-${cat._id}-${month}`, severity: 'danger', icon: faExclamationTriangle, message: `${cat.name} exceeded budget by ${formatCurrencyRaw(cat.spent - cat.budget, activeViewCurrency)}` })
             }
         })
@@ -1343,7 +1372,7 @@ const Budget = ({ user, theme }) => {
                             />
                         )}
                         {activeTab === 'savings' && (
-                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isSavingsLoading} isViewer={isViewer} ownerParam={ownerParam} />
+                            <SavingsTab isLight={isLight} card={card} inputCls={inputCls} formatCurrency={formatCurrency} dispatch={dispatch} savings={savings} savingsHistory={savingsHistory} isLoading={isSavingsLoading} isViewer={isViewer} />
                         )}
                         {activeTab === 'debts' && (
                             <DebtTab
@@ -1393,6 +1422,7 @@ const Budget = ({ user, theme }) => {
                                 budgetSettings={budgetSettings} PAYMENT_METHODS={PAYMENT_METHODS}
                                 month={month} year={year} templateStyles={templateStyles}
                                 dashboard={dashboard} monthlyBudgetData={monthlyBudgetData}
+                                allTabs={allTabs}
                             />
                         )}
                         </div>
@@ -1539,6 +1569,22 @@ const Budget = ({ user, theme }) => {
                         </div>
                     </div>
                 </ModalOverlay>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteModal && (
+                <DeleteConfirmModal
+                    isLight={isLight}
+                    title={deleteModal.title}
+                    message={deleteModal.message}
+                    onCancel={() => setDeleteModal(null)}
+                    onConfirm={() => {
+                        if (deleteModal.type === 'expense') confirmDeleteExpense(deleteModal.id)
+                        else if (deleteModal.type === 'category') confirmDeleteCategory(deleteModal.id)
+                        else if (deleteModal.type === 'bulk') confirmBulkDelete()
+                        else setDeleteModal(null)
+                    }}
+                />
             )}
         </div>
         </BudgetContext.Provider>
@@ -1994,6 +2040,70 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
                 </div></AnimateIn>
             )}
 
+            {/* Charts */}
+            {(topCategories.length > 0 || active.length > 0) && (
+                <AnimateIn delay={380}><div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
+                    {/* Spending by Category Pie */}
+                    <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                        <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Spending by Category</h3>
+                        {topCategories.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={200}>
+                                <PieChart>
+                                    <Pie data={topCategories} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={75} innerRadius={40} paddingAngle={2} strokeWidth={0}>
+                                        {topCategories.map((c, i) => <Cell key={i} fill={c.color} />)}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '12px' }}
+                                        labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                        itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                        formatter={(val) => formatCurrencyRaw(val, activeViewCurrency)}
+                                    />
+                                    <Legend wrapperStyle={{ fontSize: '11px', color: isLight ? '#64748b' : '#9ca3af' }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <p className={`text-xs text-center py-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No spending data</p>
+                        )}
+                    </div>
+
+                    {/* Daily Spending Bar Chart */}
+                    <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
+                        <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
+                        {(() => {
+                            const dailyData = {}
+                            active.filter(e => e.type === 'expense').forEach(e => {
+                                const day = new Date(e.date).getDate()
+                                dailyData[day] = (dailyData[day] || 0) + convert(e.amount, e.currency)
+                            })
+                            const chartData = Array.from({ length: daysInMonth }, (_, i) => ({
+                                day: i + 1,
+                                amount: dailyData[i + 1] || 0,
+                            }))
+                            const hasData = chartData.some(d => d.amount > 0)
+                            return hasData ? (
+                                <ResponsiveContainer width="100%" height={200}>
+                                    <BarChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#f1f5f9' : '#1f1f1f'} />
+                                        <XAxis dataKey="day" tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} interval={Math.ceil(daysInMonth / 10) - 1} />
+                                        <YAxis tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} width={40} />
+                                        <Tooltip
+                                            contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '12px' }}
+                                            labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                            itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                            formatter={(val) => [formatCurrencyRaw(val, activeViewCurrency), 'Spent']}
+                                            labelFormatter={(label) => `Day ${label}`}
+                                        />
+                                        <Bar dataKey="amount" fill={isLight ? '#6366f1' : '#818cf8'} radius={[3, 3, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <p className={`text-xs text-center py-8 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No spending data</p>
+                            )
+                        })()}
+                    </div>
+                </div></AnimateIn>
+            )}
+
             <AnimateIn delay={400}><div className={`grid grid-cols-1 lg:grid-cols-2 ${templateStyles?.gridGap || 'gap-4'}`}>
                 {/* Top Categories */}
                 <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
@@ -2032,7 +2142,22 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
                 <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
                     <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Payment Methods</h3>
                     {paymentMethods.length > 0 ? (
-                        <div className="space-y-3">
+                        <div>
+                            <ResponsiveContainer width="100%" height={180}>
+                                <PieChart>
+                                    <Pie data={paymentMethods.map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35} paddingAngle={2} strokeWidth={0}>
+                                        {paymentMethods.map((_, i) => <Cell key={i} fill={['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'][i % 8]} />)}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '11px' }}
+                                        labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                        itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                        formatter={(val) => formatCurrencyRaw(val, activeViewCurrency)}
+                                    />
+                                    <Legend wrapperStyle={{ fontSize: '11px', color: isLight ? '#64748b' : '#9ca3af' }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="space-y-2 mt-3">
                             {paymentMethods.map(([method, amount]) => (
                                 <div key={method} className={`flex items-center justify-between cursor-pointer rounded-lg p-2 -mx-2 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} onClick={() => setDrilldown({ type: 'payment', id: method, title: method, total: amount })}>
                                     <div className="flex items-center gap-2.5">
@@ -2049,6 +2174,7 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
                                     <span className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrencyRaw(amount, activeViewCurrency)}</span>
                                 </div>
                             ))}
+                            </div>
                         </div>
                     ) : (
                         <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No payments recorded this month.</p>
@@ -2093,48 +2219,30 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
 
                 {/* Budget Status per Category */}
                 <div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
-                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Budget Status</h3>
+                    <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Budget vs Spending</h3>
                     {budgetCategories.length > 0 ? (
-                        <div className="space-y-2.5">
-                            {budgetCategories.map(cat => {
-                                const sc = statusColor(cat.percentage)
-                                return (
-                                    <div key={cat._id} className={`cursor-pointer rounded-lg p-2 -mx-2 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`} onClick={() => setDrilldown({ type: 'budget', id: cat._id, title: cat.name, color: cat.color, icon: cat.icon, total: cat.spent, budget: cat.budget, percentage: cat.percentage })}>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: cat.color + '20' }}>
-                                                    {cat.icon ? <SafeIcon name={cat.icon} cls="text-[10px]" style={{ color: cat.color }} /> : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />}
-                                                </div>
-                                                <span className={`text-xs font-medium ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{cat.name}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrencyRaw(cat.spent, activeViewCurrency)} / {formatCurrencyRaw(cat.budget, activeViewCurrency)}</span>
-                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sc.text} ${sc.bg}`} title={sc.label}>
-                                                    <FontAwesomeIcon icon={sc.icon} className="mr-0.5 text-[8px]" />{cat.percentage}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`} role="progressbar" aria-valuenow={Math.min(cat.percentage, 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${cat.name} budget: ${cat.percentage}% used, ${sc.label}`}>
-                                            <div className={`h-full rounded-full ${sc.bar}`} style={{ width: `${Math.min(cat.percentage, 100)}%`, animation: `barGrow 0.8s ease-out 0.6s both` }} />
-                                        </div>
-                                    </div>
-                                )
-                            })}
+                        <div>
+                            <ResponsiveContainer width="100%" height={Math.max(budgetCategories.length * 36, 120)}>
+                                <BarChart data={budgetCategories.map(c => ({ name: c.name, spent: c.spent, budget: c.budget }))} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#f1f5f9' : '#1f1f1f'} horizontal={false} />
+                                    <XAxis type="number" tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} width={70} />
+                                    <Tooltip
+                                        contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '11px' }}
+                                        labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                        itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                        formatter={(val) => formatCurrencyRaw(val, activeViewCurrency)}
+                                    />
+                                    <Bar dataKey="budget" fill={isLight ? '#e2e8f0' : '#2a2a2a'} radius={[0, 3, 3, 0]} name="Budget" />
+                                    <Bar dataKey="spent" fill={isLight ? '#6366f1' : '#818cf8'} radius={[0, 3, 3, 0]} name="Spent" />
+                                    <Legend wrapperStyle={{ fontSize: '10px' }} />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     ) : (
                         <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No budgets set up.</p>
                     )}
                 </div>
-            </div></AnimateIn>
-
-            {/* Daily Spending Chart */}
-            <AnimateIn delay={600}><div className={`${card} ${templateStyles?.cardPadding || 'p-5'}`}>
-                <h3 className={`${templateStyles?.sectionTitleCls || 'text-sm font-semibold'} mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Daily Spending</h3>
-                {d.dailyTotals && Object.keys(d.dailyTotals).length > 0 ? (
-                    <DailyChart dailyTotals={d.dailyTotals} month={d.month} year={d.year} isLight={isLight} formatCurrency={formatCurrency} />
-                ) : (
-                    <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No daily data available.</p>
-                )}
             </div></AnimateIn>
 
             {/* Recent Transactions + Top Expenses */}
@@ -2372,31 +2480,25 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
                                 <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Monthly Spending ({MONTHS[0].slice(0, 3)} – {MONTHS[month - 1].slice(0, 3)})</span>
                                 <span className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Avg: {formatCurrencyRaw(ytdData.monthlyAvg, activeViewCurrency)}/mo</span>
                             </div>
-                            <div className="flex items-end gap-1 h-20">
-                                {Array.from({ length: month }, (_, i) => {
-                                    const data = ytdData.monthlyBreakdown[i] || { expense: 0 }
-                                    const maxExpense = Math.max(...Object.values(ytdData.monthlyBreakdown).map(m => m.expense), 1)
-                                    const heightPct = maxExpense > 0 ? (data.expense / maxExpense) * 100 : 0
-                                    const isCurrent = i === month - 1
-                                    return (
-                                        <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${MONTHS[i]}: ${formatCurrencyRaw(data.expense, activeViewCurrency)}`}>
-                                            <div className="w-full relative" style={{ height: '60px' }}>
-                                                <div
-                                                    className={`absolute bottom-0 w-full rounded-t transition-all duration-500 ${
-                                                        isCurrent
-                                                            ? (isLight ? 'bg-indigo-500' : 'bg-indigo-400')
-                                                            : (isLight ? 'bg-slate-200' : 'bg-[#2a2a2a]')
-                                                    }`}
-                                                    style={{ height: `${Math.max(heightPct, 4)}%`, animation: `barGrow 0.6s ease-out ${0.3 + i * 0.05}s both`, transformOrigin: 'bottom' }}
-                                                />
-                                            </div>
-                                            <span className={`text-[10px] ${isCurrent ? (isLight ? 'text-indigo-600 font-bold' : 'text-indigo-400 font-bold') : (isLight ? 'text-slate-400' : 'text-gray-600')}`}>
-                                                {MONTHS[i].slice(0, 1)}
-                                            </span>
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                            <ResponsiveContainer width="100%" height={100}>
+                                <BarChart data={Array.from({ length: month }, (_, i) => ({
+                                    name: MONTHS[i].slice(0, 3),
+                                    expense: ytdData.monthlyBreakdown[i]?.expense || 0,
+                                }))} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} axisLine={false} tickLine={false} />
+                                    <Tooltip
+                                        contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '11px' }}
+                                        labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                        itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                        formatter={(val) => [formatCurrencyRaw(val, activeViewCurrency), 'Spent']}
+                                    />
+                                    <Bar dataKey="expense" radius={[3, 3, 0, 0]}>
+                                        {Array.from({ length: month }, (_, i) => (
+                                            <Cell key={i} fill={i === month - 1 ? (isLight ? '#6366f1' : '#818cf8') : (isLight ? '#e2e8f0' : '#2a2a2a')} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
 
                         {/* YTD Top Categories */}
@@ -3168,110 +3270,6 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
     )
 })
 
-const DailyChart = React.memo(({ dailyTotals, month, year, isLight, formatCurrency }) => {
-    const canvasRef = useRef(null)
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const [tooltip, setTooltip] = useState(null)
-
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const ctx = canvas.getContext('2d')
-        const dpr = window.devicePixelRatio || 1
-        const w = canvas.clientWidth
-        const h = canvas.clientHeight
-        canvas.width = w * dpr
-        canvas.height = h * dpr
-        ctx.scale(dpr, dpr)
-        ctx.clearRect(0, 0, w, h)
-
-        let maxVal = 0
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dt = dailyTotals[day]
-            if (dt) {
-                maxVal = Math.max(maxVal, dt.expense || 0, dt.income || 0)
-            }
-        }
-        if (maxVal === 0) maxVal = 100
-
-        const padding = { top: 10, right: 10, bottom: 24, left: 10 }
-        const chartW = w - padding.left - padding.right
-        const chartH = h - padding.top - padding.bottom
-        const barW = Math.max(2, (chartW / daysInMonth) - 2)
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dt = dailyTotals[day] || { income: 0, expense: 0 }
-            const x = padding.left + ((day - 1) / daysInMonth) * chartW + 1
-
-            const expH = (dt.expense / maxVal) * chartH
-            ctx.fillStyle = isLight ? '#ef4444' : '#f87171'
-            ctx.globalAlpha = 0.8
-            ctx.fillRect(x, padding.top + chartH - expH, barW * 0.5, expH)
-
-            const incH = (dt.income / maxVal) * chartH
-            ctx.fillStyle = isLight ? '#10b981' : '#34d399'
-            ctx.fillRect(x + barW * 0.5, padding.top + chartH - incH, barW * 0.5, incH)
-
-            ctx.globalAlpha = 1
-            if (day % 5 === 0 || day === 1) {
-                ctx.fillStyle = isLight ? '#94a3b8' : '#6b7280'
-                ctx.font = '9px sans-serif'
-                ctx.textAlign = 'center'
-                ctx.fillText(day.toString(), x + barW * 0.25, h - 6)
-            }
-        }
-    }, [dailyTotals, daysInMonth, isLight])
-
-    const handleMouse = (e) => {
-        const rect = canvasRef.current.getBoundingClientRect()
-        const x = e.clientX - rect.left
-        const chartW = rect.width - 20
-        const day = Math.floor(((x - 10) / chartW) * daysInMonth) + 1
-        if (day >= 1 && day <= daysInMonth && dailyTotals[day]) {
-            setTooltip({ day, ...dailyTotals[day], x: e.clientX - rect.left, y: e.clientY - rect.top })
-        } else {
-            setTooltip(null)
-        }
-    }
-
-    const chartSummary = useMemo(() => {
-        let totalExp = 0, totalInc = 0, daysActive = 0
-        for (let d = 1; d <= daysInMonth; d++) {
-            if (dailyTotals[d]) {
-                totalExp += dailyTotals[d].expense || 0
-                totalInc += dailyTotals[d].income || 0
-                daysActive++
-            }
-        }
-        return `Daily spending chart for ${daysInMonth} days. ${daysActive} days with activity. Total expenses: ${formatCurrency(totalExp)}, Total income: ${formatCurrency(totalInc)}`
-    }, [dailyTotals, daysInMonth, formatCurrency])
-
-    return (
-        <div className="relative">
-            <canvas
-                ref={canvasRef}
-                className="w-full cursor-crosshair"
-                style={{ height: 140 }}
-                onMouseMove={handleMouse}
-                onMouseLeave={() => setTooltip(null)}
-                role="img"
-                aria-label={chartSummary}
-            />
-            {tooltip && (
-                <div className={`absolute z-10 px-2.5 py-1.5 rounded-lg text-xs shadow-lg pointer-events-none ${isLight ? 'bg-white border border-slate-200 text-slate-700' : 'bg-[#1a1a1a] border border-[#333] text-gray-200'}`} style={{ left: Math.min(tooltip.x, canvasRef.current.clientWidth - 120), top: tooltip.y - 50 }}>
-                    <p className="font-semibold">Day {tooltip.day}</p>
-                    {tooltip.expense > 0 && <p className="text-red-500">Expense: {formatCurrency(tooltip.expense)}</p>}
-                    {tooltip.income > 0 && <p className="text-emerald-500">Income: {formatCurrency(tooltip.income)}</p>}
-                </div>
-            )}
-            <div className="flex items-center justify-center gap-4 mt-1">
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor: isLight ? '#ef4444' : '#f87171'}} /><span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Expense</span></div>
-                <div className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm" style={{backgroundColor: isLight ? '#10b981' : '#34d399'}} /><span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Income</span></div>
-            </div>
-        </div>
-    )
-})
-
 // ==================== DAILY EXPENSES TAB ====================
 
 const DailyExpensesTab = React.memo(({
@@ -3419,6 +3417,13 @@ const DailyExpensesTab = React.memo(({
         return best && best[1] >= 2 ? best[0] : null
     }, [categories, expenses])
 
+    const resolveCategoryName = useCallback((name) => {
+        if (!name || !categories.length) return ''
+        const lower = name.toLowerCase().trim()
+        const match = categories.find(c => c.name.toLowerCase() === lower)
+        return match ? match._id : ''
+    }, [categories])
+
     const handleCSVFile = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -3434,6 +3439,7 @@ const DailyExpensesTab = React.memo(({
                 headers.forEach((h, i) => { row[h] = cols[i] || '' })
                 const description = row.description || row.name || row.item || ''
                 const suggestedCategory = autoCategorize(description)
+                const csvCategory = row.category ? resolveCategoryName(row.category) : ''
                 return {
                     date: row.date || '',
                     description,
@@ -3441,8 +3447,8 @@ const DailyExpensesTab = React.memo(({
                     type: row.type || 'expense',
                     paymentMethod: row.paymentmethod || row['payment method'] || row.method || 'Cash',
                     notes: row.notes || '',
-                    category: row.category || suggestedCategory || '',
-                    autoCategory: !!suggestedCategory,
+                    category: csvCategory || suggestedCategory || '',
+                    autoCategory: !!suggestedCategory && !csvCategory,
                 }
             }).filter(r => r.description && parseFloat(r.amount))
             setCsvData(rows)
@@ -3450,6 +3456,18 @@ const DailyExpensesTab = React.memo(({
         }
         reader.readAsText(file)
         e.target.value = ''
+    }
+
+    const downloadCSVTemplate = () => {
+        const headers = 'date,description,amount,type,category,paymentmethod,notes'
+        const example = `${new Date().toISOString().split('T')[0]},Sample expense,100,expense,,Cash,`
+        const blob = new Blob([headers + '\n' + example + '\n'], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'budget_import_template.csv'
+        a.click()
+        URL.revokeObjectURL(url)
     }
 
     const handleCSVImport = async () => {
@@ -3806,6 +3824,10 @@ const DailyExpensesTab = React.memo(({
                     />
                 </div>
                 <div className="flex items-center gap-2">
+                    <button onClick={downloadCSVTemplate} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg transition-all ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-[#1f1f1f] hover:bg-[#2a2a2a] text-gray-300'}`}>
+                        <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
+                        Template
+                    </button>
                     <label className={`flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg cursor-pointer transition-all ${isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
                         <FontAwesomeIcon icon={faFileExport} className="text-[10px]" />
                         Import CSV
@@ -3971,9 +3993,9 @@ const DailyExpensesTab = React.memo(({
                             </div>
                             <div className={`w-px h-5 ${isLight ? 'bg-slate-200' : 'bg-[#333]'}`} />
                             <button onClick={() => { setSelectedExpenses([]); setBulkDeleteConfirm(false) }} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLight ? 'bg-white hover:bg-slate-100 text-slate-600 border border-solid border-slate-200' : 'bg-[#1a1a1a] hover:bg-[#222] text-gray-300 border border-solid border-[#333]'}`}>Cancel</button>
-                            <button onClick={handleBulkDelete} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${bulkDeleteConfirm ? 'bg-red-600 hover:bg-red-700 text-white' : (isLight ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')}`}>
-                                <FontAwesomeIcon icon={bulkDeleteConfirm ? faExclamationTriangle : faTrash} className="text-[10px]" />
-                                {bulkDeleteConfirm ? 'Confirm Delete' : `Delete (${selectedExpenses.length})`}
+                            <button onClick={handleBulkDelete} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${isLight ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                                <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
+                                {`Delete (${selectedExpenses.length})`}
                             </button>
                         </div>
                     </div>
@@ -4350,8 +4372,8 @@ const DailyExpensesTab = React.memo(({
                                                                         <FontAwesomeIcon icon={faCircle} className="text-[8px]" />
                                                                     </button>
                                                                 )}
-                                                                <button onClick={() => handleDeleteExpense(e._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === e._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`} title="Delete" aria-label={`Delete ${e.description}`}>
-                                                                    <FontAwesomeIcon icon={deleteConfirm === e._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                                                <button onClick={() => handleDeleteExpense(e._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400'}`} title="Delete" aria-label={`Delete ${e.description}`}>
+                                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                                 </button>
                                                                 </>}
                                                             </div>
@@ -4466,7 +4488,7 @@ const DailyExpensesTab = React.memo(({
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-1 flex-shrink-0">
-                                                <button onClick={() => handleEditExpense(t)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#222] text-gray-500'}`} title="Edit template">
+                                                <button onClick={() => handleEditExpense(t)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`} title="Edit template">
                                                     <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                 </button>
                                                 <button
@@ -4956,8 +4978,8 @@ const CategoriesTab = React.memo(({
                                     <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`} title="Edit">
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
-                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === cat._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`} title="Delete">
-                                        <FontAwesomeIcon icon={deleteConfirm === cat._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400'}`} title="Delete">
+                                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                     </button>
                                 </div>
                                 ) : null}
@@ -5003,8 +5025,8 @@ const CategoriesTab = React.memo(({
                                     <button onClick={() => handleEditCategory(cat)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
                                         <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                     </button>
-                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${deleteConfirm === cat._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400')}`}>
-                                        <FontAwesomeIcon icon={deleteConfirm === cat._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                    <button onClick={() => handleDeleteCategory(cat._id)} className={`w-7 h-7 rounded-md flex items-center justify-center ${isLight ? 'hover:bg-red-100 text-red-500' : 'hover:bg-red-900/30 text-red-400'}`}>
+                                        <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                     </button>
                                 </div>
                                 ) : null}
@@ -5078,7 +5100,7 @@ const CategoriesTab = React.memo(({
 
 const DENOMINATIONS = DENOMINATIONS_CONST
 
-const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer, ownerParam = {} }) => {
+const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispatch, savings, savingsHistory, isLoading, isViewer }) => {
     const [counts, setCounts] = useState(() => {
         const init = {}
         DENOMINATIONS.forEach(d => { init[d.value] = '' })
@@ -5086,18 +5108,13 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
     })
     const [hasChanges, setHasChanges] = useState(false)
     const [subTab, setSubTab] = useState('counter')
-    const [deleteConfirmId, setDeleteConfirmId] = useState(null)
-    const prevOwnerRef = useRef(ownerParam.budgetOwnerId)
+    const [deleteModal, setDeleteModal] = useState(null)
 
     useEffect(() => {
-        dispatch(getBudgetSavingsHistory(ownerParam))
-    }, [dispatch, ownerParam.budgetOwnerId])
+        dispatch(getBudgetSavingsHistory({}))
+    }, [dispatch])
 
-    // Reset and reload counts whenever savings data changes or owner switches
     useEffect(() => {
-        const ownerChanged = prevOwnerRef.current !== ownerParam.budgetOwnerId
-        prevOwnerRef.current = ownerParam.budgetOwnerId
-
         if (savings && typeof savings === 'object') {
             const restored = {}
             DENOMINATIONS.forEach(d => {
@@ -5106,13 +5123,8 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
             })
             setCounts(restored)
             setHasChanges(false)
-        } else if (ownerChanged) {
-            const init = {}
-            DENOMINATIONS.forEach(d => { init[d.value] = '' })
-            setCounts(init)
-            setHasChanges(false)
         }
-    }, [savings, ownerParam.budgetOwnerId])
+    }, [savings])
 
     const updateCount = (denom, val) => {
         const n = val === '' ? '' : parseInt(val) || 0
@@ -5135,8 +5147,8 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
     const handleSave = async () => {
         const denominations = {}
         DENOMINATIONS.forEach(d => { denominations[d.value] = counts[d.value] === '' ? 0 : counts[d.value] })
-        await dispatch(saveBudgetSavings({ denominations, ...ownerParam }))
-        dispatch(getBudgetSavingsHistory(ownerParam))
+        await dispatch(saveBudgetSavings({ denominations }))
+        dispatch(getBudgetSavingsHistory({}))
         setHasChanges(false)
     }
 
@@ -5148,12 +5160,12 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
     }
 
     const handleDeleteHistory = (id) => {
-        if (deleteConfirmId === id) {
-            dispatch(deleteBudgetSavingsHistory({ id, ...ownerParam }))
-            setDeleteConfirmId(null)
-        } else {
-            setDeleteConfirmId(id)
-        }
+        setDeleteModal({ id, title: 'Delete History Entry', message: 'Are you sure you want to delete this savings history entry?' })
+    }
+
+    const confirmDeleteHistory = async (id) => {
+        dispatch(deleteBudgetSavingsHistory({ id }))
+        setDeleteModal(null)
     }
 
     const rowBg = (i) => isLight
@@ -5324,8 +5336,8 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
                                             <span className={`text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full ${entry.diffTotal > 0 ? (isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400') : entry.diffTotal < 0 ? (isLight ? 'bg-red-100 text-red-700' : 'bg-red-500/15 text-red-400') : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-gray-400')}`}>
                                                 {entry.diffTotal > 0 ? '+' : ''}{formatCurrency(entry.diffTotal)}
                                             </span>
-                                            {!isViewer && <button onClick={() => handleDeleteHistory(entry._id)} className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${deleteConfirmId === entry._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-red-50 text-slate-300 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-600 hover:text-red-400')}`}>
-                                                <FontAwesomeIcon icon={deleteConfirmId === entry._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                            {!isViewer && <button onClick={() => handleDeleteHistory(entry._id)} className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/20 text-red-400'}`}>
+                                                <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                             </button>}
                                         </div>
                                     </div>
@@ -5356,6 +5368,10 @@ const SavingsTab = React.memo(({ isLight, card, inputCls, formatCurrency, dispat
                     </div>
                 )
             )}
+
+            {deleteModal && (
+                <DeleteConfirmModal isLight={isLight} title={deleteModal.title} message={deleteModal.message} onCancel={() => setDeleteModal(null)} onConfirm={() => confirmDeleteHistory(deleteModal.id)} />
+            )}
         </div>
     )
 })
@@ -5369,7 +5385,6 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
     const [form, setForm] = useState({ name: '', type: 'owe', person: '', total_amount: '', due_date: '', notes: '' })
     const [paymentForm, setPaymentForm] = useState({ debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' })
     const [expandedId, setExpandedId] = useState(null)
-    const [deleteConfirm, setDeleteConfirm] = useState(null)
     const [filterStatus, setFilterStatus] = useState('all')
 
     const resetForm = () => {
@@ -5399,14 +5414,15 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
         setShowForm(true)
     }
 
-    const handleDelete = async (id) => {
-        if (deleteConfirm === id) {
-            await dispatch(deleteDebt({ id, ...ownerParam }))
-            setDeleteConfirm(null)
-        } else {
-            setDeleteConfirm(id)
-            setTimeout(() => setDeleteConfirm(null), 3000)
-        }
+    const [deleteModal, setDeleteModal] = useState(null)
+
+    const handleDelete = (id) => {
+        setDeleteModal({ id, title: 'Delete Debt', message: 'Are you sure you want to delete this debt? All payment history will be lost.' })
+    }
+
+    const confirmDelete = async (id) => {
+        await dispatch(deleteDebt({ id, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const handlePayment = async () => {
@@ -5415,8 +5431,13 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
         setPaymentForm({ debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' })
     }
 
-    const handleRemovePayment = async (debtId, paymentId) => {
+    const handleRemovePayment = (debtId, paymentId) => {
+        setDeleteModal({ type: 'payment', debtId, paymentId, title: 'Remove Payment', message: 'Are you sure you want to remove this payment record?' })
+    }
+
+    const confirmRemovePayment = async (debtId, paymentId) => {
         await dispatch(removeDebtPayment({ id: debtId, paymentId, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const handleToggle = async (id) => {
@@ -5431,31 +5452,31 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
 
     const totalOwed = debts?.filter(d => d.type === 'owe' && d.status === 'active').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0) || 0
     const totalOwedToYou = debts?.filter(d => d.type === 'owed' && d.status === 'active').reduce((s, d) => s + (d.total_amount - d.amount_paid), 0) || 0
+    const totalPaid = debts?.reduce((s, d) => s + (d.amount_paid || 0), 0) || 0
     const activeCount = debts?.filter(d => d.status === 'active').length || 0
     const paidCount = debts?.filter(d => d.status === 'paid').length || 0
 
     if (isLoading) {
         return (
             <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {[...Array(3)].map((_, i) => (
-                        <div key={i} className={`${card} p-4`}>
-                            <div className={`h-3 w-24 mb-2 ${pulse}`} />
-                            <div className={`h-6 w-32 ${pulse}`} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className={`${card} p-5`}>
+                            <div className="flex items-center justify-between mb-3"><div className={`h-3 w-20 ${pulse}`} /><div className={`w-8 h-8 rounded-lg ${pulse}`} /></div>
+                            <div className={`h-6 w-28 ${pulse}`} />
                         </div>
                     ))}
                 </div>
-                <div className={`${card} overflow-hidden`}>
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i > 0 ? `border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}` : ''}`}>
-                            <div className={`w-10 h-10 rounded-lg ${pulse}`} />
-                            <div className="flex-1 space-y-1.5">
-                                <div className={`h-3.5 w-40 ${pulse}`} />
-                                <div className={`h-2.5 w-24 ${pulse}`} />
+                <div className={`${card} p-5`}>
+                    <div className={`h-4 w-32 mb-4 ${pulse}`} />
+                    <div className="space-y-3">
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i}>
+                                <div className="flex items-center justify-between mb-1.5"><div className={`h-3 w-24 ${pulse}`} /><div className={`h-3 w-16 ${pulse}`} /></div>
+                                <div className={`h-1.5 rounded-full ${pulse}`} />
                             </div>
-                            <div className={`h-5 w-20 ${pulse}`} />
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         )
@@ -5466,26 +5487,83 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
     return (
         <div className="space-y-4">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <AnimateIn delay={0}><div className={`${card} p-4`}>
-                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>You Owe</p>
-                    <p className={`text-lg font-bold mt-1 text-red-500`}>{formatCurrency(totalOwed)}</p>
-                </div></AnimateIn>
-                <AnimateIn delay={80}><div className={`${card} p-4`}>
-                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Owed to You</p>
-                    <p className={`text-lg font-bold mt-1 text-emerald-500`}>{formatCurrency(totalOwedToYou)}</p>
-                </div></AnimateIn>
-                <AnimateIn delay={160}><div className={`${card} p-4`}>
-                    <p className={`text-[10px] font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Active / Paid</p>
-                    <p className={`text-lg font-bold mt-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
-                        {activeCount} <span className={`text-sm font-normal ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>/ {paidCount}</span>
-                    </p>
-                </div></AnimateIn>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                    { label: 'You Owe', value: formatCurrency(totalOwed), icon: faArrowUp, color: 'red' },
+                    { label: 'Owed to You', value: formatCurrency(totalOwedToYou), icon: faArrowDown, color: 'emerald' },
+                    { label: 'Total Paid', value: formatCurrency(totalPaid), icon: faCheckCircle, color: 'blue' },
+                    { label: 'Active / Paid', value: `${activeCount} / ${paidCount}`, icon: faHandHoldingUsd, color: 'violet' },
+                ].map((s, i) => {
+                    const colorMap = {
+                        red: { icon: isLight ? 'text-red-600' : 'text-red-400', bg: isLight ? 'bg-red-50' : 'bg-red-900/20' },
+                        emerald: { icon: isLight ? 'text-emerald-600' : 'text-emerald-400', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20' },
+                        blue: { icon: isLight ? 'text-blue-600' : 'text-blue-400', bg: isLight ? 'bg-blue-50' : 'bg-blue-900/20' },
+                        violet: { icon: isLight ? 'text-violet-600' : 'text-violet-400', bg: isLight ? 'bg-violet-50' : 'bg-violet-900/20' },
+                    }
+                    const cm = colorMap[s.color]
+                    return (
+                        <AnimateIn key={i} delay={i * 80}>
+                            <div className={`${card} p-5`}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cm.bg}`}>
+                                        <FontAwesomeIcon icon={s.icon} className={`text-sm ${cm.icon}`} />
+                                    </div>
+                                </div>
+                                <p className={`text-lg sm:text-xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
+                            </div>
+                        </AnimateIn>
+                    )
+                })}
             </div>
 
-            {/* Toolbar */}
-            <AnimateIn delay={250}><div className={`${card} overflow-hidden`}>
-                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+            {/* Form */}
+            {showForm && (
+                <AnimateIn delay={0}><div className={`${card} p-5`}>
+                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Debt' : 'New Debt'}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className={labelCls}>Name *</label>
+                            <input type="text" className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Car loan, Rent" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Type</label>
+                            <select className={`${selectCls} w-full`} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                                <option value="owe">I Owe (Payable)</option>
+                                <option value="owed">Owed to Me (Receivable)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Person / Entity</label>
+                            <input type="text" className={inputCls} value={form.person} onChange={e => setForm({ ...form, person: e.target.value })} placeholder="Who?" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Total Amount *</label>
+                            <input type="number" className={inputCls} value={form.total_amount} onChange={e => setForm({ ...form, total_amount: e.target.value })} placeholder="0.00" min="0" step="0.01" />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Due Date</label>
+                            <input type="date" className={inputCls} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className={labelCls}>Notes</label>
+                            <input type="text" className={inputCls} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-solid" style={{ borderColor: isLight ? '#f1f5f9' : '#1f1f1f' }}>
+                        <button onClick={resetForm} className={`${btnSecondary} text-xs px-3 py-1.5`}>Cancel</button>
+                        <button onClick={handleSubmit} disabled={!form.name || !form.total_amount}
+                            className={`${btnPrimary} text-xs px-3 py-1.5 disabled:opacity-50`}>
+                            <FontAwesomeIcon icon={faCheck} className="text-[10px] mr-1.5" />
+                            {editing ? 'Save Changes' : 'Add Debt'}
+                        </button>
+                    </div>
+                </div></AnimateIn>
+            )}
+
+            {/* Debt List */}
+            <AnimateIn delay={350}><div className={`${card} overflow-hidden`}>
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                     <div className="flex items-center gap-2.5">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isLight ? 'bg-violet-100' : 'bg-violet-900/30'}`}>
                             <FontAwesomeIcon icon={faHandHoldingUsd} className={`text-sm ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
@@ -5503,56 +5581,12 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                             <option value="paid">Paid</option>
                         </select>
                         {!isViewer && <button onClick={() => { resetForm(); setShowForm(true) }}
-                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
                             <FontAwesomeIcon icon={faPlus} className="text-[10px]" /> Add Debt
                         </button>}
                     </div>
                 </div>
 
-                {/* Form */}
-                {showForm && (
-                    <div className={`px-4 sm:px-5 py-4 border-b border-solid ${isLight ? 'border-slate-100 bg-slate-50/50' : 'border-[#1f1f1f] bg-[#0a0a0a]'}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                            <div>
-                                <label className={labelCls}>Name *</label>
-                                <input type="text" className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Car loan, Rent" />
-                            </div>
-                            <div>
-                                <label className={labelCls}>Type</label>
-                                <select className={`${selectCls} w-full`} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                                    <option value="owe">I Owe (Payable)</option>
-                                    <option value="owed">Owed to Me (Receivable)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelCls}>Person / Entity</label>
-                                <input type="text" className={inputCls} value={form.person} onChange={e => setForm({ ...form, person: e.target.value })} placeholder="Who?" />
-                            </div>
-                            <div>
-                                <label className={labelCls}>Total Amount *</label>
-                                <input type="number" className={inputCls} value={form.total_amount} onChange={e => setForm({ ...form, total_amount: e.target.value })} placeholder="0.00" min="0" step="0.01" />
-                            </div>
-                            <div>
-                                <label className={labelCls}>Due Date</label>
-                                <input type="date" className={inputCls} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className={labelCls}>Notes</label>
-                                <input type="text" className={inputCls} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes" />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={resetForm} className={`${btnSecondary} text-xs px-3 py-1.5`}>Cancel</button>
-                            <button onClick={handleSubmit} disabled={!form.name || !form.total_amount}
-                                className={`${btnPrimary} text-xs px-3 py-1.5 disabled:opacity-50`}>
-                                <FontAwesomeIcon icon={faCheck} className="text-[10px] mr-1.5" />
-                                {editing ? 'Update' : 'Add Debt'}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Debt List */}
                 {filtered.length > 0 ? (
                     <div className={`divide-y divide-solid ${isLight ? 'divide-slate-100' : 'divide-[#1f1f1f]'}`}>
                         {filtered.map(debt => {
@@ -5560,14 +5594,15 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                             const pct = debt.total_amount > 0 ? Math.round((debt.amount_paid / debt.total_amount) * 100) : 0
                             const isPaid = debt.status === 'paid'
                             const isOverdue = debt.due_date && !isPaid && new Date(debt.due_date) < new Date()
+                            const lastPaymentDate = debt.payments?.length > 0 ? new Date(debt.payments[debt.payments.length - 1].date) : null
+                            const isPaidLate = isPaid && debt.due_date && lastPaymentDate && lastPaymentDate > new Date(debt.due_date)
                             const isExpanded = expandedId === debt._id
                             const isPaymentOpen = paymentForm.debtId === debt._id
 
                             return (
                                 <div key={debt._id}>
-                                    <div className={`px-4 sm:px-5 py-3.5 transition-colors ${isLight ? 'hover:bg-slate-50/50' : 'hover:bg-[#111]'}`}>
+                                    <div className={`px-5 py-3.5 transition-colors ${isLight ? 'hover:bg-slate-50/50' : 'hover:bg-[#111]'}`}>
                                         <div className="flex items-start gap-3">
-                                            {/* Type icon */}
                                             <button onClick={() => handleToggle(debt._id)}
                                                 className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${isPaid
                                                     ? (isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400')
@@ -5578,7 +5613,6 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                                                 <FontAwesomeIcon icon={isPaid ? faCheckCircle : (debt.type === 'owe' ? faArrowUp : faArrowDown)} className="text-xs" />
                                             </button>
 
-                                            {/* Info */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                                                     <h4 className={`text-sm font-semibold ${isPaid ? 'line-through opacity-50' : ''} ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{debt.name}</h4>
@@ -5587,47 +5621,35 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                                                             ? (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
                                                             : (isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400')
                                                         }`}>{debt.type === 'owe' ? 'Payable' : 'Receivable'}</span>
-                                                        {isPaid && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Paid</span>}
+                                                        {isPaid && !isPaidLate && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>Paid</span>}
+                                                        {isPaidLate && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>Paid Late</span>}
                                                         {isOverdue && <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isLight ? 'bg-amber-50 text-amber-600' : 'bg-amber-900/20 text-amber-400'}`}>Overdue</span>}
                                                     </div>
                                                 </div>
                                                 <div className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                    {debt.person && (
-                                                        <span className="flex items-center gap-1">
-                                                            <FontAwesomeIcon icon={faUserFriends} className="text-[10px]" /> {debt.person}
-                                                        </span>
-                                                    )}
-                                                    {debt.due_date && (
-                                                        <span className={`flex items-center gap-1 ${isOverdue ? 'text-amber-500' : ''}`}>
-                                                            <FontAwesomeIcon icon={faCalendarCheck} className="text-[10px]" />
-                                                            {new Date(debt.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                        </span>
-                                                    )}
+                                                    {debt.person && <span className="flex items-center gap-1"><FontAwesomeIcon icon={faUserFriends} className="text-[10px]" /> {debt.person}</span>}
+                                                    {debt.due_date && <span className={`flex items-center gap-1 ${isOverdue ? 'text-amber-500' : ''}`}><FontAwesomeIcon icon={faCalendarCheck} className="text-[10px]" /> {new Date(debt.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
                                                     {debt.notes && <span className="truncate max-w-[200px]">{debt.notes}</span>}
                                                 </div>
 
-                                                {/* Progress bar */}
                                                 <div className="mt-2">
                                                     <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
                                                         <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
                                                             style={{ width: `${Math.min(pct, 100)}%`, animation: 'barGrow 0.8s ease-out 0.3s both' }} />
                                                     </div>
                                                     <div className="flex items-center justify-between mt-1">
-                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                            {formatCurrency(debt.amount_paid)} / {formatCurrency(debt.total_amount)}
-                                                        </span>
+                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(debt.amount_paid)} / {formatCurrency(debt.total_amount)}</span>
                                                         <span className={`text-[10px] font-semibold ${pct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-500' : 'text-gray-400')}`}>{pct}%</span>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Actions */}
                                             <div className="flex items-center gap-1 flex-shrink-0">
                                                 {!isPaid && !isViewer && (
                                                     <button onClick={() => setPaymentForm(prev => prev.debtId === debt._id ? { debtId: null, amount: '', notes: '', category: '', paymentMethod: 'Cash' } : { debtId: debt._id, amount: '', notes: '', category: '', paymentMethod: 'Cash' })}
                                                         className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isPaymentOpen
                                                             ? (isLight ? 'bg-emerald-100 text-emerald-600' : 'bg-emerald-900/30 text-emerald-400')
-                                                            : (isLight ? 'text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20')
+                                                            : (isLight ? 'text-emerald-500 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-900/20')
                                                         }`} title="Add payment">
                                                         <FontAwesomeIcon icon={faPlus} className="text-[10px]" />
                                                     </button>
@@ -5639,16 +5661,13 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                                                 </button>
                                                 {!isViewer && <>
                                                 <button onClick={() => handleEdit(debt)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-amber-400 hover:text-amber-600 hover:bg-amber-50' : 'text-amber-400 hover:text-amber-300 hover:bg-amber-900/20'}`}
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-blue-500 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-900/20'}`}
                                                     title="Edit">
                                                     <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                 </button>
                                                 <button onClick={() => handleDelete(debt._id)}
-                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${deleteConfirm === debt._id
-                                                        ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400')
-                                                        : (isLight ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20')
-                                                    }`} title="Delete">
-                                                    <FontAwesomeIcon icon={deleteConfirm === debt._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
+                                                    className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`} title="Delete">
+                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                 </button>
                                                 </>}
                                             </div>
@@ -5695,7 +5714,7 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
 
                                     {/* Payment history (expanded) */}
                                     {isExpanded && (
-                                        <div className={`px-4 sm:px-5 pb-3 ${isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]'}`}>
+                                        <div className={`px-5 pb-3 ${isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]'}`}>
                                             {debt.payments?.length > 0 ? (
                                                 <div className={`rounded-lg overflow-hidden border border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
                                                     <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${isLight ? 'bg-slate-100 text-slate-400' : 'bg-[#111] text-gray-500'}`}>
@@ -5711,10 +5730,10 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-semibold text-emerald-500">{formatCurrency(p.amount)}</span>
-                                                                <button onClick={() => handleRemovePayment(debt._id, p._id)}
-                                                                    className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isLight ? 'text-slate-300 hover:text-red-500 hover:bg-red-50' : 'text-gray-600 hover:text-red-400 hover:bg-red-900/20'}`}>
+                                                                {!isViewer && <button onClick={() => handleRemovePayment(debt._id, p._id)}
+                                                                    className={`w-5 h-5 rounded flex items-center justify-center transition-colors ${isLight ? 'text-red-400 hover:text-red-500 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20'}`}>
                                                                     <FontAwesomeIcon icon={faTimes} className="text-[8px]" />
-                                                                </button>
+                                                                </button>}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -5740,6 +5759,13 @@ const DebtTab = React.memo(({ debts, categories, dispatch, isLight, card, inputC
                     </div>
                 )}
             </div></AnimateIn>
+
+            {deleteModal && (
+                <DeleteConfirmModal isLight={isLight} title={deleteModal.title} message={deleteModal.message} onCancel={() => setDeleteModal(null)} onConfirm={() => {
+                    if (deleteModal.type === 'payment') confirmRemovePayment(deleteModal.debtId, deleteModal.paymentId)
+                    else confirmDelete(deleteModal.id)
+                }} />
+            )}
         </div>
     )
 })
@@ -5854,7 +5880,7 @@ const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, b
     const [newItemName, setNewItemName] = useState('')
     const [newItemAmount, setNewItemAmount] = useState('')
     const [newItemType, setNewItemType] = useState('subtract')
-    const [deleteConfirm, setDeleteConfirm] = useState(null)
+    const [deleteModal, setDeleteModal] = useState(null)
     const [expandedList, setExpandedList] = useState(null)
     const [editingItem, setEditingItem] = useState(null)
     const [editItemForm, setEditItemForm] = useState({ name: '', amount: '', type: 'subtract', notes: '' })
@@ -5907,15 +5933,14 @@ const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, b
         } catch (err) { /* form kept open */ }
     }
 
-    const handleDelete = async (id) => {
-        if (deleteConfirm === id) {
-            await dispatch(deleteBudgetList({ id, ...ownerParam }))
-            setDeleteConfirm(null)
-            if (expandedList === id) setExpandedList(null)
-        } else {
-            setDeleteConfirm(id)
-            setTimeout(() => setDeleteConfirm(null), 3000)
-        }
+    const handleDelete = (id) => {
+        setDeleteModal({ id, title: 'Delete List', message: 'Are you sure you want to delete this list? All items will be permanently removed.' })
+    }
+
+    const confirmDelete = async (id) => {
+        await dispatch(deleteBudgetList({ id, ...ownerParam }))
+        setDeleteModal(null)
+        if (expandedList === id) setExpandedList(null)
     }
 
     const listPayload = (list, items) => ({ id: list._id, name: list.name, description: list.description, color: list.color, icon: list.icon, currency: list.currency, showCurrency: list.showCurrency, items, ...ownerParam })
@@ -6162,11 +6187,11 @@ const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, b
                                                 </div>
                                             </div>
                                             {!isViewer && <div className="flex items-center gap-1 flex-shrink-0">
-                                                <button onClick={() => openEdit(list)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                                <button onClick={() => openEdit(list)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
                                                     <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                 </button>
-                                                <button onClick={() => handleDelete(list._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${deleteConfirm === list._id ? 'bg-red-500 text-white' : (isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-500 hover:text-red-400')}`}>
-                                                    <FontAwesomeIcon icon={deleteConfirm === list._id ? faCheck : faTrash} className="text-[10px]" />
+                                                <button onClick={() => handleDelete(list._id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/20 text-red-400'}`}>
+                                                    <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                 </button>
                                             </div>}
                                         </div>
@@ -6217,7 +6242,13 @@ const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, b
                                                     const itemType = item.type || 'subtract'
                                                     const isItemEditing = editingItem?.listId === list._id && editingItem?.itemIdx === idx
                                                     return (
-                                                        <div key={idx} className={`flex items-center gap-2.5 px-4 sm:px-5 py-2.5 group transition-colors ${item.checked ? (isLight ? 'bg-slate-50/50' : 'bg-[#0a0a0a]') : ''}`}>
+                                                        <div key={idx} className={`flex items-center gap-2.5 mx-4 sm:mx-5 mb-1.5 px-3 py-2.5 rounded-lg group transition-colors ${
+                                                            item.checked
+                                                                ? (isLight ? 'bg-slate-50 border border-solid border-slate-100 opacity-60' : 'bg-[#0a0a0a] border border-solid border-[#1a1a1a] opacity-60')
+                                                                : itemType === 'add'
+                                                                    ? (isLight ? 'bg-emerald-50/80 border border-solid border-emerald-100 hover:border-emerald-200' : 'bg-emerald-900/10 border border-solid border-emerald-900/30 hover:border-emerald-800/50')
+                                                                    : (isLight ? 'bg-red-50/80 border border-solid border-red-100 hover:border-red-200' : 'bg-red-900/10 border border-solid border-red-900/30 hover:border-red-800/50')
+                                                        }`}>
                                                             <button onClick={() => toggleItemCheck(list, idx)}
                                                                 className={`w-[18px] h-[18px] rounded flex items-center justify-center border border-solid transition-all flex-shrink-0 ${
                                                                     item.checked ? 'border-transparent text-white' : (isLight ? 'border-slate-300 hover:border-blue-400' : 'border-[#444] hover:border-blue-500')
@@ -6252,27 +6283,33 @@ const ListsTab = React.memo(({ budgetLists, dispatch, isLight, card, inputCls, b
                                                                 </div>
                                                             ) : (
                                                                 <>
-                                                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
+                                                                    <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${
                                                                         itemType === 'add'
-                                                                            ? (isLight ? 'bg-emerald-50 text-emerald-500' : 'bg-emerald-900/20 text-emerald-400')
-                                                                            : (isLight ? 'bg-red-50 text-red-500' : 'bg-red-900/20 text-red-400')
+                                                                            ? (isLight ? 'bg-emerald-100 text-emerald-500' : 'bg-emerald-900/30 text-emerald-400')
+                                                                            : (isLight ? 'bg-red-100 text-red-500' : 'bg-red-900/30 text-red-400')
                                                                     }`}>
-                                                                        <SafeIcon name={list.icon || 'peso-sign'} cls="text-[10px] font-bold" />
+                                                                        <SafeIcon name={list.icon || 'peso-sign'} cls="text-xs font-bold" />
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
-                                                                        <span className={`text-xs block truncate transition-all ${item.checked ? 'line-through' : ''} ${isLight ? (item.checked ? 'text-slate-400' : 'text-slate-700') : (item.checked ? 'text-gray-500' : 'text-gray-200')}`}>
+                                                                        <span className={`text-xs font-medium block truncate transition-all ${item.checked ? 'line-through' : ''} ${
+                                                                            item.checked
+                                                                                ? (isLight ? 'text-slate-400' : 'text-gray-500')
+                                                                                : itemType === 'add'
+                                                                                    ? (isLight ? 'text-emerald-700' : 'text-emerald-300')
+                                                                                    : (isLight ? 'text-red-700' : 'text-red-300')
+                                                                        }`}>
                                                                             {item.name}
                                                                         </span>
-                                                                        {item.notes && <p className={`text-[10px] truncate ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>{item.notes}</p>}
+                                                                        {item.notes && <p className={`text-xs truncate ${isLight ? 'text-slate-400' : 'text-gray-600'}`}>{item.notes}</p>}
                                                                     </div>
-                                                                    <span className={`text-xs font-semibold tabular-nums w-28 text-right flex-shrink-0 ${item.checked ? 'opacity-40 line-through' : ''} ${itemType === 'add' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                                    <span className={`text-xs font-bold tabular-nums w-28 text-right flex-shrink-0 ${item.checked ? 'opacity-40 line-through' : ''} ${itemType === 'add' ? 'text-emerald-500' : 'text-red-500'}`}>
                                                                         {itemType === 'add' ? '+' : '-'}{formatListAmount(item.amount || 0, list)}
                                                                     </span>
                                                                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
-                                                                        <button onClick={() => startEditItem(list._id, idx, item)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
+                                                                        <button onClick={() => startEditItem(list._id, idx, item)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-blue-900/30 text-blue-400'}`}>
                                                                             <FontAwesomeIcon icon={faPen} className="text-[10px]" />
                                                                         </button>
-                                                                        <button onClick={() => deleteItemFromList(list, idx)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-500 hover:text-red-400'}`}>
+                                                                        <button onClick={() => deleteItemFromList(list, idx)} className={`w-6 h-6 rounded flex items-center justify-center ${isLight ? 'hover:bg-red-50 text-red-500' : 'hover:bg-red-900/20 text-red-400'}`}>
                                                                             <FontAwesomeIcon icon={faTrash} className="text-[10px]" />
                                                                         </button>
                                                                     </div>
@@ -6623,6 +6660,63 @@ const SummaryTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetD
                             <span className={`text-[10px] sm:text-[11px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Remaining</span>
                             <span className={`text-xs font-bold ${remainingBudget >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrencyRaw(remainingBudget, activeViewCurrency)}</span>
                         </div>
+                    </div>
+
+                    {/* Charts */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {/* Expense Category Pie */}
+                        {catSpending.length > 0 && (
+                            <div>
+                                <h4 className={sectionTitle}>
+                                    <FontAwesomeIcon icon={faChartPie} className="mr-1.5 text-indigo-400 text-[10px]" />
+                                    Expense Distribution
+                                </h4>
+                                <ResponsiveContainer width="100%" height={180}>
+                                    <PieChart>
+                                        <Pie data={catSpending.slice(0, 8)} dataKey="spent" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35} paddingAngle={2} strokeWidth={0}>
+                                            {catSpending.slice(0, 8).map((c, i) => <Cell key={i} fill={c.color} />)}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '11px' }}
+                                            labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                            itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                            formatter={(val) => formatCurrency(val)}
+                                        />
+                                        <Legend wrapperStyle={{ fontSize: '10px', color: isLight ? '#64748b' : '#9ca3af' }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {/* Monthly Trend (YTD) */}
+                        {ytdData && ytdData.monthlyBreakdown && (
+                            <div>
+                                <h4 className={sectionTitle}>
+                                    <FontAwesomeIcon icon={faCalendarAlt} className="mr-1.5 text-blue-400 text-[10px]" />
+                                    Monthly Trend (YTD)
+                                </h4>
+                                <ResponsiveContainer width="100%" height={180}>
+                                    <LineChart data={Array.from({ length: month }, (_, i) => ({
+                                        name: MONTHS[i].slice(0, 3),
+                                        expense: ytdData.monthlyBreakdown[i]?.expense || 0,
+                                        income: ytdData.monthlyBreakdown[i]?.income || 0,
+                                    }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#f1f5f9' : '#1f1f1f'} />
+                                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} />
+                                        <YAxis tick={{ fontSize: 10, fill: isLight ? '#94a3b8' : '#6b7280' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} width={40} />
+                                        <Tooltip
+                                            contentStyle={{ background: isLight ? '#fff' : '#1a1a1a', border: isLight ? '1px solid #e2e8f0' : '1px solid #333', borderRadius: '8px', fontSize: '11px' }}
+                                            labelStyle={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                                            itemStyle={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                                            formatter={(val) => formatCurrency(val)}
+                                        />
+                                        <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                                        <Line type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                                        <Legend wrapperStyle={{ fontSize: '10px', color: isLight ? '#64748b' : '#9ca3af' }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
                     {/* Two Column: Expense Categories + Income Sources */}
@@ -7002,6 +7096,7 @@ const SummaryTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetD
                     </div>
                 </div>
             </div></AnimateIn>
+
         </div>
     )
 })
@@ -7013,10 +7108,10 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
     const [editing, setEditing] = useState(null)
     const [form, setForm] = useState({ name: '', targetAmount: '', deadline: '', category: '', color: '#3b82f6', icon: 'bullseye', notes: '' })
     const [contribForm, setContribForm] = useState({ goalId: null, amount: '', notes: '' })
-    const [deleteConfirm, setDeleteConfirm] = useState(null)
-    const [deleteContribConfirm, setDeleteContribConfirm] = useState(null)
+    const [deleteModal, setDeleteModal] = useState(null)
     const [expandedGoal, setExpandedGoal] = useState(null)
     const [showCompleted, setShowCompleted] = useState(false)
+    const [filterView, setFilterView] = useState('all')
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
     const labelCls = `block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`
 
@@ -7038,9 +7133,13 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
         setShowForm(true)
     }
 
-    const handleDelete = async (id) => {
-        if (deleteConfirm === id) { await dispatch(deleteFinancialGoal({ id, ...ownerParam })); setDeleteConfirm(null) }
-        else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000) }
+    const handleDelete = (id) => {
+        setDeleteModal({ type: 'goal', id, title: 'Delete Goal', message: 'Are you sure you want to delete this goal? All contributions will be lost.' })
+    }
+
+    const confirmDelete = async (id) => {
+        await dispatch(deleteFinancialGoal({ id, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const handleContribute = async () => {
@@ -7049,15 +7148,13 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
         setContribForm({ goalId: null, amount: '', notes: '' })
     }
 
-    const handleRemoveContribution = async (goalId, contributionId) => {
-        const key = `${goalId}-${contributionId}`
-        if (deleteContribConfirm === key) {
-            await dispatch(removeGoalContribution({ id: goalId, contributionId, ...ownerParam }))
-            setDeleteContribConfirm(null)
-        } else {
-            setDeleteContribConfirm(key)
-            setTimeout(() => setDeleteContribConfirm(null), 3000)
-        }
+    const handleRemoveContribution = (goalId, contributionId) => {
+        setDeleteModal({ type: 'contribution', goalId, contributionId, title: 'Remove Contribution', message: 'Are you sure you want to remove this contribution?' })
+    }
+
+    const confirmRemoveContribution = async (goalId, contributionId) => {
+        await dispatch(removeGoalContribution({ id: goalId, contributionId, ...ownerParam }))
+        setDeleteModal(null)
     }
 
     const activeGoals = goals.filter(g => g.status === 'active')
@@ -7067,85 +7164,98 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
     const overallPct = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0
     const totalContributions = goals.reduce((s, g) => s + (g.contributions?.length || 0), 0)
 
+    const filteredActive = useMemo(() => {
+        if (filterView === 'all') return activeGoals
+        if (filterView === 'urgent') return activeGoals.filter(g => { const d = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null; return d !== null && d <= 30 })
+        if (filterView === 'ontrack') return activeGoals.filter(g => { const pct = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0; return pct >= 50 })
+        return activeGoals
+    }, [activeGoals, filterView])
+
     if (isLoading) {
         return (
             <div className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[...Array(4)].map((_, i) => <div key={i} className={`${card} p-4`}><div className={`h-3 w-16 mb-2 ${pulse}`} /><div className={`h-5 w-24 ${pulse}`} /></div>)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className={`${card} p-5`}>
+                            <div className="flex items-center justify-between mb-3"><div className={`h-3 w-20 ${pulse}`} /><div className={`w-8 h-8 rounded-lg ${pulse}`} /></div>
+                            <div className={`h-6 w-28 ${pulse}`} />
+                        </div>
+                    ))}
                 </div>
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className={`${card} p-5`}>
-                        <div className={`h-4 w-40 mb-3 ${pulse}`} />
-                        <div className={`h-2.5 rounded-full w-full ${pulse}`} />
-                    </div>
-                ))}
+                <div className={`${card} p-5`}><div className={`h-4 w-32 mb-4 ${pulse}`} /><div className="space-y-3">{[...Array(3)].map((_, i) => (<div key={i}><div className="flex items-center justify-between mb-1.5"><div className={`h-3 w-24 ${pulse}`} /><div className={`h-3 w-16 ${pulse}`} /></div><div className={`h-1.5 rounded-full ${pulse}`} /></div>))}</div></div>
             </div>
         )
     }
 
     return (
         <div className="space-y-4">
-            {/* Header Bar */}
-            <AnimateIn delay={0}><div className="flex items-center justify-between">
-                <div>
-                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Financial Goals</h3>
-                    <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{activeGoals.length} active · {completedGoals.length} completed · {totalContributions} contributions</p>
-                </div>
-                {!isViewer && <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-all ${
-                    showForm
-                        ? (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#252525]')
-                        : (isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500')
-                }`}>
-                    <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
-                    {showForm ? 'Close' : 'New Goal'}
-                </button>}
-            </div></AnimateIn>
-
-            {/* Stat Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Saved', value: formatCurrency(totalSaved), color: 'text-emerald-500', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/10', icon: faPiggyBank, iconColor: 'text-emerald-500' },
-                    { label: 'Total Target', value: formatCurrency(totalTarget), color: isLight ? 'text-slate-700' : 'text-gray-200', bg: isLight ? 'bg-slate-50' : 'bg-[#111]', icon: faArrowUp, iconColor: isLight ? 'text-slate-400' : 'text-gray-500' },
-                    { label: 'Remaining', value: formatCurrency(Math.max(totalTarget - totalSaved, 0)), color: isLight ? 'text-amber-600' : 'text-amber-400', bg: isLight ? 'bg-amber-50' : 'bg-amber-900/10', icon: faWallet, iconColor: 'text-amber-500' },
-                    { label: 'Progress', value: `${overallPct}%`, color: overallPct >= 100 ? 'text-emerald-500' : (isLight ? 'text-blue-600' : 'text-blue-400'), bg: isLight ? 'bg-blue-50' : 'bg-blue-900/10', icon: faChartPie, iconColor: 'text-blue-500' },
-                ].map((s, i) => (
-                    <AnimateIn key={i} delay={40 + i * 50}><div className={`${card} p-4`}>
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                            <FontAwesomeIcon icon={s.icon} className={`text-[10px] ${s.iconColor}`} />
-                            <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
-                        </div>
-                        <p className={`text-lg font-extrabold leading-tight ${s.color}`}>{s.value}</p>
-                    </div></AnimateIn>
-                ))}
+                    { label: 'Total Saved', value: formatCurrency(totalSaved), icon: faPiggyBank, color: 'emerald' },
+                    { label: 'Target', value: formatCurrency(totalTarget), icon: faArrowUp, color: 'blue' },
+                    { label: 'Remaining', value: formatCurrency(Math.max(totalTarget - totalSaved, 0)), icon: faWallet, color: 'amber' },
+                    { label: 'Progress', value: `${overallPct}%`, icon: faChartPie, color: overallPct >= 100 ? 'emerald' : 'blue' },
+                ].map((s, i) => {
+                    const colorMap = {
+                        emerald: { icon: isLight ? 'text-emerald-600' : 'text-emerald-400', bg: isLight ? 'bg-emerald-50' : 'bg-emerald-900/20' },
+                        blue: { icon: isLight ? 'text-blue-600' : 'text-blue-400', bg: isLight ? 'bg-blue-50' : 'bg-blue-900/20' },
+                        amber: { icon: isLight ? 'text-amber-600' : 'text-amber-400', bg: isLight ? 'bg-amber-50' : 'bg-amber-900/20' },
+                    }
+                    const cm = colorMap[s.color]
+                    return (
+                        <AnimateIn key={i} delay={i * 80}>
+                            <div className={`${card} p-5`}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{s.label}</span>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${cm.bg}`}>
+                                        <FontAwesomeIcon icon={s.icon} className={`text-sm ${cm.icon}`} />
+                                    </div>
+                                </div>
+                                <p className={`text-lg sm:text-xl font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>{s.value}</p>
+                            </div>
+                        </AnimateIn>
+                    )
+                })}
             </div>
 
-            {/* Overall Progress Bar */}
-            {totalTarget > 0 && (
-                <AnimateIn delay={250}><div className={`${card} px-5 py-3`}>
-                    <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                            <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
-                                <div className={`h-full rounded-full ${overallPct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(overallPct, 100)}%`, animation: 'barGrow 1s ease-out 0.3s both' }} />
-                            </div>
+            {/* Overall Progress + New Goal Button */}
+            <AnimateIn delay={350}><div className={`${card} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Overall Progress</h3>
+                    {!isViewer && <button onClick={() => { if (showForm) resetForm(); else setShowForm(true) }} className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                        showForm
+                            ? (isLight ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-[#1f1f1f] text-gray-400 hover:bg-[#252525]')
+                            : (isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500')
+                    }`}>
+                        <FontAwesomeIcon icon={showForm ? faTimes : faPlus} className="text-[10px]" />
+                        {showForm ? 'Cancel' : 'New Goal'}
+                    </button>}
+                </div>
+                {totalTarget > 0 ? (
+                    <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{formatCurrency(totalSaved)} of {formatCurrency(totalTarget)}</span>
+                            <span className={`text-xs font-semibold ${overallPct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-600' : 'text-gray-300')}`}>{overallPct}%</span>
                         </div>
-                        <span className={`text-xs font-bold flex-shrink-0 ${overallPct >= 100 ? 'text-emerald-500' : (isLight ? 'text-slate-500' : 'text-gray-400')}`}>{formatCurrency(totalSaved)} / {formatCurrency(totalTarget)}</span>
+                        <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                            <div className={`h-full rounded-full ${overallPct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(overallPct, 100)}%`, animation: 'barGrow 1s ease-out 0.4s both' }} />
+                        </div>
+                        <p className={`text-[11px] mt-2 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{activeGoals.length} active goal{activeGoals.length !== 1 ? 's' : ''} · {totalContributions} contribution{totalContributions !== 1 ? 's' : ''}</p>
                     </div>
-                </div></AnimateIn>
-            )}
+                ) : (
+                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No active goals yet.</p>
+                )}
+            </div></AnimateIn>
 
             {/* Form */}
             {showForm && (
                 <AnimateIn delay={0}><div className={`${card} p-5`}>
-                    <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: form.color + '20' }}>
-                            <SafeIcon name={form.icon || 'bullseye'} cls="text-sm" style={{ color: form.color }} />
-                        </div>
-                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Goal' : 'New Goal'}</h3>
-                    </div>
+                    <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{editing ? 'Edit Goal' : 'New Goal'}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="sm:col-span-2">
                             <label className={labelCls}>Goal Name</label>
-                            <input type="text" placeholder="e.g., Emergency Fund, Vacation, New Laptop..." value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} />
+                            <input type="text" placeholder="e.g., Emergency Fund, Vacation..." value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={inputCls} />
                         </div>
                         <div>
                             <label className={labelCls}>Target Amount</label>
@@ -7164,13 +7274,13 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
                         </div>
                         <div>
                             <label className={labelCls}>Notes (optional)</label>
-                            <input type="text" placeholder="Description or notes" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={inputCls} />
+                            <input type="text" placeholder="Description" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className={inputCls} />
                         </div>
                         <div className="sm:col-span-2">
                             <label className={labelCls}>Color</label>
                             <div className="flex gap-2 flex-wrap">
                                 {CATEGORY_COLORS.map(c => (
-                                    <button key={c} onClick={() => setForm({...form, color: c})} aria-label={`Select color ${c}`} aria-pressed={form.color === c} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
+                                    <button key={c} onClick={() => setForm({...form, color: c})} className={`w-6 h-6 rounded-full transition-all ${form.color === c ? 'ring-2 ring-offset-1 scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: c }} />
                                 ))}
                             </div>
                         </div>
@@ -7185,174 +7295,118 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
                 </div></AnimateIn>
             )}
 
-            {/* Active Goals */}
-            {activeGoals.map((g, gIdx) => {
-                const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
-                const remaining = Math.max(g.targetAmount - g.currentAmount, 0)
-                const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
-                const isExpanded = expandedGoal === g._id
-                const isOverdue = daysLeft !== null && daysLeft < 0
-                const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
-                const monthlyNeeded = daysLeft && daysLeft > 0 && remaining > 0 ? remaining / (daysLeft / 30) : null
+            {/* Active Goals List */}
+            <AnimateIn delay={400}><div className={`${card} p-5`}>
+                <h3 className={`text-sm font-semibold mb-4 ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Active Goals</h3>
+                {filteredActive.length > 0 ? (
+                    <div className="space-y-3">
+                        {filteredActive.map((g, gIdx) => {
+                            const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
+                            const remaining = Math.max(g.targetAmount - g.currentAmount, 0)
+                            const daysLeft = g.deadline ? Math.ceil((new Date(g.deadline) - new Date()) / 86400000) : null
+                            const isExpanded = expandedGoal === g._id
+                            const isOverdue = daysLeft !== null && daysLeft < 0
+                            const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30
 
-                return (
-                    <AnimateIn key={g._id} delay={300 + gIdx * 60}>
-                    <div className={`${card} overflow-hidden`}>
-                        <div className="p-5">
-                            {/* Row 1: Icon + Name + Actions */}
-                            <div className="flex items-center justify-between gap-3 mb-3">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '15' }}>
-                                        <SafeIcon name={g.icon || 'bullseye'} cls="text-sm" style={{ color: g.color }} />
-                                    </div>
-                                    <div className="min-w-0">
+                            return (
+                                <div key={g._id} className={`cursor-pointer rounded-lg p-2 -mx-2 transition-colors ${isLight ? 'hover:bg-slate-50' : 'hover:bg-[#1a1a1a]'}`}>
+                                    <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-2">
-                                            <h4 className={`text-sm font-bold truncate ${isLight ? 'text-slate-800' : 'text-white'}`}>{g.name}</h4>
-                                            <span className={`text-[10px] font-bold flex-shrink-0 px-1.5 py-0.5 rounded ${
-                                                pct >= 100 ? 'bg-emerald-500/10 text-emerald-500' : (isLight ? 'bg-slate-100 text-slate-500' : 'bg-[#1a1a1a] text-gray-400')
-                                            }`}>{pct}%</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            {g.category && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{g.category.name}</span>}
-                                            {g.category && daysLeft !== null && <span className={`text-[10px] ${isLight ? 'text-slate-300' : 'text-gray-600'}`}>·</span>}
+                                            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '20' }}>
+                                                <SafeIcon name={g.icon || 'bullseye'} cls="text-[10px]" style={{ color: g.color }} />
+                                            </div>
+                                            <span className={`text-sm ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</span>
                                             {daysLeft !== null && (
                                                 <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : isUrgent ? 'text-amber-500' : (isLight ? 'text-slate-400' : 'text-gray-500')}`}>
-                                                    {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                                                    {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d`}
                                                 </span>
                                             )}
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrency(g.currentAmount)}</span>
+                                            <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{pct}%</span>
+                                        </div>
                                     </div>
-                                </div>
-                                {!isViewer && <div className="flex items-center gap-0.5 flex-shrink-0">
-                                    <button onClick={() => handleEdit(g)} aria-label={`Edit ${g.name}`} className={`w-7 h-7 rounded-lg flex items-center justify-center ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500'}`}>
-                                        <FontAwesomeIcon icon={faPen} className="text-[10px]" />
-                                    </button>
-                                    <button onClick={() => handleDelete(g._id)} aria-label={`Delete ${g.name}`} className={`w-7 h-7 rounded-lg flex items-center justify-center ${deleteConfirm === g._id ? (isLight ? 'bg-red-100 text-red-600' : 'bg-red-900/30 text-red-400') : (isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-[#1f1f1f] text-gray-500')}`}>
-                                        <FontAwesomeIcon icon={deleteConfirm === g._id ? faExclamationTriangle : faTrash} className="text-[10px]" />
-                                    </button>
-                                </div>}
-                            </div>
-
-                            {/* Row 2: Amount + Progress */}
-                            <div className="mb-3">
-                                <div className="flex items-baseline justify-between mb-1.5">
-                                    <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>
-                                        <span className="font-semibold" style={{ color: g.color }}>{formatCurrency(g.currentAmount)}</span> of {formatCurrency(g.targetAmount)}
-                                    </span>
-                                    {remaining > 0 && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(remaining)} left</span>}
-                                </div>
-                                <div className={`h-2 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#141414]'}`}>
-                                    <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: g.color, animation: `barGrow 0.8s ease-out ${0.2 + gIdx * 0.08}s both` }} />
-                                </div>
-                            </div>
-
-                            {/* Row 3: Add Funds + Info */}
-                            <div className="flex items-center justify-between">
-                                {!isViewer && contribForm.goalId === g._id ? (
-                                    <div className="flex items-center gap-2 flex-1">
-                                        <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs`} min="0" step="0.01" autoFocus />
-                                        <input type="text" placeholder="Note" value={contribForm.notes} onChange={e => setContribForm({...contribForm, notes: e.target.value})} className={`${inputCls} flex-1 !py-1.5 !text-xs hidden sm:block`} />
-                                        <button onClick={handleContribute} disabled={!contribForm.amount} className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-emerald-600 text-white hover:bg-emerald-500'}`}>
-                                            <FontAwesomeIcon icon={faCheck} className="text-[10px]" />
-                                        </button>
-                                        <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`text-xs px-1.5 py-1.5 rounded-lg ${isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-gray-500 hover:bg-[#1f1f1f]'}`}>
-                                            <FontAwesomeIcon icon={faTimes} className="text-[10px]" />
+                                    <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
+                                        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: g.color, animation: `barGrow 0.8s ease-out ${0.4 + gIdx * 0.1}s both` }} />
+                                    </div>
+                                    <div className="flex items-center justify-between mt-1.5">
+                                        <div className="flex items-center gap-2">
+                                            {!isViewer && contribForm.goalId === g._id ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <input type="number" placeholder="Amount" value={contribForm.amount} onChange={e => setContribForm({...contribForm, amount: e.target.value})} className={`${inputCls} !py-1 !text-[11px] w-20`} min="0" autoFocus />
+                                                    <input type="text" placeholder="Note" value={contribForm.notes} onChange={e => setContribForm({...contribForm, notes: e.target.value})} className={`${inputCls} !py-1 !text-[11px] w-20 hidden sm:block`} />
+                                                    <button onClick={handleContribute} disabled={!contribForm.amount} className="px-2 py-1 rounded text-[10px] font-medium text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40"><FontAwesomeIcon icon={faCheck} /></button>
+                                                    <button onClick={() => setContribForm({ goalId: null, amount: '', notes: '' })} className={`px-1.5 py-1 rounded text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}><FontAwesomeIcon icon={faTimes} /></button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    {!isViewer && <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`text-[10px] font-medium px-2 py-0.5 rounded transition-all ${isLight ? 'text-emerald-600 hover:bg-emerald-50' : 'text-emerald-400 hover:bg-emerald-500/10'}`}>
+                                                        <FontAwesomeIcon icon={faPlus} className="mr-1 text-[8px]" />Add
+                                                    </button>}
+                                                    {!isViewer && <button onClick={() => handleEdit(g)} className={`text-[10px] px-1.5 py-0.5 rounded ${isLight ? 'text-blue-500 hover:bg-blue-50' : 'text-blue-400 hover:bg-blue-900/20'}`}><FontAwesomeIcon icon={faPen} /></button>}
+                                                    {!isViewer && <button onClick={() => handleDelete(g._id)} className={`text-[10px] px-1.5 py-0.5 rounded ${isLight ? 'text-red-500 hover:bg-red-50' : 'text-red-400 hover:bg-red-900/20'}`}><FontAwesomeIcon icon={faTrash} /></button>}
+                                                </div>
+                                            )}
+                                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(remaining)} left</span>
+                                        </div>
+                                        <button onClick={() => setExpandedGoal(isExpanded ? null : g._id)} className={`text-[10px] px-1.5 py-0.5 rounded transition-all ${isExpanded ? (isLight ? 'text-blue-500' : 'text-blue-400') : (isLight ? 'text-slate-400 hover:text-slate-600' : 'text-gray-500 hover:text-gray-300')}`}>
+                                            {g.contributions?.length || 0} entries <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[8px] ml-0.5" />
                                         </button>
                                     </div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        {!isViewer && <button onClick={() => setContribForm({ goalId: g._id, amount: '', notes: '' })} className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${isLight ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-emerald-900/15 text-emerald-400 hover:bg-emerald-900/25'}`}>
-                                            <FontAwesomeIcon icon={faPlus} className="text-[8px]" />
-                                            Add Funds
-                                        </button>}
-                                        {monthlyNeeded && <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{formatCurrency(monthlyNeeded)}/mo to reach target</span>}
-                                    </div>
-                                )}
-                                <button onClick={() => setExpandedGoal(isExpanded ? null : g._id)} className={`flex items-center gap-1 text-[10px] ml-2 flex-shrink-0 px-2 py-1.5 rounded-lg transition-all ${isLight ? 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' : 'text-gray-500 hover:bg-[#151515] hover:text-gray-300'}`}>
-                                    {g.contributions?.length || 0} entries
-                                    <FontAwesomeIcon icon={isExpanded ? faChevronUp : faChevronDown} className="text-[8px] ml-0.5" />
-                                </button>
-                            </div>
 
-                            {/* Expanded: Contribution Timeline */}
-                            {isExpanded && g.contributions?.length > 0 && (
-                                <div className={`mt-3 pt-3 border-t border-solid ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                    {g.notes && <p className={`text-[11px] mb-3 px-2 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>{g.notes}</p>}
-                                    <div className="relative pl-4">
-                                        <div className={`absolute left-[5px] top-1 bottom-1 w-px ${isLight ? 'bg-slate-200' : 'bg-[#222]'}`} />
-                                        {g.contributions.slice().reverse().slice(0, 10).map((c, i) => {
-                                            const contribKey = `${g._id}-${c._id}`
-                                            return (
-                                            <div key={c._id || i} className="relative flex items-start gap-3 mb-2 last:mb-0 group">
-                                                <div className="absolute left-[-13px] top-1.5 w-2 h-2 rounded-full border-2 flex-shrink-0" style={{ borderColor: g.color, backgroundColor: i === 0 ? g.color : 'transparent' }} />
-                                                <div className="flex items-center justify-between flex-1 min-w-0">
-                                                    <div className="min-w-0">
-                                                        <span className={`text-xs font-semibold text-emerald-500`}>+{formatCurrency(c.amount)}</span>
-                                                        {c.notes && <span className={`text-[10px] ml-1.5 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.notes}</span>}
+                                    {/* Contributions */}
+                                    {isExpanded && g.contributions?.length > 0 && (
+                                        <div className={`mt-2 pt-2 border-t border-solid space-y-0.5 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
+                                            {g.contributions.slice().reverse().slice(0, 8).map((c, i) => {
+                                                return (
+                                                <div key={c._id || i} className={`flex items-center justify-between py-1 group`}>
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className="text-[11px] font-semibold text-emerald-500">+{formatCurrency(c.amount)}</span>
+                                                        {c.notes && <span className={`text-[10px] truncate ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{c.notes}</span>}
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
-                                                        <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                            {new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                        </span>
-                                                        {!isViewer && (
-                                                            <button
-                                                                onClick={() => handleRemoveContribution(g._id, c._id)}
-                                                                className={`w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all ${
-                                                                    deleteContribConfirm === contribKey
-                                                                        ? (isLight ? 'bg-red-100 text-red-600 opacity-100' : 'bg-red-900/30 text-red-400 opacity-100')
-                                                                        : (isLight ? 'hover:bg-red-50 text-slate-400 hover:text-red-500' : 'hover:bg-red-900/20 text-gray-600 hover:text-red-400')
-                                                                }`}
-                                                            >
-                                                                <FontAwesomeIcon icon={deleteContribConfirm === contribKey ? faExclamationTriangle : faTimes} className="text-[8px]" />
-                                                            </button>
-                                                        )}
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                        <span className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>{new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                        {!isViewer && <button onClick={() => handleRemoveContribution(g._id, c._id)} className={`w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? 'text-red-400 hover:text-red-500' : 'text-red-400 hover:text-red-300'}`}><FontAwesomeIcon icon={faTimes} className="text-[7px]" /></button>}
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )})}
-                                        {g.contributions.length > 10 && (
-                                            <p className={`text-[10px] ml-2 mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>+{g.contributions.length - 10} earlier</p>
-                                        )}
-                                    </div>
+                                            )})}
+                                            {g.contributions.length > 8 && <p className={`text-[9px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>+{g.contributions.length - 8} more</p>}
+                                        </div>
+                                    )}
+                                    {isExpanded && (!g.contributions || g.contributions.length === 0) && (
+                                        <p className={`text-[10px] text-center mt-2 pt-2 border-t border-solid ${isLight ? 'border-slate-100 text-slate-400' : 'border-[#1f1f1f] text-gray-500'}`}>No contributions yet</p>
+                                    )}
                                 </div>
-                            )}
-                            {isExpanded && (!g.contributions || g.contributions.length === 0) && (
-                                <div className={`mt-3 pt-3 border-t border-solid text-center py-4 ${isLight ? 'border-slate-100' : 'border-[#1f1f1f]'}`}>
-                                    <p className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No contributions yet</p>
-                                </div>
-                            )}
-                        </div>
+                            )
+                        })}
                     </div>
-                    </AnimateIn>
-                )
-            })}
+                ) : (
+                    <p className={`text-sm ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No active goals.</p>
+                )}
+            </div></AnimateIn>
 
             {/* Completed Goals */}
             {completedGoals.length > 0 && (
-                <AnimateIn delay={400}><div className={`${card} overflow-hidden`}>
-                    <button onClick={() => setShowCompleted(!showCompleted)} className={`w-full flex items-center justify-between px-5 py-3.5 transition-all ${isLight ? 'hover:bg-slate-50/50' : 'hover:bg-[#111]/50'}`}>
-                        <div className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faCheckCircle} className="text-xs text-emerald-500" />
-                            <span className={`text-xs font-semibold ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>Completed ({completedGoals.length})</span>
-                        </div>
+                <AnimateIn delay={500}><div className={`${card} p-5`}>
+                    <button onClick={() => setShowCompleted(!showCompleted)} className="w-full flex items-center justify-between">
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Completed ({completedGoals.length})</h3>
                         <FontAwesomeIcon icon={showCompleted ? faChevronUp : faChevronDown} className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`} />
                     </button>
                     {showCompleted && (
-                        <div className={`px-5 pb-4 space-y-1.5`}>
-                            {completedGoals.map(g => (
-                                <div key={g._id} className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '15' }}>
+                        <div className="mt-3 space-y-2">
+                            {completedGoals.map((g) => (
+                                <div key={g._id} className={`flex items-center justify-between rounded-lg p-2 -mx-2 ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: g.color + '20' }}>
                                             <SafeIcon name={g.icon || 'bullseye'} cls="text-[10px]" style={{ color: g.color }} />
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className={`text-xs font-semibold truncate ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</p>
-                                            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
-                                                {g.contributions?.length || 0} contributions · {g.deadline ? new Date(g.updatedAt || g.deadline).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'No deadline'}
-                                            </p>
-                                        </div>
+                                        <span className={`text-sm truncate ${isLight ? 'text-slate-600' : 'text-gray-300'}`}>{g.name}</span>
                                     </div>
-                                    <span className="text-xs font-bold text-emerald-500 flex-shrink-0 ml-3">{formatCurrency(g.currentAmount)}</span>
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                        <span className="text-sm font-semibold text-emerald-500">{formatCurrency(g.currentAmount)}</span>
+                                        <FontAwesomeIcon icon={faCheckCircle} className="text-[10px] text-emerald-500" />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -7362,17 +7416,23 @@ const GoalsTab = React.memo(({ goals, categories, dispatch, isLight, card, input
 
             {/* Empty State */}
             {goals.length === 0 && !showForm && (
-                <AnimateIn delay={200}><div className={`${card} py-12 text-center`}>
+                <AnimateIn delay={200}><div className={`${card} p-5 text-center py-12`}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 ${isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]'}`}>
                         <FontAwesomeIcon icon={faPiggyBank} className={`text-lg ${isLight ? 'text-slate-300' : 'text-gray-600'}`} />
                     </div>
                     <p className={`text-sm font-semibold mb-1 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>No goals yet</p>
                     <p className={`text-xs mb-4 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Start tracking what you're saving for.</p>
-                    <button onClick={() => setShowForm(true)} className={`text-xs font-semibold px-4 py-2 rounded-lg ${isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
-                        <FontAwesomeIcon icon={faPlus} className="mr-1.5 text-[10px]" />
-                        Create Goal
-                    </button>
+                    {!isViewer && <button onClick={() => setShowForm(true)} className={`text-xs font-medium px-4 py-2 rounded-lg ${isLight ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                        <FontAwesomeIcon icon={faPlus} className="mr-1.5 text-[10px]" />Create Goal
+                    </button>}
                 </div></AnimateIn>
+            )}
+
+            {deleteModal && (
+                <DeleteConfirmModal isLight={isLight} title={deleteModal.title} message={deleteModal.message} onCancel={() => setDeleteModal(null)} onConfirm={() => {
+                    if (deleteModal.type === 'goal') confirmDelete(deleteModal.id)
+                    else if (deleteModal.type === 'contribution') confirmRemoveContribution(deleteModal.goalId, deleteModal.contributionId)
+                }} />
             )}
         </div>
     )
@@ -7418,7 +7478,7 @@ const BUDGET_TEMPLATES = [
     },
 ]
 
-const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year, templateStyles, dashboard, monthlyBudgetData }) => {
+const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year, templateStyles, dashboard, monthlyBudgetData, allTabs }) => {
     const [rateEdits, setRateEdits] = useState({})
     const [rateEditorOpen, setRateEditorOpen] = useState(false)
     const [savingRates, setSavingRates] = useState(false)
@@ -7683,6 +7743,50 @@ const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary
                         </button>
                     </div>
                 )}
+            </div></AnimateIn>
+
+            {/* ─── Tab Visibility ─── */}
+            <AnimateIn delay={50}><div className={cardP}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-violet-50' : 'bg-violet-900/20'}`}>
+                        <FontAwesomeIcon icon={faEye} className={`text-sm ${isLight ? 'text-violet-500' : 'text-violet-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Tab Visibility</h3>
+                        <p className={descCls}>Show or hide tabs from the navigation bar</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {allTabs.filter(t => t.id !== 'dashboard' && t.id !== 'settings').map(tab => {
+                        const isHidden = (budgetSettings?.hiddenTabs || []).includes(tab.id)
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={async () => {
+                                    const current = budgetSettings?.hiddenTabs || []
+                                    const updated = isHidden ? current.filter(id => id !== tab.id) : [...current, tab.id]
+                                    await saveSettings({ hiddenTabs: updated })
+                                    notify(isHidden ? `${tab.label} tab is now visible` : `${tab.label} tab is now hidden`)
+                                }}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border border-solid transition-all ${
+                                    isHidden
+                                        ? (isLight ? 'bg-slate-50 border-slate-200 opacity-60' : 'bg-[#111] border-[#2B2B2B] opacity-60')
+                                        : (isLight ? 'bg-white border-slate-200 hover:border-violet-300' : 'bg-[#0e0e0e] border-[#2B2B2B] hover:border-violet-800/50')
+                                }`}
+                            >
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${
+                                    isHidden
+                                        ? (isLight ? 'bg-slate-100' : 'bg-[#1a1a1a]')
+                                        : (isLight ? 'bg-violet-50' : 'bg-violet-900/20')
+                                }`}>
+                                    <FontAwesomeIcon icon={tab.icon} className={`text-xs ${isHidden ? (isLight ? 'text-slate-400' : 'text-gray-500') : (isLight ? 'text-violet-500' : 'text-violet-400')}`} />
+                                </div>
+                                <span className={`text-xs font-medium flex-1 text-left ${isHidden ? (isLight ? 'text-slate-400 line-through' : 'text-gray-500 line-through') : (isLight ? 'text-slate-700' : 'text-gray-200')}`}>{tab.label}</span>
+                                <FontAwesomeIcon icon={isHidden ? faEyeSlash : faEye} className={`text-xs ${isHidden ? (isLight ? 'text-slate-300' : 'text-gray-600') : (isLight ? 'text-violet-400' : 'text-violet-500')}`} />
+                            </button>
+                        )
+                    })}
+                </div>
             </div></AnimateIn>
 
             {/* ─── Default Currency ─── */}

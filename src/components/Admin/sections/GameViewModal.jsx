@@ -164,10 +164,12 @@ const GameViewModal = ({ gameModal, setGameModal, data }) => {
                                                                 {
                                                                     item.links && item.links.length > 0 &&
                                                                         item.links.map((link, i) => {
+                                                                            const linkUrl = typeof link === 'string' ? link : link.url
+                                                                            const linkName = typeof link === 'string' ? '' : (link.name || '')
                                                                             return (
                                                                                 <div className='flex justify-between py-1'>
-                                                                                    <p className='whitespace-pre-wrap font-semibold break-all w-4/5'> - {link}</p>
-                                                                                    <a key={i} href={link} target="_blank" className='cursor-pointer sm:block hidden'><FontAwesomeIcon icon={faArrowRight}/></a>
+                                                                                    <p className='whitespace-pre-wrap font-semibold break-all w-4/5'> - {linkName ? `${linkName}: ` : ''}{linkUrl}</p>
+                                                                                    <a key={i} href={linkUrl} target="_blank" className='cursor-pointer sm:block hidden'><FontAwesomeIcon icon={faArrowRight}/></a>
                                                                                 </div>
                                                                             )
                                                                         })
