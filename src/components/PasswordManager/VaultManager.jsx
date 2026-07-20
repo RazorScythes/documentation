@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -211,6 +212,7 @@ function MasterPasswordModal({ theme, isOpen, onUnlock, onClose, isLoading, erro
 
 function VaultManager({ theme, user }) {
     const dispatch = useDispatch()
+    const navigate = useNavigate()
     const isLight = theme === 'light'
 
     const {
@@ -344,7 +346,7 @@ function VaultManager({ theme, user }) {
 
     const handleUnlockVault = async (masterPassword) => {
         setUnlockError('')
-        const salt = vaultSalt || sessionStorage.getItem(SALT_STORAGE_KEY)
+        const salt = vaultSalt || sessionStorage.getItem(SALT_STORAGE_KEY) || vaultStatus?.salt
         if (!salt) {
             setUnlockError('Vault salt not found. Please contact support.')
             return
@@ -1122,12 +1124,12 @@ function VaultManager({ theme, user }) {
                 isOpen={showMasterModal && !isUnlocked}
                 mode={masterModalMode}
                 onUnlock={masterModalMode === 'setup' ? handleSetupVault : handleUnlockVault}
-                onClose={vaultStatus?.hasVault ? () => setShowMasterModal(false) : undefined}
+                onClose={() => { setShowMasterModal(false); navigate('/account') }}
                 isLoading={isLoading}
                 error={unlockError}
             />
 
-            {alert && (
+            {alert && isUnlocked && (
                 <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-xl ${
                     variant === 'success'
                         ? isLight ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-green-900/20 text-green-400 border border-green-800'
