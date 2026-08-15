@@ -191,7 +191,7 @@ const Budget = ({ user, theme }) => {
     })
 
     // category form
-    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '', icon: '', rollover: false, rolloverRule: 'none' }
+    const emptyCategory = { name: '', color: '#3b82f6', type: 'expense', budget: '', icon: '', rollover: false, rolloverRule: 'none', allocationPercent: 80 }
     const [categoryForm, setCategoryForm] = useState(emptyCategory)
     const [editingCategory, setEditingCategory] = useState(null)
     const [showCategoryForm, setShowCategoryForm] = useState(false)
@@ -563,7 +563,7 @@ const Budget = ({ user, theme }) => {
 
     const handleCategorySubmit = async () => {
         if (!categoryForm.name) return
-        const data = { ...categoryForm, ...ownerParam, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover, rolloverRule: categoryForm.rolloverRule || 'none' }
+        const data = { ...categoryForm, ...ownerParam, budget: parseFloat(categoryForm.budget) || 0, rollover: !!categoryForm.rollover, rolloverRule: categoryForm.rolloverRule || 'none', allocationPercent: categoryForm.type === 'income' ? (parseFloat(categoryForm.allocationPercent) || 100) : undefined }
         try {
             if (editingCategory) {
                 await dispatch(updateBudgetCategory({ ...data, id: editingCategory })).unwrap()
@@ -581,7 +581,7 @@ const Budget = ({ user, theme }) => {
     }
 
     const handleEditCategory = (c) => {
-        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '', icon: c.icon || '', rollover: !!c.rollover, rolloverRule: c.rolloverRule || (c.rollover ? 'carry' : 'none') })
+        setCategoryForm({ name: c.name, color: c.color, type: c.type, budget: c.budget?.toString() || '', icon: c.icon || '', rollover: !!c.rollover, rolloverRule: c.rolloverRule || (c.rollover ? 'carry' : 'none'), allocationPercent: c.allocationPercent ?? 80 })
         setEditingCategory(c._id)
         setShowCategoryForm(true)
     }
@@ -944,8 +944,43 @@ const Budget = ({ user, theme }) => {
         return formatCurrencyRaw(v, from)
     }, [activeViewCurrency, formatCurrencyRaw, toTargetCurrency])
 
+    const getMonthAllocation = (cat) => {
+        const monthKey = `${year}-${String(month).padStart(2, '0')}`
+        const monthly = cat.monthlyAllocation
+        if (monthly && (monthly instanceof Map ? monthly.has(monthKey) : monthly[monthKey] != null)) {
+            return Number(monthly instanceof Map ? monthly.get(monthKey) : monthly[monthKey])
+        }
+        return cat.allocationPercent ?? 80
+    }
+
+    const allocatedPool = useMemo(() => {
+        const incomeCats = categories.filter(c => c.type === 'income')
+        const convert = (amt, cur) => toTargetCurrency(amt, cur || 'PHP', activeViewCurrency) ?? amt
+        let pool = 0
+        incomeCats.forEach(cat => {
+            const catIncome = expenses
+                .filter(e => e.category?._id === cat._id && e.type === 'income' && !e.listOnly)
+                .reduce((s, e) => s + convert(e.amount, e.currency), 0)
+            const pct = getMonthAllocation(cat)
+            pool += catIncome * (pct / 100)
+        })
+        const uncategorizedIncome = expenses
+            .filter(e => !e.category && e.type === 'income' && !e.listOnly)
+            .reduce((s, e) => s + convert(e.amount, e.currency), 0)
+        pool += uncategorizedIncome
+        return pool
+    }, [categories, expenses, activeViewCurrency, exchangeRates, month, year])
+
+    const totalIncomeGlobal = useMemo(() => {
+        const convert = (amt, cur) => toTargetCurrency(amt, cur || 'PHP', activeViewCurrency) ?? amt
+        return expenses.filter(e => e.type === 'income' && !e.listOnly).reduce((s, e) => s + convert(e.amount, e.currency), 0)
+    }, [expenses, activeViewCurrency, exchangeRates])
+
+    const autoSavings = totalIncomeGlobal - allocatedPool
+
     const monthlyBudgetData = useMemo(() => {
         const expenseCats = categories.filter(c => c.type === 'expense')
+        const totalStaticBudget = expenseCats.reduce((s, c) => s + (c.budget || 0), 0)
         return expenseCats.map(cat => {
             const spent = expenses
                 .filter(e => e.category?._id === cat._id && e.type === 'expense' && !e.listOnly)
@@ -953,11 +988,15 @@ const Budget = ({ user, theme }) => {
                     const converted = toTargetCurrency(e.amount, e.currency || 'PHP', activeViewCurrency)
                     return s + (converted ?? e.amount)
                 }, 0)
-            const budget = toTargetCurrency(cat.budget || 0, 'PHP', activeViewCurrency) ?? (cat.budget || 0)
+            const baseBudget = toTargetCurrency(cat.budget || 0, 'PHP', activeViewCurrency) ?? (cat.budget || 0)
+            const allocated = totalStaticBudget > 0 && allocatedPool > 0
+                ? ((cat.budget || 0) / totalStaticBudget) * allocatedPool
+                : baseBudget
+            const budget = allocated
             const pct = budget > 0 ? Math.round((spent / budget) * 100) : 0
-            return { ...cat, spent, budget, remaining: budget - spent, percentage: pct }
+            return { ...cat, spent, budget, baseBudget, remaining: budget - spent, percentage: pct }
         })
-    }, [categories, expenses, activeViewCurrency, exchangeRates])
+    }, [categories, expenses, activeViewCurrency, exchangeRates, allocatedPool])
 
     const ytdData = useMemo(() => {
         if (!ytdExpenses.length) return null
@@ -1312,7 +1351,7 @@ const Budget = ({ user, theme }) => {
 
                         {/* Tab Content */}
                         <div id="budget-content" role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
-                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} templateStyles={templateStyles} />}
+                        {activeTab === 'dashboard' && <DashboardTab dashboard={dashboard} expenses={expenses} categories={categories} monthlyBudgetData={monthlyBudgetData} isLight={isLight} card={card} formatCurrency={formatCurrency} formatCurrencyRaw={formatCurrencyRaw} statusColor={statusColor} isLoading={isLoading} activeViewCurrency={activeViewCurrency} toTargetCurrency={toTargetCurrency} month={month} year={year} savings={savings} debts={debts} goals={goals} paymentIcon={paymentIcon} setReceiptViewer={setReceiptViewer} ytdData={ytdData} ytdLoading={ytdLoading} isViewer={isViewer} templateStyles={templateStyles} allocatedPool={allocatedPool} autoSavings={autoSavings} />}
                         {activeTab === 'daily' && (
                             <DailyExpensesTab
                                 groupedByDate={groupedByDate} categories={categories} expenses={expenses}
@@ -1423,6 +1462,7 @@ const Budget = ({ user, theme }) => {
                                 month={month} year={year} templateStyles={templateStyles}
                                 dashboard={dashboard} monthlyBudgetData={monthlyBudgetData}
                                 allTabs={allTabs}
+                                allocatedPool={allocatedPool} autoSavings={autoSavings} totalIncomeGlobal={totalIncomeGlobal}
                             />
                         )}
                         </div>
@@ -1593,7 +1633,7 @@ const Budget = ({ user, theme }) => {
 
 // ==================== DASHBOARD TAB ====================
 
-const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon, setReceiptViewer, ytdData, ytdLoading, isViewer, templateStyles }) => {
+const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudgetData, isLight, card, formatCurrency, formatCurrencyRaw, statusColor, isLoading, activeViewCurrency, toTargetCurrency, month, year, savings, debts, goals, paymentIcon, setReceiptViewer, ytdData, ytdLoading, isViewer, templateStyles, allocatedPool, autoSavings }) => {
     const pulse = `animate-pulse rounded ${isLight ? 'bg-slate-200/70' : 'bg-[#1f1f1f]'}`
 
     if (isLoading || !dashboard) {
@@ -1764,6 +1804,7 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
     const goalsTotalTarget = activeGoals.reduce((s, g) => s + (g.targetAmount || 0), 0)
     const goalsOverallPct = goalsTotalTarget > 0 ? Math.round((goalsTotalSaved / goalsTotalTarget) * 100) : 0
 
+    const autoSavingsPct = totalIncome > 0 ? Math.round((autoSavings / totalIncome) * 100) : 0
     const summaryCards = [
         { label: 'Total Income', value: formatCurrencyRaw(totalIncome, activeViewCurrency), icon: faArrowUp, color: 'emerald' },
         { label: 'Total Expenses', value: formatCurrencyRaw(totalExpenses, activeViewCurrency), icon: faArrowDown, color: 'red' },
@@ -2020,6 +2061,24 @@ const DashboardTab = React.memo(({ dashboard, expenses, categories, monthlyBudge
                     )
                 })}
             </div>
+
+            {/* Auto Savings Banner */}
+            {autoSavings > 0 && (
+                <AnimateIn delay={350}>
+                    <div className={`${card} ${templateStyles?.cardPadding || 'px-5 py-4'} flex items-center justify-between`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-50' : 'bg-emerald-900/20'}`}>
+                                <FontAwesomeIcon icon={faPiggyBank} className={`text-sm ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                            </div>
+                            <div>
+                                <p className={`text-xs font-medium uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Auto Savings</p>
+                                <p className={`text-lg font-bold ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`}>{formatCurrencyRaw(autoSavings, activeViewCurrency)}</p>
+                            </div>
+                        </div>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-900/20 text-emerald-400'}`}>{autoSavingsPct}% of income</span>
+                    </div>
+                </AnimateIn>
+            )}
 
             {/* Currency Breakdown */}
             {currencyBreakdown.length > 0 && (
@@ -4920,6 +4979,16 @@ const CategoriesTab = React.memo(({
                                     </div>
                                 )}
                             </div>
+                            {categoryForm.type === 'income' && (
+                                <div>
+                                    <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-500' : 'text-gray-400'}`}>Allocation %</label>
+                                    <div className="flex items-center gap-2">
+                                        <input type="number" min="0" max="100" step="5" placeholder="100" value={categoryForm.allocationPercent ?? 100} onChange={e => setCategoryForm({...categoryForm, allocationPercent: e.target.value})} className={`${inputCls} w-20`} />
+                                        <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>% goes to budget</span>
+                                    </div>
+                                    <p className={`text-[10px] mt-1 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Remainder is saved automatically</p>
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
                             <button onClick={() => { setShowCategoryForm(false); setEditingCategory(null); setCategoryForm(emptyCategory); setShowIconPicker(false); setIconSearch('') }} className={btnSecondary}>Cancel</button>
@@ -7478,7 +7547,8 @@ const BUDGET_TEMPLATES = [
     },
 ]
 
-const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year, templateStyles, dashboard, monthlyBudgetData, allTabs }) => {
+const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary, btnSecondary, dispatch, categories, expenses, savedRates, liveRates, savedBaseCurrency, exchangeRates, viewCurrency, setViewCurrency, activeViewCurrency, formatCurrencyRaw, budgetSettings, PAYMENT_METHODS, month, year, templateStyles, dashboard, monthlyBudgetData, allTabs, allocatedPool, autoSavings, totalIncomeGlobal }) => {
+    const [allocEdits, setAllocEdits] = useState({})
     const [rateEdits, setRateEdits] = useState({})
     const [rateEditorOpen, setRateEditorOpen] = useState(false)
     const [savingRates, setSavingRates] = useState(false)
@@ -7787,6 +7857,98 @@ const SettingsTab = React.memo(({ isLight, card, inputCls, selectCls, btnPrimary
                         )
                     })}
                 </div>
+            </div></AnimateIn>
+
+            {/* ─── Income Allocation ─── */}
+            <AnimateIn delay={75}><div className={cardP}>
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLight ? 'bg-emerald-50' : 'bg-emerald-900/20'}`}>
+                        <FontAwesomeIcon icon={faCoins} className={`text-sm ${isLight ? 'text-emerald-500' : 'text-emerald-400'}`} />
+                    </div>
+                    <div>
+                        <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>Income Allocation <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ml-1.5 ${isLight ? 'bg-blue-50 text-blue-500' : 'bg-blue-900/20 text-blue-400'}`}>{new Date(year, month - 1).toLocaleString('default', { month: 'short', year: 'numeric' })}</span></h3>
+                        <p className={descCls}>Set what percentage of each income source goes to your budget this month</p>
+                    </div>
+                </div>
+
+                {/* Summary */}
+                <div className={`grid grid-cols-3 gap-2 mb-4 p-3 rounded-lg ${isLight ? 'bg-slate-50' : 'bg-[#111]'}`}>
+                    <div className="text-center">
+                        <p className={`text-[10px] uppercase tracking-wider font-medium ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Total Income</p>
+                        <p className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{formatCurrencyRaw(totalIncomeGlobal)}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className={`text-[10px] uppercase tracking-wider font-medium ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>To Budget</p>
+                        <p className={`text-sm font-bold ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>{formatCurrencyRaw(allocatedPool)}</p>
+                    </div>
+                    <div className="text-center">
+                        <p className={`text-[10px] uppercase tracking-wider font-medium ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>Auto Savings</p>
+                        <p className={`text-sm font-bold ${isLight ? 'text-emerald-600' : 'text-emerald-400'}`}>{formatCurrencyRaw(autoSavings)}</p>
+                    </div>
+                </div>
+
+                {/* Per income category allocation */}
+                <div className="space-y-2">
+                    {categories.filter(c => c.type === 'income').map(cat => {
+                        const catIncome = expenses
+                            .filter(e => e.category?._id === cat._id && e.type === 'income' && !e.listOnly)
+                            .reduce((s, e) => s + e.amount, 0)
+                        const monthKey = `${year}-${String(month).padStart(2, '0')}`
+                        const monthlyVal = cat.monthlyAllocation && (cat.monthlyAllocation instanceof Map ? cat.monthlyAllocation.get(monthKey) : cat.monthlyAllocation[monthKey])
+                        const editVal = allocEdits[cat._id]
+                        const pct = editVal != null ? editVal : (monthlyVal != null ? Number(monthlyVal) : (cat.allocationPercent ?? 80))
+                        const allocated = catIncome * (pct / 100)
+                        const saved = catIncome - allocated
+                        return (
+                            <div key={cat._id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border border-solid ${isLight ? 'bg-white border-slate-200' : 'bg-[#0e0e0e] border-[#2B2B2B]'}`}>
+                                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0`} style={{ backgroundColor: (cat.color || '#3b82f6') + '20' }}>
+                                    <FontAwesomeIcon icon={faMoneyBillWave} className="text-xs" style={{ color: cat.color || '#3b82f6' }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-xs font-semibold truncate ${isLight ? 'text-slate-700' : 'text-gray-200'}`}>{cat.name}</p>
+                                    <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>
+                                        {formatCurrencyRaw(allocated)} to budget{saved > 0 ? ` · ${formatCurrencyRaw(saved)} saved` : ''}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <input
+                                        type="number"
+                                        min="0" max="100" step="5"
+                                        value={pct}
+                                        onChange={(e) => {
+                                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                                            setAllocEdits(prev => ({ ...prev, [cat._id]: val }))
+                                        }}
+                                        className={`w-14 text-center text-xs font-medium py-1 rounded-md border border-solid outline-none ${isLight ? 'bg-white border-slate-200 text-slate-700 focus:border-emerald-400' : 'bg-[#1a1a1a] border-[#333] text-gray-200 focus:border-emerald-600'}`}
+                                    />
+                                    <span className={`text-xs ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>%</span>
+                                </div>
+                            </div>
+                        )
+                    })}
+                    {categories.filter(c => c.type === 'income').length === 0 && (
+                        <p className={`text-xs text-center py-3 ${isLight ? 'text-slate-400' : 'text-gray-500'}`}>No income categories. Create income categories to set allocation percentages.</p>
+                    )}
+                </div>
+                {Object.keys(allocEdits).length > 0 && (
+                    <div className="flex justify-end mt-3">
+                        <button
+                            onClick={async () => {
+                                const monthKey = `${year}-${String(month).padStart(2, '0')}`
+                                for (const [catId, val] of Object.entries(allocEdits)) {
+                                    const cat = categories.find(c => c._id === catId)
+                                    if (cat) await dispatch(updateBudgetCategory({ id: cat._id, name: cat.name, color: cat.color, type: cat.type, budget: cat.budget || 0, icon: cat.icon || '', rollover: !!cat.rollover, monthlyAllocation: { [monthKey]: val } }))
+                                }
+                                dispatch(getBudgetDashboard({ month, year }))
+                                setAllocEdits({})
+                                notify(`Allocation saved for ${new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`)
+                            }}
+                            className={btnPrimary}
+                        >
+                            <FontAwesomeIcon icon={faCheck} className="mr-1.5 text-xs" /> Save Allocation
+                        </button>
+                    </div>
+                )}
             </div></AnimateIn>
 
             {/* ─── Default Currency ─── */}
